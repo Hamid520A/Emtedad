@@ -13,7 +13,12 @@ def create_user(db: Session, user: schemas.UserCreate):
         phone=user.phone,
         first_name=user.first_name,
         last_name=user.last_name,
-        hashed_password=hashed_pwd
+        hashed_password=hashed_pwd,
+        national_id=user.national_id,
+        province=user.province,
+        city=user.city,
+        gender=user.gender,
+        birth_date=user.birth_date
     )
     db.add(db_user)
     db.commit()

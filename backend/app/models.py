@@ -11,6 +11,11 @@ class User(Base):
     first_name = Column(String)
     last_name = Column(String, nullable=True)
     hashed_password = Column(String)
+    national_id = Column(String, unique=True, index=True) # کد ملی یکتا
+    province = Column(String) # استان
+    city = Column(String)     # شهرستان
+    gender = Column(String)   # جنسیت
+    birth_date = Column(String) # تاریخ تولد
     is_active = Column(Boolean, default=True)
 
 class Contest(Base):
@@ -25,6 +30,7 @@ class Contest(Base):
     end_time = Column(DateTime, nullable=True)
     status = Column(String, default="upcoming")
     award = Column(String)
+    time_limit = Column(Integer, default=10) # زمان مجاز به دقیقه
 
     questions = relationship("Question", back_populates="contest")
 

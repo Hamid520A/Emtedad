@@ -10,6 +10,11 @@ class UserBase(BaseModel):
     phone: str
     first_name: str
     last_name: Optional[str] = None
+    national_id: str
+    province: str
+    city: str
+    gender: str
+    birth_date: str
 
 class UserCreate(UserBase):
     password: str
@@ -70,10 +75,12 @@ class ContestCreate(BaseModel):
     file_url: Optional[str] = None   
     start_time: Optional[datetime] = None 
     end_time: Optional[datetime] = None
+    time_limit: Optional[int] = 10
     
 class Contest(ContestBase):
     id: int
-    questions: List[Question] = [] # <-- این تنها خطی است که به کلاس خودت اضافه شد
+    questions: List[Question] = []
+    time_limit: Optional[int] = 10
 
     class Config:
         from_attributes = True

@@ -31,6 +31,9 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     db_user = crud.get_user_by_phone(db, phone=user.phone)
     if db_user:
         raise HTTPException(status_code=400, detail="شماره قبلاً ثبت شده")
+    db_user_national = db.query(models.User).filter(models.User.national_id == user.national_id).first()
+    if db_user_national:
+        raise HTTPException(status_code=400, detail="کد ملی قبلاً ثبت شده")
     return crud.create_user(db=db, user=user) 
   
 @app.post("/login")
@@ -88,12 +91,15 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
     
     results = []
     for index, sub in enumerate(submissions):
+        national_id = sub.user.national_id or "****"
+        last_four_digits = national_id[-4:] if len(national_id) >= 4 else national_id
         results.append({
             "rank": index + 1,
             "user_id": sub.user_id,
             "name": f"{sub.user.first_name} {sub.user.last_name}",
             "score": sub.score,
-            "time": sub.time_taken
+            "time": sub.time_taken,
+            "last_four_id": last_four_digits
         })
     return results
 

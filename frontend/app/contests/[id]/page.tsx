@@ -300,22 +300,50 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               </div>
             )}
 
+
+
+
             <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
               <h3 className="font-black text-[#1a2e44] mb-5 text-center flex justify-center items-center gap-2">
-                <Trophy size={20} className="text-[#c5a059]" /> سکوی قهرمانی
+                <Trophy size={20} className="text-[#c5a059]" /> برندگان مسابقه
               </h3>
               <div className="space-y-3">
-                {topThree.length === 0 ? <p className="text-center text-sm text-gray-400 italic">کسی در این مسابقه شرکت نکرده است.</p> : 
+                {topThree.length === 0 ? (
+                  <p className="text-center text-sm text-gray-400 italic">کسی در این مسابقه شرکت نکرده است.</p>
+                ) : (
                   topThree.map((user: any) => (
-                    <div key={user.user_id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${user.rank === 1 ? 'bg-[#faf9f6] border-[#c5a059] shadow-sm scale-[1.02]' : 'border-gray-50'}`}>
+                    <div 
+                      key={user.user_id} 
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                        user.rank === 1 ? 'bg-[#faf9f6] border-[#c5a059] shadow-sm scale-[1.02]' : 'border-gray-50'
+                      }`}
+                    >
                       <div className="flex items-center gap-3">
-                        {user.rank === 1 ? <Crown size={22} className="text-yellow-500 drop-shadow-sm" /> : <Medal size={20} className="text-gray-400" />}
-                        <span className="font-bold text-sm text-[#1a2e44]">{user.name}</span>
+                        {/* آیکون رتبه */}
+                        {user.rank === 1 ? (
+                          <Crown size={22} className="text-yellow-500 drop-shadow-sm" />
+                        ) : (
+                          <Medal size={20} className="text-gray-400" />
+                        )}
+                        {/* نام و اطلاعات تکمیلی */}
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm text-[#1a2e44]">{user.name}</span>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-500 font-medium">
+                            <span>نمره: <span className="text-[#1a2e44] font-bold">{user.score}%</span></span>
+                            <span className="text-gray-300">|</span>
+                            <span>زمان: <span className="text-[#1a2e44] font-bold">{user.time}s</span></span>
+                            <span className="text-gray-300">|</span>
+                            <span dir="ltr" className="text-left">
+                              ******{user.last_four_id || '****'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <span className="font-black text-base text-[#1a2e44]">{user.score}%</span>
+                      {/* آیکون تزئینی برای نفر اول */}
+                      {user.rank === 1 && <Trophy size={18} className="text-[#c5a059] opacity-50" />}
                     </div>
                   ))
-                }
+                )}
               </div>
             </div>
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
-import { Clock, ChevronRight, ChevronLeft, CheckCircle, Award, AlertCircle, Loader2, Home, RotateCcw } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, RotateCcw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // منطق تحلیل نمره 
@@ -22,24 +22,36 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [answers, setAnswers] = useState<{ [key: number]: number }>({});
+  
+  // تایمر داینامیک
   const [timeLeft, setTimeLeft] = useState(600); 
+  const [totalTime, setTotalTime] = useState(600); 
+
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchQuestions = async () => {
+    const fetchData = async () => {
       try {
         const cleanId = parseInt(params.id);
-        const response = await api.get(`/contests/${cleanId}/questions`);
-        setQuestions(response.data);
+        // گرفتن همزمان اطلاعات مسابقه (برای تایمر) و سوالات
+        const [contestRes, questionsRes] = await Promise.all([
+          api.get(`/contests/${cleanId}`),
+          api.get(`/contests/${cleanId}/questions`)
+        ]);
+
+        const limitInSeconds = (contestRes.data.time_limit || 10) * 60;
+        setTotalTime(limitInSeconds);
+        setTimeLeft(limitInSeconds);
+        setQuestions(questionsRes.data);
       } catch (error) {
-        console.error("خطا در دریافت سوالات", error);
+        console.error("خطا در دریافت اطلاعات آزمون", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchQuestions();
+    fetchData();
   }, [params.id]);
 
   useEffect(() => {
@@ -51,12 +63,12 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   }, [timeLeft, isSubmitted, loading, questions.length]);
 
   useEffect(() => {
-    if (timeLeft === 0 && !isSubmitted && !loading) {
+    if (timeLeft === 0 && !isSubmitted && !loading && questions.length > 0) {
       handleSubmitExam();
     }
   }, [timeLeft]);
 
-  // اجرای انیمیشن Confetti در صورت قبولی
+  // بازگشت دقیق کد کنفتی شما
   useEffect(() => {
     if (isSubmitted && result && result.score >= 50) {
       const duration = 3 * 1000;
@@ -95,6 +107,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   };
 
   const handleSubmitExam = async () => {
+    if (submitting) return;
     setSubmitting(true);
     let correctCount = 0;
     questions.forEach(q => {
@@ -102,7 +115,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     });
     
     const finalScore = questions.length > 0 ? (correctCount / questions.length) * 100 : 0;
-    const timeTaken = 600 - timeLeft;
+    const timeTaken = totalTime - timeLeft;
 
     try {
       await api.post('/submissions', {
@@ -159,7 +172,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
               <span className="text-3xl font-black text-[#1a2e44]">{result.score}%</span>
             </div>
             <div className="bg-gray-50 p-5 rounded-3xl text-center border border-gray-100">
-              <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">زمان کل</span>
+              <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">زمان صرف شده</span>
               <span className="text-2xl font-bold text-[#c5a059]">{result.timeTaken}s</span>
             </div>
           </div>
@@ -199,7 +212,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
       </header>
 
       <main className="flex-1 p-6 overflow-y-auto">
-        <div className="mb-8">
+        <div className="mb-8 text-right">
           <h2 className="font-black text-xl text-[#1a2e44] leading-relaxed mb-4">{question.text}</h2>
           {question.description && (
             <div className="flex items-start gap-3 text-sm text-gray-600 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
