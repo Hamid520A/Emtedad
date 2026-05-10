@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* برای اینکه مطمئن شویم استایل‌ها اعمال می‌شوند، این تست را اضافه کن */
+body {
+  background-color: #faf9f6; /* رنگ کاغذ گرم */
+}
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  direction: rtl; /* تنظیم جهت کل اپلیکیشن به راست به چپ */
+  font-family: 'Tahoma', sans-serif; /* در آینده می‌توانید فونت ایران‌یکان اضافه کنید */
+  background-color: #f3f4f6;
+}
