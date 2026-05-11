@@ -14,7 +14,8 @@ export default function CreateContestPage() {
     image_url: '',
     file_url: '',
     start_time: '',
-    time_limit: 10 // مقدار پیش‌فرض ۱۰ دقیقه
+    time_limit: 10,
+    question_limit: 15
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,10 +87,18 @@ export default function CreateContestPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">جایزه (اختیاری)</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                جوایز مسابقه (هر کدام در یک خط)
+              </label>
               <div className="relative">
                 <Trophy className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input type="text" className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" placeholder="مثال: هندزفری" onChange={(e) => setFormData({...formData, award: e.target.value})} />
+                <textarea 
+                  rows={3}
+                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm leading-relaxed"
+                  placeholder="مثلاً:&#10;نفر اول: ۱ میلیون تومان&#10;نفر دوم: ۵۰۰ هزار تومان"
+                  value={formData.award}
+                  onChange={(e) => setFormData({...formData, award: e.target.value})}
+                />
               </div>
             </div>
             
@@ -100,6 +109,16 @@ export default function CreateContestPage() {
                 <option value="active">در حال برگزاری</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تعداد سوالات هر آزمون</label>
+            <input 
+              type="number" 
+              className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold"
+              value={formData.question_limit}
+              onChange={(e) => setFormData({...formData, question_limit: parseInt(e.target.value)})}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

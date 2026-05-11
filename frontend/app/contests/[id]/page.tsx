@@ -90,8 +90,11 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   if (loading) return <div className="h-screen flex items-center justify-center bg-[#faf9f6]"><Loader2 className="animate-spin text-[#1a2e44]" size={40} /></div>;
   if (!contest) return <div className="p-6 text-center text-[#1a2e44] font-bold">مسابقه یافت نشد.</div>;
 
-  const myResult = leaderboard.find((user) => user.user_id === profile?.id) || profile?.history?.find((h:any) => h.contest_id === contest.id);
+// اصلاح منطق شناسایی کاربر - این بخش را جایگزین کد قبلی کن
+  const myResult = leaderboard.find((user) => String(user.user_id) === String(profile?.id)) || 
+                   profile?.history?.find((h:any) => String(h.contest_id) === String(params.id));
   const hasParticipated = !!myResult;
+  console.log("آیا شرکت کرده؟", hasParticipated, "نتیجه من:", myResult);
   const topThree = leaderboard.slice(0, 3);
   const others = leaderboard.slice(3);
 
@@ -100,9 +103,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] font-sans pb-24 relative" dir="rtl">
       
-      {/* بخش جدید: هدر با تصویر پس‌زمینه 
-        اگر image_url وجود داشته باشد، آن را نمایش می‌دهد وگرنه یک هدر ساده می‌سازد.
-      */}
+      {/* بخش هدر با تصویر پس‌زمینه */}
       <div className="relative w-full h-56 bg-[#1a2e44]">
         {contest.image_url ? (
           <>
@@ -111,14 +112,12 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               alt={contest.title} 
               className="w-full h-full object-cover"
             />
-            {/* گرادیانت تیره روی عکس برای خوانایی متن هدر */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-[#faf9f6]"></div>
           </>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-b from-[#1a2e44] to-[#faf9f6]"></div>
         )}
         
-        {/* دکمه بازگشت و عنوان در بالای تصویر */}
         <header className="absolute top-0 left-0 right-0 p-6 flex items-center gap-3 z-20">
           <button onClick={() => router.back()} className="p-2 bg-white/20 backdrop-blur-md rounded-full border border-white/30 hover:bg-white/30 transition text-white">
             <ArrowRight size={20} />
@@ -127,7 +126,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
         </header>
       </div>
 
-      {/* محتوای اصلی - با margin منفی کمی روی عکس قرار می‌گیرد تا ظاهر مدرنی داشته باشد */}
       <main className="px-6 space-y-6 relative z-30 -mt-10">
               
         {/* پنل اکشن سریع ادمین */}
@@ -135,7 +133,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           <div className="bg-white/90 backdrop-blur-md border border-red-100 p-4 rounded-2xl flex flex-col gap-3 shadow-lg mb-4 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
             
-            {/* --- ردیف اول: عنوان پنل و دکمه‌های آیکون‌دار --- */}
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <div className="flex items-center gap-2">
                 <Settings size={18} className="text-red-500 animate-spin-slow" />
@@ -143,7 +140,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               </div>
               
               <div className="flex items-center gap-2">
-                {/* دکمه جدید مشاهده شرکت‌کنندگان */}
                 <button 
                   onClick={() => router.push(`/admin/contest/${contest.id}/participants`)}
                   className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors flex items-center gap-1"
@@ -162,9 +158,8 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                   <span className="text-[10px] font-bold">حذف</span>
                 </button>
               </div>
-            </div> {/* <--- این تگ در کد شما جا مانده بود */}
+            </div>
             
-            {/* --- ردیف دوم: دکمه‌های تغییر وضعیت --- */}
             <div className="flex justify-end gap-2">
               {contest.status === 'upcoming' && (
                 <button 
@@ -175,12 +170,13 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                 </button>
               )}
 
+              {/* دکمه پایان مسابقه برای ادمین (جایگزین دکمه شروع قبلی) */}
               {contest.status === 'active' && (
                 <button 
                   onClick={() => changeContestStatus('finished')}
-                  className="bg-[#1a2e44] text-white px-4 py-2 rounded-xl text-xs font-black shadow-md shadow-blue-900/20 active:scale-95 transition-all flex items-center gap-2 hover:bg-[#2a405a]"
+                  className="bg-[#1a2e44] text-white px-4 py-2 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center gap-2 hover:bg-[#2a405a]"
                 >
-                  <Power size={14} className="text-[#c5a059]" /> پایان مسابقه
+                  <Power size={14} className="text-[#c5a059]" /> اتمام مسابقه
                 </button>
               )}
             </div>
@@ -190,7 +186,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
         {/* 1. بخش مشترک */}
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 text-center space-y-4 pt-10 relative">
           
-          {/* آیکون جام مسابقه */}
           <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-[#1a2e44] text-[#c5a059] rounded-3xl flex items-center justify-center shadow-lg border-4 border-white">
             <Trophy size={36} />
           </div>
@@ -207,10 +202,28 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           </p>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <div className="bg-orange-50 p-4 rounded-2xl flex flex-col items-center justify-center border border-orange-100">
-              <Gift size={24} className="text-orange-500 mb-1" />
-              <span className="text-[10px] text-orange-400 font-bold mb-1">جایزه مسابقه</span>
-              <span className="font-black text-orange-600 text-sm">{contest.award || 'نامشخص'}</span>
+            <div className="bg-orange-50 p-4 rounded-2xl flex flex-col border border-orange-100 min-h-[100px]">
+              <div className="flex items-center gap-2 mb-2">
+                <Gift size={20} className="text-orange-500" />
+                <span className="text-[10px] text-orange-400 font-bold uppercase tracking-widest">جوایز رقابت</span>
+              </div>
+              
+              <div className="space-y-1">
+                {contest.award ? (
+                  contest.award.split('\n').map((item: string, index: number) => (
+                    item.trim() && (
+                      <div key={index} className="flex items-start gap-2">
+                        <span className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-1.5 flex-shrink-0"></span>
+                        <span className="font-black text-orange-600 text-[11px] leading-relaxed">
+                          {item.trim()}
+                        </span>
+                      </div>
+                    )
+                  ))
+                ) : (
+                  <span className="text-xs text-orange-400 font-bold">نامشخص</span>
+                )}
+              </div>
             </div>
             
             <a 
@@ -247,28 +260,36 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           </div>
         )}
 
-        {/* 3. حالت: در حال برگزاری (Active) */}
+        {/* 3. حالت: در حال برگزاری (Active) - نمایش اطلاعات کامل شرکت‌کننده */}
         {contest.status === 'active' && (
           <div className="space-y-4">
             {hasParticipated ? (
               <div className="bg-green-50 p-6 rounded-[2rem] border border-green-200 shadow-sm text-center">
                 <CheckCircle size={40} className="text-green-500 mx-auto mb-3 drop-shadow-sm" />
-                <h3 className="font-black text-green-800 text-lg mb-4">شما در این آزمون شرکت کرده‌اید</h3>
-                <div className="flex justify-center gap-4">
-                  <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-green-100 flex-1">
-                    <span className="block text-[10px] text-gray-400 font-bold mb-1 uppercase tracking-widest">نمره شما</span>
-                    <span className="font-black text-2xl text-[#1a2e44]">{myResult.score}%</span>
+                <h3 className="font-black text-[#1a2e44] text-lg mb-1">
+                  {profile?.name} {profile?.family}
+                </h3>
+                <p className="text-green-700 text-[11px] font-bold mb-4 opacity-80">شما در این آزمون شرکت کرده‌اید</p>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-green-100">
+                    <span className="block text-[9px] text-gray-400 font-bold mb-1 uppercase tracking-widest">نمره</span>
+                    <span className="font-black text-lg text-[#1a2e44]">{myResult.score}%</span>
                   </div>
-                  <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-green-100 flex-1">
-                    <span className="block text-[10px] text-gray-400 font-bold mb-1 uppercase tracking-widest">رتبه فعلی</span>
-                    <span className="font-black text-2xl text-[#c5a059]">#{myResult.rank || '-'}</span>
+                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-green-100">
+                    <span className="block text-[9px] text-gray-400 font-bold mb-1 uppercase tracking-widest">رتبه</span>
+                    <span className="font-black text-lg text-[#c5a059]">#{myResult.rank || '-'}</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-green-100">
+                    <span className="block text-[9px] text-gray-400 font-bold mb-1 uppercase tracking-widest">زمان</span>
+                    <span className="font-black text-lg text-blue-600">{myResult.time || myResult.time_taken || 0}s</span>
                   </div>
                 </div>
               </div>
             ) : (
               <button 
                 onClick={() => router.push(`/exam/${contest.id}`)}
-                className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20 active:scale-95 transition-all hover:bg-[#2a405a]"
+                className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all hover:bg-[#2a405a]"
               >
                 <PlayCircle size={24} className="text-[#c5a059]" />
                 شروع رقابت
@@ -300,9 +321,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               </div>
             )}
 
-
-
-
             <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
               <h3 className="font-black text-[#1a2e44] mb-5 text-center flex justify-center items-center gap-2">
                 <Trophy size={20} className="text-[#c5a059]" /> برندگان مسابقه
@@ -319,13 +337,11 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        {/* آیکون رتبه */}
                         {user.rank === 1 ? (
                           <Crown size={22} className="text-yellow-500 drop-shadow-sm" />
                         ) : (
                           <Medal size={20} className="text-gray-400" />
                         )}
-                        {/* نام و اطلاعات تکمیلی */}
                         <div className="flex flex-col">
                           <span className="font-bold text-sm text-[#1a2e44]">{user.name}</span>
                           <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-500 font-medium">
@@ -339,7 +355,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                           </div>
                         </div>
                       </div>
-                      {/* آیکون تزئینی برای نفر اول */}
                       {user.rank === 1 && <Trophy size={18} className="text-[#c5a059] opacity-50" />}
                     </div>
                   ))
@@ -347,18 +362,79 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               </div>
             </div>
 
-            {others.length > 0 && (
-              <div className="space-y-2 pb-6">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2 mb-3">سایر شرکت‌کنندگان</h4>
-                {others.map((user: any) => (
-                  <div key={user.user_id} className="flex items-center justify-between bg-white p-4 rounded-2xl border border-gray-50 shadow-sm hover:border-gray-100 transition-colors">
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="w-6 h-6 bg-[#faf9f6] text-[#c5a059] rounded-md flex items-center justify-center font-black text-xs">{user.rank}</span>
-                      <span className="font-bold text-gray-600">{user.name}</span>
-                    </div>
-                    <span className="font-bold text-gray-400 text-sm bg-gray-50 px-2 py-1 rounded-lg">{user.score}%</span>
-                  </div>
-                ))}
+            {leaderboard.length > 3 && (
+              <div className="space-y-3 pb-6">
+                <div className="flex items-center justify-between px-2 mb-4">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <Users size={14} /> تحلیل جایگاه و رقبای نزدیک
+                  </h4>
+                  {hasParticipated && (
+                    <span className="bg-[#c5a059]/10 text-[#c5a059] px-2 py-1 rounded-md text-[10px] font-black">
+                      رتبه شما: {myResult.rank}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {(() => {
+                    const userIndex = leaderboard.findIndex(u => u.user_id === profile?.id);
+                    const start = userIndex === -1 ? 3 : Math.max(3, userIndex - 10);
+                    const end = userIndex === -1 ? 13 : Math.min(leaderboard.length, userIndex + 11);
+                    const surroundingUsers = leaderboard.slice(start, end);
+
+                    return (
+                      <>
+                        {surroundingUsers.map((user: any) => {
+                          const isMe = user.user_id === profile?.id;
+                          return (
+                            <div 
+                              key={user.user_id} 
+                              className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                                isMe 
+                                ? 'bg-[#1a2e44] border-[#1a2e44] shadow-lg scale-[1.03] z-10 relative' 
+                                : 'bg-white border-gray-50 shadow-sm'
+                              }`}
+                            >
+                              <div className="flex items-center gap-4">
+                                <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
+                                  isMe ? 'bg-[#c5a059] text-[#1a2e44]' : 'bg-[#faf9f6] text-[#c5a059]'
+                                }`}>
+                                  {user.rank}
+                                </span>
+
+                                <div className="flex flex-col text-right">
+                                  <span className={`font-bold text-sm ${isMe ? 'text-white' : 'text-[#1a2e44]'}`}>
+                                    {user.name} {isMe && "(شما)"}
+                                  </span>
+                                  
+                                  <div className={`flex items-center gap-2 mt-1 text-[9px] font-bold ${isMe ? 'text-gray-300' : 'text-gray-500'}`}>
+                                    <span>نمره: {user.score}%</span>
+                                    <span className="opacity-30">|</span>
+                                    <span>زمان: {user.time}s</span>
+                                    <span className="opacity-30">|</span>
+                                    <span dir="ltr">******{user.last_four_id || '****'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {isMe && (
+                                <div className="bg-[#c5a059] p-1 rounded-full text-[#1a2e44]">
+                                  <CheckCircle size={14} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {leaderboard.length > end && (
+                          <p className="text-center text-[9px] text-gray-400 font-bold mt-4 italic">
+                            ... لیست بر اساس رتبه‌های نزدیک به شما فیلتر شده است ...
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </div>

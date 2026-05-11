@@ -1,4 +1,5 @@
 # backend/app/main.py
+import random
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
@@ -12,7 +13,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # برای تست راحت‌تر روی همه باز گذاشتم، بعداً محدود کن
+    allow_origins=["http://localhost:3000"], # برای تست راحت‌تر روی همه باز گذاشتم، بعداً محدود کن
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -56,11 +57,36 @@ def get_contest_detail(contest_id: int, db: Session = Depends(database.get_db)):
     return contest
 
 # --- اصلاح شده: دریافت سوالات ---
-@app.get("/contests/{contest_id}/questions", response_model=List[schemas.Question])
+@app.get("/contests/{contest_id}/questions", response_model=List[schemas.RandomizedQuestion])
 def get_questions_list(contest_id: int, db: Session = Depends(database.get_db)):
-    """دریافت سوالات یک مسابقه (برای فرانت‌ند)"""
-    questions = db.query(models.Question).filter(models.Question.contest_id == contest_id).all()
-    return questions
+    # ۱. دریافت اطلاعات مسابقه برای دانستن محدودیت تعداد سوالات
+    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+    if not contest:
+        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+    # ۲. دریافت تمام سوالات موجود برای این مسابقه
+    all_questions = db.query(models.Question).filter(models.Question.contest_id == contest_id).all()
+    # ۳. انتخاب تصادفی سوالات بر اساس حد تعیین شده
+    limit = contest.question_limit or 15
+    selected_questions = random.sample(all_questions, min(len(all_questions), limit))
+    processed_questions = []
+    for q in selected_questions:
+        # ۴. جابه‌جا کردن گزینه‌ها برای هر سوال
+        options = [
+            {"text": q.option_1, "id": 1},
+            {"text": q.option_2, "id": 2},
+            {"text": q.option_3, "id": 3},
+            {"text": q.option_4, "id": 4},
+        ]
+        random.shuffle(options) # جابه‌جایی تصادفی لیست گزینه‌ها
+        
+        processed_questions.append({
+            "id": q.id,
+            "text": q.text,
+            "description": q.description,
+            "shuffled_options": options, # گزینه‌های جابه‌جا شده
+            "correct_option": q.correct_option # برای بررسی نهایی در فرانت‌ند
+        })
+    return processed_questions
 
 @app.post("/contests", response_model=schemas.Contest)
 def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(database.get_db)):

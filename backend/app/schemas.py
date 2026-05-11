@@ -53,6 +53,20 @@ class Question(QuestionBase):
     class Config:
         from_attributes = True
 
+class QuestionOption(BaseModel):
+    id: int
+    text: str
+
+class RandomizedQuestion(BaseModel):
+    id: int
+    text: str
+    description: Optional[str] = None
+    shuffled_options: List[QuestionOption]
+    correct_option: int
+
+    class Config:
+        from_attributes = True
+
 # ==========================================
 # Contest Schemas (ویرایش جزئی)
 # ==========================================
@@ -76,11 +90,13 @@ class ContestCreate(BaseModel):
     start_time: Optional[datetime] = None 
     end_time: Optional[datetime] = None
     time_limit: Optional[int] = 10
+    question_limit: int = 15
     
 class Contest(ContestBase):
     id: int
     questions: List[Question] = []
     time_limit: Optional[int] = 10
+    question_limit: int = 15
 
     class Config:
         from_attributes = True

@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
-import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, RotateCcw } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, RotateCcw, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // منطق تحلیل نمره 
 const getAnalysis = (score: number) => {
   const s = parseInt(score.toString());
   if (s === 100) return { msg: "فوق‌العاده! تو یک نابغه‌ای.", color: "text-green-600", bg: "bg-green-50", emoji: "🏆" };
-  if (s >= 80) return { msg: "عالی بود! تسلط خیلی خوبی داشتی.", color: "text-[#1a2e44]", bg: "bg-blue-50", emoji: "🥇" };
+  if (s >= 80) return { msg: "عالی بود! تسلط خیلی خوبی داشتید.", color: "text-[#1a2e44]", bg: "bg-blue-50", emoji: "🥇" };
   if (s >= 50) return { msg: "خوب بود، اما جای پیشرفت داری.", color: "text-orange-600", bg: "bg-orange-50", emoji: "🥈" };
   return { msg: "تلاشت خوب بود، بیشتر مطالعه کن.", color: "text-red-600", bg: "bg-red-50", emoji: "📚" };
 };
@@ -23,11 +23,11 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [answers, setAnswers] = useState<{ [key: number]: number }>({});
   
-  // تایمر داینامیک
   const [timeLeft, setTimeLeft] = useState(600); 
   const [totalTime, setTotalTime] = useState(600); 
 
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showReview, setShowReview] = useState(false); // وضعیت جدید برای حالت مرور
   const [result, setResult] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,7 +35,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     const fetchData = async () => {
       try {
         const cleanId = parseInt(params.id);
-        // گرفتن همزمان اطلاعات مسابقه (برای تایمر) و سوالات
         const [contestRes, questionsRes] = await Promise.all([
           api.get(`/contests/${cleanId}`),
           api.get(`/contests/${cleanId}/questions`)
@@ -55,41 +54,28 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   }, [params.id]);
 
   useEffect(() => {
-    if (isSubmitted || timeLeft <= 0 || loading || questions.length === 0) return;
+    // اگر در حال مرور هستیم، تایمر نباید کار کند
+    if (isSubmitted || timeLeft <= 0 || loading || questions.length === 0 || showReview) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, isSubmitted, loading, questions.length]);
+  }, [timeLeft, isSubmitted, loading, questions.length, showReview]);
 
   useEffect(() => {
-    if (timeLeft === 0 && !isSubmitted && !loading && questions.length > 0) {
+    if (timeLeft === 0 && !isSubmitted && !loading && questions.length > 0 && !showReview) {
       handleSubmitExam();
     }
   }, [timeLeft]);
 
-  // بازگشت دقیق کد کنفتی شما
   useEffect(() => {
     if (isSubmitted && result && result.score >= 50) {
       const duration = 3 * 1000;
       const end = Date.now() + duration;
 
       const frame = () => {
-        confetti({
-          particleCount: 4,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-          colors: ['#1a2e44', '#c5a059', '#ffffff']
-        });
-        confetti({
-          particleCount: 4,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-          colors: ['#1a2e44', '#c5a059', '#ffffff']
-        });
-
+        confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
+        confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
         if (Date.now() < end) requestAnimationFrame(frame);
       };
       frame();
@@ -102,8 +88,9 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     return `${m}:${s}`;
   };
 
-  const handleSelectOption = (questionId: number, optionNumber: number) => {
-    setAnswers({ ...answers, [questionId]: optionNumber });
+  const handleSelectOption = (questionId: number, optionId: number) => {
+    if (showReview) return; // در حالت مرور امکان تغییر گزینه نیست
+    setAnswers({ ...answers, [questionId]: optionId });
   };
 
   const handleSubmitExam = async () => {
@@ -156,7 +143,8 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     );
   }
 
-  if (isSubmitted && result) {
+  // نمایش صفحه نتیجه (اگر در حالت مرور نیستیم)
+  if (isSubmitted && result && !showReview) {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] p-6 flex flex-col items-center font-sans" dir="rtl">
         <div className={`w-28 h-28 ${result.analysis.bg} rounded-full flex items-center justify-center mt-10 mb-4 shadow-sm border border-gray-100`}>
@@ -185,8 +173,11 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           <button onClick={() => router.push('/dashboard')} className="w-full bg-[#1a2e44] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
             <Home size={20} /> بازگشت به داشبورد
           </button>
-          <button onClick={() => window.location.reload()} className="w-full bg-white text-[#1a2e44] py-4 rounded-3xl font-bold flex items-center justify-center gap-2 border border-gray-200 transition active:scale-95">
-            <RotateCcw size={20} /> مرور مجدد سوالات
+          <button 
+            onClick={() => { setShowReview(true); setCurrentQIndex(0); }} 
+            className="w-full bg-white text-[#1a2e44] py-4 rounded-3xl font-bold flex items-center justify-center gap-2 border border-gray-200 transition active:scale-95"
+          >
+            <Eye size={20} /> مرور مجدد سوالات
           </button>
         </div>
       </div>
@@ -194,21 +185,27 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   }
 
   const question = questions[currentQIndex];
-  const currentOptions = [question.option_1, question.option_2, question.option_3, question.option_4];
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] flex flex-col font-sans" dir="rtl">
       <header className="bg-white p-5 shadow-sm flex justify-between items-center sticky top-0 z-10 rounded-b-3xl">
         <div className="flex flex-col">
-          <span className="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-widest">سوال {currentQIndex + 1} / {questions.length}</span>
+          <span className="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-widest">
+            {showReview ? 'حالت مشاهده گزینه‌ها' : `سوال ${currentQIndex + 1} / ${questions.length}`}
+          </span>
           <div className="w-28 h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-[#1a2e44] transition-all duration-500" style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }}></div>
           </div>
         </div>
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-sm ${timeLeft < 60 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-gray-50 text-[#1a2e44]'}`}>
-          <Clock className="w-4 h-4 text-[#c5a059]" />
-          <span dir="ltr">{formatTime(timeLeft)}</span>
-        </div>
+
+        {showReview ? (
+          <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl font-black text-[10px]">اتمام رقابت</div>
+        ) : (
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-sm ${timeLeft < 60 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-gray-50 text-[#1a2e44]'}`}>
+            <Clock className="w-4 h-4 text-[#c5a059]" />
+            <span dir="ltr">{formatTime(timeLeft)}</span>
+          </div>
+        )}
       </header>
 
       <main className="flex-1 p-6 overflow-y-auto">
@@ -223,20 +220,22 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className="space-y-4">
-          {currentOptions.map((optText, index) => {
-            const optionNumber = index + 1;
-            const isSelected = answers[question.id] === optionNumber;
+          {question.shuffled_options && question.shuffled_options.map((option: any, index: number) => {
+            const isSelected = answers[question.id] === option.id;
             return (
               <button
                 key={index}
-                onClick={() => handleSelectOption(question.id, optionNumber)}
+                disabled={showReview}
+                onClick={() => handleSelectOption(question.id, option.id)}
                 className={`w-full text-right p-5 rounded-3xl border transition-all duration-300 flex items-center justify-between group ${
-                  isSelected ? 'border-[#1a2e44] bg-[#1a2e44] text-white shadow-sm' : 'border-gray-200 bg-white hover:border-[#c5a059]'
+                  isSelected 
+                  ? (showReview ? 'border-blue-500 bg-blue-50 text-[#1a2e44]' : 'border-[#1a2e44] bg-[#1a2e44] text-white shadow-sm') 
+                  : 'border-gray-200 bg-white hover:border-[#c5a059]'
                 }`}
               >
-                <span className="font-bold">{optText}</span>
-                <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${isSelected ? 'border-white' : 'border-gray-300'}`}>
-                  {isSelected && <div className="w-3 h-3 bg-[#c5a059] rounded-full"></div>}
+                <span className="font-bold">{option.text}</span>
+                <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${isSelected ? (showReview ? 'border-blue-500' : 'border-white') : 'border-gray-300'}`}>
+                  {isSelected && <div className={`w-3 h-3 ${showReview ? 'bg-blue-500' : 'bg-[#c5a059]'} rounded-full`}></div>}
                 </div>
               </button>
             );
@@ -250,11 +249,14 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         </button>
 
         {currentQIndex === questions.length - 1 ? (
-          <button onClick={handleSubmitExam} disabled={!answers[question.id]} className="flex-1 bg-[#c5a059] text-white rounded-3xl font-black shadow-sm active:scale-95 transition-all disabled:opacity-50">
-            تایید و ثبت نتایج
+          <button 
+            onClick={showReview ? () => router.push('/dashboard') : handleSubmitExam} 
+            className={`flex-1 ${showReview ? 'bg-gray-200 text-gray-600' : 'bg-[#c5a059] text-white'} rounded-3xl font-black shadow-sm active:scale-95 transition-all`}
+          >
+            {showReview ? 'خروج از مرور' : 'تایید و ثبت نتایج'}
           </button>
         ) : (
-          <button onClick={() => setCurrentQIndex(prev => prev + 1)} disabled={!answers[question.id]} className="flex-1 bg-[#1a2e44] text-white rounded-3xl font-black shadow-sm active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+          <button onClick={() => setCurrentQIndex(prev => prev + 1)} className="flex-1 bg-[#1a2e44] text-white rounded-3xl font-black shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2">
             سوال بعدی <ChevronLeft size={20} />
           </button>
         )}

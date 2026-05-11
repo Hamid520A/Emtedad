@@ -31,7 +31,8 @@ class Contest(Base):
     status = Column(String, default="upcoming")
     award = Column(String)
     time_limit = Column(Integer, default=10) # زمان مجاز به دقیقه
-
+    question_limit = Column(Integer, default=15) # تعداد سوالاتی که در هر آزمون نمایش داده می‌شود
+    
     questions = relationship("Question", back_populates="contest")
 
 class Submission(Base):
