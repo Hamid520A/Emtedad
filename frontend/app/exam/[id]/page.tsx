@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
-import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, RotateCcw, Eye } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, RotateCcw, Eye, Globe, Send } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // منطق تحلیل نمره 
@@ -179,6 +179,20 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           >
             <Eye size={20} /> مرور مجدد سوالات
           </button>
+          <a 
+          href="https://emtedadeemam.ir" // آدرس سایت رو اینجا بذار
+          target="_blank"
+          className="w-full bg-[#c5a059] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+        >
+          <Globe size={20} /> سایت امتداد امام
+        </a>
+        <a 
+          href="https://eitaa.com/emtedadeemam" // آدرس کانال تلگرام یا ایتا رو اینجا بذار
+          target="_blank"
+          className="w-full bg-[#2a405a] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
+        >
+          <Send size={20} /> کانال امتداد امام
+        </a>
         </div>
       </div>
     );

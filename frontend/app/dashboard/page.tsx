@@ -144,7 +144,7 @@ export default function DashboardPage() {
                        contest.status === 'upcoming' ? 'به زودی' : 'پایان یافته'}
                     </span>
                     <h2 className="text-2xl font-bold mb-2 truncate">{contest.title}</h2>
-                    <p className="text-gray-300 text-sm leading-relaxed mb-6 line-clamp-2 h-10">
+                    <p className="text-gray-300 text-sm leading-relaxed mb-6 line-clamp-2 break-words h-10">
                       {contest.description || 'برای شرکت در این رقابت و کسب امتیاز آماده شوید!'}
                     </p>
                     <button 
@@ -203,14 +203,18 @@ export default function DashboardPage() {
                 <div className="w-16 h-16 bg-[#faf9f6] rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100">
                   {contest.image_url ? <img src={contest.image_url} className="w-full h-full object-cover" /> : <Trophy className="m-auto mt-5 text-[#c5a059]" size={24} />}
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-[#1a2e44] text-base mb-1">{contest.title}</h4>
+                {/* این بخش اصلاح شد:
+                  کلاس min-w-0 اضافه شد تا باکس بتونه خودش رو جمع کنه.
+                  برای آیدی کلاس shrink-0 و whitespace-nowrap اضافه شد تا له نشه و بهم نریزه.
+                */}
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-[#1a2e44] text-base mb-1 truncate">{contest.title}</h4>
                   <div className="flex items-center gap-2">
-                    <span className="bg-[#f0ece1] text-[#c5a059] text-[10px] px-2 py-0.5 rounded-md font-bold">آیدی: {contest.id}</span>
+                    <span className="bg-[#f0ece1] text-[#c5a059] text-[10px] px-2 py-0.5 rounded-md font-bold shrink-0 whitespace-nowrap">آیدی: {contest.id}</span>
                     <span className="text-[11px] text-gray-500 truncate">{contest.award}</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-[#1a2e44] group-hover:text-white transition-colors text-gray-400">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 group-hover:bg-[#1a2e44] group-hover:text-white transition-colors text-gray-400">
                   <PlayCircle size={20} />
                 </div>
               </div>

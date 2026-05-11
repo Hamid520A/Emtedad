@@ -14,9 +14,11 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     const fetchData = async () => {
       try {
         const [contestRes, lbRes, profileRes] = await Promise.all([
@@ -26,7 +28,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
         ]);
         
         setContest(contestRes.data);
-        setLeaderboard(lbRes.data);
+        setLeaderboard(lbRes.data || []);
         setProfile(profileRes.data);
       } catch (error) {
         console.error("خطا در دریافت اطلاعات", error);
@@ -38,23 +40,23 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   }, [params.id]);
 
   useEffect(() => {
-    if (contest?.status === 'upcoming' && contest?.start_time) {
-      const timer = setInterval(() => {
-        const difference = +new Date(contest.start_time) - +new Date();
-        if (difference > 0) {
-          setTimeLeft({
-            days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-            hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-            minutes: Math.floor((difference / 1000 / 60) % 60),
-            seconds: Math.floor((difference / 1000) % 60)
-          });
-        } else {
-          setTimeLeft(null);
-        }
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [contest]);
+    if (!mounted || contest?.status !== 'upcoming' || !contest?.start_time) return;
+
+    const timer = setInterval(() => {
+      const difference = +new Date(contest.start_time) - +new Date();
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60)
+        });
+      } else {
+        setTimeLeft(null);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [contest, mounted]);
 
   const changeContestStatus = async (newStatus: string) => {
     const actionText = newStatus === 'active' ? 'شروع فوری مسابقه' : 'پایان دادن به مسابقه';
@@ -87,17 +89,30 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
     }
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-[#faf9f6]"><Loader2 className="animate-spin text-[#1a2e44]" size={40} /></div>;
+  if (loading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#faf9f6]"><Loader2 className="animate-spin text-[#1a2e44]" size={40} /></div>;
   if (!contest) return <div className="p-6 text-center text-[#1a2e44] font-bold">مسابقه یافت نشد.</div>;
 
-// اصلاح منطق شناسایی کاربر - این بخش را جایگزین کد قبلی کن
-  const myResult = leaderboard.find((user) => String(user.user_id) === String(profile?.id)) || 
-                   profile?.history?.find((h:any) => String(h.contest_id) === String(params.id));
+  // گرفتن آیدی کاربر (حل مشکل undefined بودن)
+  const currentUserId = profile?.id || profile?.user_id;
+
+  // ۱. بررسی اینکه آیا در لیدربرد هست؟
+  const leaderboardMatch = currentUserId ? leaderboard.find((user) => String(user.user_id) === String(currentUserId)) : null;
+
+  // ۲. بررسی اینکه آیا در تاریخچه (history) هست؟ (حل مشکل نبودن contest_id با استفاده از title)
+  const historyMatch = profile?.history?.find((h:any) => 
+    String(h.contest_id) === String(params.id) || 
+    String(h.id) === String(params.id) ||
+    (contest?.title && h.contest_title === contest.title)
+  );
+
+  // ترکیب نتایج
+  const myResult = leaderboardMatch || historyMatch;
   const hasParticipated = !!myResult;
-  console.log("آیا شرکت کرده؟", hasParticipated, "نتیجه من:", myResult);
+  console.log("آیدی پروفایل من:", profile?.id);
+  console.log("دیتای لیدربرد:", leaderboard);
+  console.log("دیتای تاریخچه من:", profile?.history);
   const topThree = leaderboard.slice(0, 3);
   const others = leaderboard.slice(3);
-
   const isAdmin = true;
 
   return (
@@ -170,7 +185,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                 </button>
               )}
 
-              {/* دکمه پایان مسابقه برای ادمین (جایگزین دکمه شروع قبلی) */}
+              {/* دکمه پایان مسابقه برای ادمین */}
               {contest.status === 'active' && (
                 <button 
                   onClick={() => changeContestStatus('finished')}
@@ -260,7 +275,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           </div>
         )}
 
-        {/* 3. حالت: در حال برگزاری (Active) - نمایش اطلاعات کامل شرکت‌کننده */}
+        {/* 3. حالت: در حال برگزاری (Active) - با استایل ۳ ستونه کامل */}
         {contest.status === 'active' && (
           <div className="space-y-4">
             {hasParticipated ? (
@@ -298,7 +313,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           </div>
         )}
 
-        {/* 4. حالت: پایان یافته (Finished) */}
+        {/* 4. حالت: پایان یافته (Finished) - با استایل ۳ ستونه کامل و زمان */}
         {contest.status === 'finished' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between bg-white p-5 rounded-3xl border border-gray-100 shadow-sm">
@@ -310,14 +325,30 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
             </div>
 
             {hasParticipated && (
-              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] text-white p-6 rounded-3xl flex justify-between items-center shadow-lg border border-[#2a405a]">
-                 <div>
-                   <span className="text-[10px] text-[#c5a059] font-black uppercase tracking-widest block mb-1">نتیجه نهایی شما</span>
-                   <span className="font-black text-xl">رتبه {myResult.rank}</span>
-                 </div>
-                 <div className="bg-white text-[#1a2e44] px-5 py-2.5 rounded-2xl font-black text-lg shadow-sm">
-                   نمره {myResult.score}
-                 </div>
+              <div className="space-y-3">
+                {/* کارت ۳ ستونه زمان دار */}
+                <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] p-5 rounded-3xl shadow-lg border border-[#2a405a] grid grid-cols-3 gap-2">
+                  <div className="text-center border-l border-white/10 flex flex-col justify-center">
+                    <span className="text-[10px] text-[#c5a059] font-black uppercase block mb-1">رتبه نهایی</span>
+                    <span className="font-black text-xl text-white">#{myResult.rank || '-'}</span>
+                  </div>
+                  <div className="text-center border-l border-white/10 flex flex-col justify-center">
+                    <span className="text-[10px] text-[#c5a059] font-black uppercase block mb-1">نمره شما</span>
+                    <span className="font-black text-xl text-white">{myResult.score}%</span>
+                  </div>
+                  <div className="text-center flex flex-col justify-center">
+                    <span className="text-[10px] text-[#c5a059] font-black uppercase block mb-1">زمان</span>
+                    <span className="font-black text-xl text-white">{myResult.time || myResult.time_taken || 0}s</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => router.push(`/review-final/${contest.id}`)}
+                  className="w-full bg-white text-[#1a2e44] py-4 rounded-3xl font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition active:scale-95 hover:bg-gray-50"
+                >
+                  <FileText size={20} className="text-[#c5a059]" />
+                  مشاهده پاسخنامه و تحلیل سوالات
+                </button>
               </div>
             )}
 

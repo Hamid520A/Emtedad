@@ -101,7 +101,8 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                     
                     <div>
                       <span className="font-bold text-sm text-[#1a2e44] block">{user.name}</span>
-                      <span className="text-[10px] text-gray-400 font-bold">زمان: {user.time_taken || '-'} ثانیه</span>
+                      {/* اصلاح بخش زمان در اینجا انجام شده است */}
+                      <span className="text-[10px] text-gray-400 font-bold">زمان: {user.time || user.time_taken || 0} ثانیه</span>
                     </div>
                   </div>
                   

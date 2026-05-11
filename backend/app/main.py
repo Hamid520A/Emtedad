@@ -138,6 +138,7 @@ def get_user_profile(db: Session = Depends(database.get_db), current_user: model
         contest_id = sub.contest_id
         if contest_id not in unique_history or sub.score > unique_history[contest_id]['score']:
             unique_history[contest_id] = {
+                "contest_id": contest_id, # این خط اضافه شد تا فرانت‌ند مسابقه رو پیدا کنه
                 "contest_title": sub.contest.title,
                 "score": sub.score,
                 "time_taken": sub.time_taken,
@@ -157,10 +158,21 @@ def get_user_profile(db: Session = Depends(database.get_db), current_user: model
         "history": history
     }
 
-# --- اضافه کردن اندپوینت ثبت نمره (مهم برای پایان آزمون) ---
+# --- اضافه کردن اندپوینت ثبت نمره (با جلوگیری از تقلب و ثبت تکراری) ---
 @app.post("/submissions")
 def submit_exam(submission: schemas.SubmissionCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     try:
+        # ۱. بررسی اینکه آیا کاربر قبلاً در این مسابقه شرکت کرده است یا خیر
+        existing_submission = db.query(models.Submission).filter(
+            models.Submission.user_id == current_user.id,
+            models.Submission.contest_id == submission.contest_id
+        ).first()
+
+        if existing_submission:
+            # اگر قبلا شرکت کرده، ارور می‌دهیم و اجازه ثبت دوباره نمی‌دهیم
+            raise HTTPException(status_code=400, detail="شما قبلاً در این آزمون شرکت کرده‌اید و نمره شما ثبت شده است!")
+
+        # ۲. اگر اولین بار است، نتیجه را ثبت کن
         db_submission = models.Submission(
             user_id=current_user.id,
             contest_id=submission.contest_id,
@@ -171,11 +183,15 @@ def submit_exam(submission: schemas.SubmissionCreate, db: Session = Depends(data
         db.commit()
         db.refresh(db_submission)
         return {"status": "success", "id": db_submission.id}
+        
+    except HTTPException:
+        # ارورهایی که خودمان raise کردیم را مستقیم برگردان (مثل ارور ۴۰۰ بالا)
+        raise
     except Exception as e:
         db.rollback()
         print(f"Error saving submission: {e}")
         raise HTTPException(status_code=500, detail="خطا در ذخیره نمره در دیتابیس")
-    
+ 
 @app.get("/leaderboard/global")
 def get_global_leaderboard(db: Session = Depends(database.get_db)):
     users = db.query(models.User).all()
