@@ -91,14 +91,16 @@ class ContestCreate(BaseModel):
     end_time: Optional[datetime] = None
     time_limit: Optional[int] = 10
     question_limit: int = 15
-    certificate_type: Optional[str] = None
+    certificate_type: Optional[str] = "none"
+    video_url: Optional[str] = None
     
 class Contest(ContestBase):
     id: int
     questions: List[Question] = []
     time_limit: Optional[int] = 10
     question_limit: int = 15
-
+    certificate_type: Optional[str] = "none"
+    video_url: Optional[str] = None
     class Config:
         from_attributes = True
 

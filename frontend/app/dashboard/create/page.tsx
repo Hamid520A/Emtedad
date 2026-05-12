@@ -2,7 +2,11 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award } from 'lucide-react'; // آیکون Award اضافه شد
+import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle } from 'lucide-react'; // آیکون Award اضافه شد
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
+import TimePicker from "react-multi-date-picker/plugins/time_picker"; // برای اضافه شدن بخش ساعت
 
 export default function CreateContestPage() {
   const router = useRouter();
@@ -16,7 +20,8 @@ export default function CreateContestPage() {
     start_time: '',
     time_limit: 10,
     question_limit: 15,
-    certificate_type: 'none' // ۱. مقدار پیش‌فرض: بدون گواهی
+    certificate_type: 'none', // ۱. مقدار پیش‌فرض: بدون گواهی
+    video_url: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -142,13 +147,47 @@ export default function CreateContestPage() {
           </div>
 
           {formData.status === 'upcoming' && (
-            <div>
+            <div className="transition-all duration-300 animate-in fade-in slide-in-from-top-2">
               <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                <CalendarClock size={14} /> زمان شروع
+                <CalendarClock size={14} /> زمان شروع مسابقه
               </label>
-              <input type="datetime-local" className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" dir="ltr" value={formData.start_time} onChange={(e) => setFormData({...formData, start_time: e.target.value})} />
+              <div className="relative">
+                <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                <DatePicker
+                  calendar={persian}
+                  locale={persian_fa}
+                  calendarPosition="bottom-right"
+                  format="YYYY/MM/DD HH:mm" // نمایش تاریخ و ساعت
+                  plugins={[
+                    <TimePicker position="bottom" hideSeconds /> // اضافه کردن انتخابگر ساعت
+                  ]}
+                  value={formData.start_time}
+                  onChange={(date: any) => {
+                    // تبدیل تاریخ شمسی به آبجکت استاندارد برای ارسال به بک‌ند
+                    setFormData({ ...formData, start_time: date?.toDate?.() || "" });
+                  }}
+                  containerClassName="w-full"
+                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  placeholder="انتخاب تاریخ و ساعت شروع"
+                />
+              </div>
             </div>
           )}
+        </div>
+        
+        <div>
+          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">لینک ویدیو آپارات (اختیاری)</label>
+          <div className="relative">
+            <PlayCircle className="absolute right-4 top-4 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" 
+              placeholder="https://www.aparat.com/v/xxxxx" 
+              value={formData.video_url} 
+              onChange={(e) => setFormData({...formData, video_url: e.target.value})} 
+            />
+          </div>
+          <p className="text-[9px] text-gray-400 mt-1 mr-2">لینک صفحه ویدیو یا کد اشتراک‌گذاری آپارات را وارد کنید.</p>
         </div>
 
         {/* بخش آپلود فایل‌ها */}

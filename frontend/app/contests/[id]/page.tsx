@@ -5,7 +5,7 @@ import api from '../../../lib/api';
 import { 
   ArrowRight, Download, Gift, FileText, Clock, 
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2
+  Crown, Trash2, Award
 } from 'lucide-react';
 
 export default function ContestLandingPage({ params }: { params: { id: string } }) {
@@ -256,10 +256,10 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           {/* ====================================================== */}
           {/* بخش جدید: نمایش وضعیت گواهی دوره به کاربر (اضافه شده) */}
           {/* ====================================================== */}
-          {contest.certificate_type && contest.certificate_type !== 'none' && (
-            <div className="flex items-center gap-4 p-4 bg-emerald-50 rounded-3xl border border-emerald-100 mt-2 transition-all">
+          {contest && contest.certificate_type && contest.certificate_type !== 'none' && (
+            <div className="flex items-center gap-4 p-4 bg-emerald-50 rounded-3xl border border-emerald-100 mt-2 shadow-sm transition-all animate-in fade-in zoom-in duration-500">
               <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
-                <Medal size={24} />
+                <Award size={24} />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-0.5">
@@ -268,9 +268,9 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                 </div>
                 <p className="text-[13px] font-black text-emerald-900 leading-tight">
                   این مسابقه دارای {
-                    contest.certificate_type === 'level_1' ? 'گواهی معتبر رتبه ۱ (طلایی)' :
-                    contest.certificate_type === 'level_2' ? 'گواهی معتبر رتبه ۲ (نقره‌ای)' : 
-                    'گواهی معتبر رتبه ۳ (برنزی)'
+                    contest.certificate_type === 'level_1' ? 'گواهی معتبر رتبه ۱' :
+                    contest.certificate_type === 'level_2' ? 'گواهی معتبر رتبه ۲' : 
+                    'گواهی معتبر رتبه ۳'
                   } می‌باشد.
                 </p>
               </div>
