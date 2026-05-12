@@ -105,10 +105,12 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     const timeTaken = totalTime - timeLeft;
 
     try {
+      // این بخش اصلاح شد تا جواب‌های کاربر هم ذخیره شود
       await api.post('/submissions', {
         contest_id: parseInt(contestId),
         score: Math.round(finalScore),
-        time_taken: timeTaken
+        time_taken: timeTaken,
+        answers_map: answers // <--- این خط طلایی اضافه شد!
       });
 
       setResult({
@@ -180,14 +182,14 @@ export default function ExamPage({ params }: { params: { id: string } }) {
             <Eye size={20} /> مرور مجدد سوالات
           </button>
           <a 
-          href="https://emtedadeemam.ir" // آدرس سایت رو اینجا بذار
+          href="https://emtedadeemam.ir" 
           target="_blank"
           className="w-full bg-[#c5a059] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
         >
           <Globe size={20} /> سایت امتداد امام
         </a>
         <a 
-          href="https://eitaa.com/emtedadeemam" // آدرس کانال تلگرام یا ایتا رو اینجا بذار
+          href="https://eitaa.com/emtedadeemam" 
           target="_blank"
           className="w-full bg-[#2a405a] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
         >

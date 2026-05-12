@@ -45,6 +45,7 @@ class Submission(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     user = relationship("User")
     contest = relationship("Contest")
+    answers_map = Column(JSON, nullable=True)
 
 class Question(Base):
     __tablename__ = "questions"

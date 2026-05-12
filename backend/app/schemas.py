@@ -1,6 +1,6 @@
 # backend/app/schemas.py
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 
 # ==========================================
@@ -111,6 +111,7 @@ class SubmissionBase(BaseModel):
     contest_id: int
     score: int
     time_taken: int
+    answers_map: Optional[Dict[int, int]] = None
 
 class SubmissionCreate(SubmissionBase):
     pass

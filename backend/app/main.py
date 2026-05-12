@@ -155,7 +155,8 @@ def get_user_profile(db: Session = Depends(database.get_db), current_user: model
         "phone": current_user.phone,
         "total_score": total_score,
         "contests_count": len(history),
-        "history": history
+        "history": history,
+        "id": current_user.id
     }
 
 # --- اضافه کردن اندپوینت ثبت نمره (با جلوگیری از تقلب و ثبت تکراری) ---
@@ -177,7 +178,8 @@ def submit_exam(submission: schemas.SubmissionCreate, db: Session = Depends(data
             user_id=current_user.id,
             contest_id=submission.contest_id,
             score=submission.score,
-            time_taken=submission.time_taken
+            time_taken=submission.time_taken,
+            answers_map=submission.answers_map
         )
         db.add(db_submission)
         db.commit()
@@ -198,23 +200,31 @@ def get_global_leaderboard(db: Session = Depends(database.get_db)):
     results = []
     
     for user in users:
-        # پیدا کردن بهترین نمره هر مسابقه برای این کاربر
+        # پیدا کردن بهترین نمره و زمان هر مسابقه برای این کاربر
         submissions = db.query(models.Submission).filter(models.Submission.user_id == user.id).all()
         unique_scores = {}
         for sub in submissions:
-            if sub.contest_id not in unique_scores or sub.score > unique_scores[sub.contest_id]:
-                unique_scores[sub.contest_id] = sub.score
+            # اگر مسابقه جدید بود یا نمره این دفعه از نمره قبلی بیشتر بود
+            if sub.contest_id not in unique_scores or sub.score > unique_scores[sub.contest_id]['score']:
+                unique_scores[sub.contest_id] = {'score': sub.score, 'time': sub.time_taken}
         
-        total_score = sum(unique_scores.values())
+        total_score = sum(item['score'] for item in unique_scores.values())
+        total_time = sum(item['time'] for item in unique_scores.values())
+        
         if total_score > 0:  # فقط کسانی که امتیازی کسب کرده‌اند
+            national_id = user.national_id or "****"
+            last_four = national_id[-4:] if len(national_id) >= 4 else national_id
+            
             results.append({
                 "id": user.id,
                 "name": f"{user.first_name} {user.last_name}",
-                "total_score": total_score
+                "total_score": total_score,
+                "total_time": total_time,
+                "last_four_id": last_four
             })
     
-    # مرتب‌سازی از بیشترین به کمترین امتیاز
-    results.sort(key=lambda x: x["total_score"], reverse=True)
+    # مرتب‌سازی: اول بر اساس بیشترین نمره، بعد بر اساس کمترین زمان
+    results.sort(key=lambda x: (x["total_score"], -x["total_time"]), reverse=True)
     
     # اختصاص رتبه
     for index, item in enumerate(results):
@@ -245,3 +255,15 @@ def delete_contest(contest_id: str, db: Session = Depends(database.get_db)):
     db.commit()
     
     return {"message": "مسابقه با موفقیت حذف شد"}
+
+@app.get("/users/me/submissions/{contest_id}")
+def get_user_submission(contest_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    sub = db.query(models.Submission).filter(
+        models.Submission.user_id == current_user.id, 
+        models.Submission.contest_id == contest_id
+    ).first()
+    
+    if not sub:
+        raise HTTPException(status_code=404, detail="نتیجه‌ای یافت نشد")
+        
+    return {"answers_map": sub.answers_map or {}}

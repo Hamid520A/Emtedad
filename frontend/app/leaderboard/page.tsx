@@ -76,19 +76,33 @@ export default function GlobalLeaderboardPage() {
                 className={`p-4 flex items-center justify-between rounded-[2rem] transition-all duration-300 ${getRankStyle(user.rank)}`}
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-[#faf9f6] flex items-center justify-center font-black">
+                  <div className="w-12 h-12 rounded-full bg-[#faf9f6] flex items-center justify-center font-black flex-shrink-0">
                     {getRankIcon(user.rank)}
                   </div>
-                  <div>
-                    <h4 className={`font-bold text-sm ${user.rank === 1 ? 'text-white' : 'text-[#1a2e44]'}`}>
+                  <div className="flex flex-col">
+                    <h4 className={`font-bold text-sm mb-1 ${user.rank === 1 ? 'text-white' : 'text-[#1a2e44]'}`}>
                       {user.name}
                     </h4>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${user.rank === 1 ? 'text-yellow-400' : 'text-gray-400'}`}>
-                      رتبه {user.rank}
-                    </span>
+                    
+                    {/* اطلاعات تکمیلی: رتبه، زمان کل، کد ملی */}
+                    <div className="flex items-center gap-2 text-[9px] font-bold">
+                      <span className={`uppercase tracking-widest ${user.rank === 1 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                        رتبه {user.rank}
+                      </span>
+                      <span className="opacity-30">|</span>
+                      <span className={user.rank === 1 ? 'text-gray-300' : 'text-gray-500'}>
+                        زمان: <span className={user.rank === 1 ? 'text-white' : 'text-[#1a2e44]'}>{user.total_time || 0}s</span>
+                      </span>
+                      <span className="opacity-30">|</span>
+                      <span dir="ltr" className={user.rank === 1 ? 'text-gray-300' : 'text-gray-500'}>
+                        ******{user.last_four_id || '****'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className={`px-4 py-2 rounded-2xl font-black text-lg ${user.rank === 1 ? 'bg-white/10 text-yellow-400' : 'bg-[#faf9f6] text-[#c5a059]'}`}>
+                
+                {/* نمره کل */}
+                <div className={`px-4 py-2 rounded-2xl font-black text-lg flex-shrink-0 ${user.rank === 1 ? 'bg-white/10 text-yellow-400' : 'bg-[#faf9f6] text-[#c5a059]'}`}>
                   {user.total_score}
                 </div>
               </div>
