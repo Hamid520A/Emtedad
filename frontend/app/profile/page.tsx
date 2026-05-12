@@ -67,12 +67,36 @@ export default function ProfilePage() {
             <div className="w-24 h-24 bg-[#faf9f6] rounded-full mx-auto flex items-center justify-center border-4 border-white shadow-lg">
               <User size={48} className="text-[#c5a059]" />
             </div>
+            
             <div>
               <h2 className="text-2xl font-black">{profile.first_name} {profile.last_name}</h2>
               <p className="text-gray-400 font-medium" dir="ltr">{profile.phone}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-4">
+            {/* اطلاعات تکمیلی اضافه شده */}
+            <div className="bg-gray-50/50 rounded-3xl p-4 grid grid-cols-2 gap-y-4">
+              <div className="space-y-1 text-center border-l border-gray-100">
+                <span className="block text-[10px] text-gray-400 font-bold uppercase">کد ملی</span>
+                <span className="text-sm font-black" dir="ltr">{profile.national_id || '---'}</span>
+              </div>
+              
+              <div className="space-y-1 text-center">
+                <span className="block text-[10px] text-gray-400 font-bold uppercase">تاریخ تولد</span>
+                <span className="text-sm font-black" dir="ltr">{profile.birth_date || '---'}</span>
+              </div>
+
+              <div className="space-y-1 text-center border-t border-l border-gray-100 pt-3">
+                <span className="block text-[10px] text-gray-400 font-bold uppercase">استان</span>
+                <span className="text-sm font-black">{profile.province || '---'}</span>
+              </div>
+
+              <div className="space-y-1 text-center border-t border-gray-100 pt-3">
+                <span className="block text-[10px] text-gray-400 font-bold uppercase">شهرستان</span>
+                <span className="text-sm font-black">{profile.city || '---'}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-2">
               <div className="bg-[#1a2e44] p-4 rounded-[2rem] text-white shadow-lg">
                 <Trophy className="mx-auto text-[#c5a059] mb-1" size={24} />
                 <span className="block text-[10px] opacity-60 font-bold uppercase tracking-widest">امتیاز کل</span>

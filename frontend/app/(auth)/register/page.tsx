@@ -5,9 +5,12 @@ import api from '../../../lib/api';
 import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, Users, ChevronDown, Search } from 'lucide-react';
 // مسیر فایل iranCities را متناسب با محل قرارگیری آن در پروژه‌ات تنظیم کن
 import { iranProvinces, iranCities } from '../../../lib/utils/iranCities'; 
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
 
 // کامپوننت لیست کشویی با قابلیت جستجو
-const SearchableDropdown = ({ 
+export const SearchableDropdown = ({ 
   options, 
   value, 
   onChange, 
@@ -277,12 +280,19 @@ export default function RegisterPage() {
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
               <div className="relative">
-                <Calendar className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input 
-                  type="text" required dir="ltr"
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                <DatePicker
+                  calendar={persian}
+                  locale={persian_fa}
+                  calendarPosition="bottom-right"
+                  value={formData.birth_date}
+                  onChange={(date: any) => {
+                    // ذخیره تاریخ به صورت رشته YYYY/MM/DD در استیت
+                    setFormData({ ...formData, birth_date: date?.format?.() || "" });
+                  }}
+                  containerClassName="w-full"
+                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="1380/01/01"
-                  onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
                 />
               </div>
             </div>

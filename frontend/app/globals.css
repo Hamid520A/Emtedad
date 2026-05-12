@@ -16,3 +16,25 @@ body {
   font-family: 'Tahoma', sans-serif; /* در آینده می‌توانید فونت ایران‌یکان اضافه کنید */
   background-color: #f3f4f6;
 }
+
+/* سفارشی‌سازی تقویم امتداد */
+.rmdp-ep-arrow {
+  background-color: #1a2e44 !important;
+}
+.rmdp-wrapper {
+  border-radius: 1.5rem !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1) !important;
+  border: none !important;
+}
+.rmdp-header-values {
+  color: #1a2e44 !important;
+  font-weight: bold !important;
+}
+.rmdp-day.rmdp-selected span {
+  background-color: #c5a059 !important; /* رنگ طلایی برای روز انتخاب شده */
+  box-shadow: none !important;
+}
+.rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
+  background-color: #1a2e44 !important;
+  color: white !important;
+}

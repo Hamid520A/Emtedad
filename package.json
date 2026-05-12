@@ -1,6 +1,9 @@
 {
   "dependencies": {
-    "canvas-confetti": "^1.9.4"
+    "canvas-confetti": "^1.9.4",
+    "jalaali-js": "^1.2.8",
+    "persian-datepicker-react": "^1.0.50",
+    "react-multi-date-picker": "^4.5.2"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
