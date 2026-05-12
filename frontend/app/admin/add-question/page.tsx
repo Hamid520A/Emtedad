@@ -86,10 +86,30 @@ export default function AddQuestionPage() {
               onChange={(e) => setFormData({...formData, contest_id: e.target.value})}
             >
               <option value="">انتخاب کنید...</option>
-              {contests.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.title} (آیدی: {c.id})</option>
-              ))}
+              {contests.map((c: any) => {
+                // فقط اگر وضعیت مسابقه 'upcoming' باشد اجازه انتخاب بده
+                // بقیه وضعیت‌ها مثل 'active' و 'finished' باید غیرفعال (disabled) باشند
+                const isLocked = c.status === 'active' || c.status === 'finished'; 
+                
+                let statusText = '';
+                if (c.status === 'active') statusText = '(در حال اجرا - غیرقابل تغییر)';
+                if (c.status === 'finished') statusText = '(پایان یافته - غیرقابل تغییر)';
+
+                return (
+                  <option 
+                    key={c.id} 
+                    value={c.id} 
+                    disabled={isLocked}
+                    className={isLocked ? 'text-gray-300' : ''}
+                  >
+                    {c.title} {statusText}
+                  </option>
+                );
+              })}
             </select>
+            <p className="mt-2 text-[10px] text-gray-400 font-medium">
+              * امکان اضافه کردن سوال به مسابقاتی که وضعیت "در حال اجرا" دارند وجود ندارد.
+            </p>
           </div>
 
           {/* متن سوال */}

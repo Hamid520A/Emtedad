@@ -32,6 +32,7 @@ class Contest(Base):
     award = Column(String)
     time_limit = Column(Integer, default=10) # زمان مجاز به دقیقه
     question_limit = Column(Integer, default=15) # تعداد سوالاتی که در هر آزمون نمایش داده می‌شود
+    certificate_type = Column(String, nullable=True, default=None) # نوع گواهی‌نامه 
     
     questions = relationship("Question", back_populates="contest")
 

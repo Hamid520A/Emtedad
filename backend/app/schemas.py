@@ -91,6 +91,7 @@ class ContestCreate(BaseModel):
     end_time: Optional[datetime] = None
     time_limit: Optional[int] = 10
     question_limit: int = 15
+    certificate_type: Optional[str] = None
     
 class Contest(ContestBase):
     id: int

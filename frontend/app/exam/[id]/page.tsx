@@ -27,7 +27,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   const [totalTime, setTotalTime] = useState(600); 
 
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [showReview, setShowReview] = useState(false); // وضعیت جدید برای حالت مرور
+  const [showReview, setShowReview] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,7 +54,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   }, [params.id]);
 
   useEffect(() => {
-    // اگر در حال مرور هستیم، تایمر نباید کار کند
     if (isSubmitted || timeLeft <= 0 || loading || questions.length === 0 || showReview) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
@@ -88,8 +87,15 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     return `${m}:${s}`;
   };
 
+  // محاسبه زمان پیشنهادی برای هر سوال باقی‌مانده
+  const getRecommendedTime = () => {
+    const remainingQuestions = questions.length - currentQIndex;
+    if (remainingQuestions <= 0) return 0;
+    return Math.floor(timeLeft / remainingQuestions);
+  };
+
   const handleSelectOption = (questionId: number, optionId: number) => {
-    if (showReview) return; // در حالت مرور امکان تغییر گزینه نیست
+    if (showReview) return;
     setAnswers({ ...answers, [questionId]: optionId });
   };
 
@@ -105,12 +111,11 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     const timeTaken = totalTime - timeLeft;
 
     try {
-      // این بخش اصلاح شد تا جواب‌های کاربر هم ذخیره شود
       await api.post('/submissions', {
         contest_id: parseInt(contestId),
         score: Math.round(finalScore),
         time_taken: timeTaken,
-        answers_map: answers // <--- این خط طلایی اضافه شد!
+        answers_map: answers
       });
 
       setResult({
@@ -145,7 +150,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     );
   }
 
-  // نمایش صفحه نتیجه (اگر در حالت مرور نیستیم)
   if (isSubmitted && result && !showReview) {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] p-6 flex flex-col items-center font-sans" dir="rtl">
@@ -181,20 +185,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           >
             <Eye size={20} /> مرور مجدد سوالات
           </button>
-          <a 
-          href="https://emtedadeemam.ir" 
-          target="_blank"
-          className="w-full bg-[#c5a059] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
-        >
-          <Globe size={20} /> سایت امتداد امام
-        </a>
-        <a 
-          href="https://eitaa.com/emtedadeemam" 
-          target="_blank"
-          className="w-full bg-[#2a405a] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
-        >
-          <Send size={20} /> کانال امتداد امام
-        </a>
         </div>
       </div>
     );
@@ -217,9 +207,14 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         {showReview ? (
           <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl font-black text-[10px]">اتمام رقابت</div>
         ) : (
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-sm ${timeLeft < 60 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-gray-50 text-[#1a2e44]'}`}>
-            <Clock className="w-4 h-4 text-[#c5a059]" />
-            <span dir="ltr">{formatTime(timeLeft)}</span>
+          <div className="flex flex-col items-end">
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-sm ${timeLeft < 60 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-gray-50 text-[#1a2e44]'}`}>
+              <Clock className="w-4 h-4 text-[#c5a059]" />
+              <span dir="ltr">{formatTime(timeLeft)}</span>
+            </div>
+            <span className="text-[9px] font-bold text-gray-400 mt-1">
+              زمان پیشنهادی هر سوال: {getRecommendedTime()} ثانیه
+            </span>
           </div>
         )}
       </header>
@@ -260,7 +255,11 @@ export default function ExamPage({ params }: { params: { id: string } }) {
       </main>
 
       <footer className="p-6 bg-[#faf9f6] flex gap-4">
-        <button onClick={() => setCurrentQIndex(prev => prev - 1)} disabled={currentQIndex === 0} className="p-4 rounded-3xl bg-white text-gray-400 disabled:opacity-50 shadow-sm border border-gray-100 transition-all">
+        <button 
+          onClick={() => setCurrentQIndex(prev => prev - 1)} 
+          disabled={currentQIndex === 0} 
+          className="p-4 rounded-3xl bg-white text-[#1a2e44] disabled:opacity-30 shadow-sm border border-gray-100 transition-all active:scale-95"
+        >
           <ChevronRight size={24} />
         </button>
 

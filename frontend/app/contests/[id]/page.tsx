@@ -216,6 +216,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
             {contest.description || 'توضیحاتی برای این مسابقه ثبت نشده است. برای موفقیت، جزوه را با دقت مطالعه کنید.'}
           </p>
 
+          {/* بخش جوایز و منبع مسابقه (موجود در کد شما) */}
           <div className="grid grid-cols-2 gap-3 pt-2">
             <div className="bg-orange-50 p-4 rounded-2xl flex flex-col border border-orange-100 min-h-[100px]">
               <div className="flex items-center gap-2 mb-2">
@@ -251,6 +252,30 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               <span className="font-black text-blue-600 text-sm">دانلود جزوه</span>
             </a>
           </div>
+
+          {/* ====================================================== */}
+          {/* بخش جدید: نمایش وضعیت گواهی دوره به کاربر (اضافه شده) */}
+          {/* ====================================================== */}
+          {contest.certificate_type && contest.certificate_type !== 'none' && (
+            <div className="flex items-center gap-4 p-4 bg-emerald-50 rounded-3xl border border-emerald-100 mt-2 transition-all">
+              <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
+                <Medal size={24} />
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                  <span className="text-[10px] text-emerald-600 font-black uppercase tracking-wider">امتیاز ویژه این دوره</span>
+                </div>
+                <p className="text-[13px] font-black text-emerald-900 leading-tight">
+                  این مسابقه دارای {
+                    contest.certificate_type === 'level_1' ? 'گواهی معتبر رتبه ۱ (طلایی)' :
+                    contest.certificate_type === 'level_2' ? 'گواهی معتبر رتبه ۲ (نقره‌ای)' : 
+                    'گواهی معتبر رتبه ۳ (برنزی)'
+                  } می‌باشد.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 2. حالت: به زودی (Upcoming) */}
