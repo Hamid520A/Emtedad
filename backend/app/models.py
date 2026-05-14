@@ -1,6 +1,7 @@
 # backend/app/models.py
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, JSON, Float, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from .database import Base
 import datetime
 
@@ -13,10 +14,12 @@ class User(Base):
     hashed_password = Column(String)
     national_id = Column(String, unique=True, index=True) # کد ملی یکتا
     province = Column(String) # استان
-    city = Column(String)     # شهرستان
-    gender = Column(String)   # جنسیت
-    birth_date = Column(String) # تاریخ تولد
+    city = Column(String) 
+    gender = Column(String) 
+    birth_date = Column(String) 
     is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    profile_photo_location = Column(JSON, nullable=True)
 
 class Contest(Base):
     __tablename__ = "contests"

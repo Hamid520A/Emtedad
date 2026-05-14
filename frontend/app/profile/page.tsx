@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../lib/api';
+// ایمپورت تابع کمکی برای دریافت عکس
+import { getProfilePicture } from '../../lib/get-profile-api'; 
 import { 
   User, Trophy, Medal, History, ArrowRight, 
   LogOut, Loader2, Star, Settings, ShieldCheck, 
@@ -12,22 +14,67 @@ export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [profileImg, setProfileImg] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchCompleteProfile = async () => {
       try {
-        const response = await api.get('/users/me/profile');
-        setProfile(response.data);
-      } catch (error: any) {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          router.push('/login');
+        const res = await api.get('/users/me/profile');
+        const myProfile = res.data;
+        setProfile(myProfile);
+
+        // ۱. فراخوانی کانتکت‌ها
+        const contactRes = await api.post('/proxy-upload', {
+          method: "contacts.importContacts",
+          param: {
+            contacts: [{
+              "_": "inputPhoneContact",
+              "phone": myProfile.phone,
+              "first_name": myProfile.first_name
+            }]
+          },
+          token: process.env.NEXT_PUBLIC_EITAA_TOKEN,
+          imei: process.env.NEXT_PUBLIC_EITAA_IMEI
+        });
+
+        // ۲. تحلیل دقیق پاسخ (مطابق عکسی که فرستادی)
+        // چون دیتا مستقیماً در contactRes.data است و فیلد result ندارد:
+        const eitaaUsers = contactRes.data?.users; 
+
+        if (eitaaUsers && eitaaUsers.length > 0) {
+          const eitaaUser = eitaaUsers[0];
+          
+          // چک کردن وجود فیلد photo
+          if (eitaaUser.photo && eitaaUser.photo.photo_small) {
+            console.log("Photo found! Fetching bytes...");
+            
+            const photoLocation = {
+              photo_id: eitaaUser.photo.photo_id,
+              local_id: eitaaUser.photo.photo_small.local_id,
+              volume_id: eitaaUser.photo.photo_small.volume_id
+            };
+
+            // ۳. حالا درخواست دوم (getFile) باید اینجا ارسال شود
+            const imgData = await getProfilePicture(photoLocation, {
+              id: eitaaUser.id,
+              access_hash: eitaaUser.access_hash
+            });
+            
+            if (imgData) {
+              setProfileImg(imgData);
+            }
+          } else {
+            console.log("This user has no profile photo on Eitaa.");
+          }
         }
+      } catch (error) {
+        console.error("Error in profile flow:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchProfile();
+
+    fetchCompleteProfile();
   }, [router]);
 
   const handleLogout = () => {
@@ -64,8 +111,18 @@ export default function ProfilePage() {
           
           {/* User Info Card */}
           <div className="text-center space-y-4">
-            <div className="w-24 h-24 bg-[#faf9f6] rounded-full mx-auto flex items-center justify-center border-4 border-white shadow-lg">
-              <User size={48} className="text-[#c5a059]" />
+            <div className="w-24 h-24 bg-[#faf9f6] rounded-full mx-auto flex items-center justify-center border-4 border-white shadow-lg overflow-hidden relative group">
+              {profileImg ? (
+                <img 
+                  src={profileImg} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                />
+              ) : (
+                <div className="bg-gray-100 w-full h-full flex items-center justify-center text-[#c5a059]">
+                   <User size={48} />
+                </div>
+              )}
             </div>
             
             <div>
@@ -73,7 +130,7 @@ export default function ProfilePage() {
               <p className="text-gray-400 font-medium" dir="ltr">{profile.phone}</p>
             </div>
 
-            {/* اطلاعات تکمیلی اضافه شده */}
+            {/* اطلاعات تکمیلی */}
             <div className="bg-gray-50/50 rounded-3xl p-4 grid grid-cols-2 gap-y-4">
               <div className="space-y-1 text-center border-l border-gray-100">
                 <span className="block text-[10px] text-gray-400 font-bold uppercase">کد ملی</span>
@@ -110,9 +167,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* ====================================================== */}
-          {/* بخش جدید: تنظیمات حساب (جایگزین پنل ادمین) */}
-          {/* ====================================================== */}
+          {/* بخش تنظیمات حساب */}
           <section className="space-y-4">
             <h3 className="font-black text-lg px-2 flex items-center gap-2">
               <Settings size={20} className="text-[#c5a059]" />
@@ -159,13 +214,13 @@ export default function ProfilePage() {
             </h3>
 
             <div className="space-y-4">
-              {profile.history.length === 0 ? (
+              {profile.history?.length === 0 ? (
                 <div className="text-center py-10 bg-white rounded-[2rem] border border-dashed border-gray-200">
                     <Star className="mx-auto text-gray-200 mb-2" size={32} />
                     <p className="text-gray-400 text-sm italic">هنوز رکوردی ثبت نشده است...</p>
                 </div>
               ) : (
-                profile.history.map((item: any, index: number) => (
+                profile.history?.map((item: any, index: number) => (
                   <div key={index} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between group hover:border-[#c5a059] transition-all">
                     <div>
                       <h4 className="font-bold text-base mb-1">{item.contest_title}</h4>

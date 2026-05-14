@@ -104,16 +104,21 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
     String(h.id) === String(params.id) ||
     (contest?.title && h.contest_title === contest.title)
   );
-
   // ترکیب نتایج
   const myResult = leaderboardMatch || historyMatch;
   const hasParticipated = !!myResult;
-  console.log("آیدی پروفایل من:", profile?.id);
-  console.log("دیتای لیدربرد:", leaderboard);
-  console.log("دیتای تاریخچه من:", profile?.history);
   const topThree = leaderboard.slice(0, 3);
-  const others = leaderboard.slice(3);
   const isAdmin = true;
+
+  const getAparatEmbedUrl = (url: string) => {
+    if (!url) return null;
+    // این رِجِکس کد ویدیو را از لینک‌های مختلف آپارات (حتی موبایل) پیدا می‌کند
+    const match = url.match(/(?:v\/|videohash\/|frame\/v\/|embed\/v\/|v=)([a-zA-Z0-9]+)/);
+    if (match && match[1]) {
+      return `https://www.aparat.com/video/video/embed/videohash/${match[1]}/vt/frame`;
+    }
+    return null;
+  };
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] font-sans pb-24 relative" dir="rtl">
@@ -215,6 +220,18 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           <p className="text-sm text-gray-500 leading-relaxed bg-[#faf9f6] p-4 rounded-2xl text-justify border border-dashed border-gray-200">
             {contest.description || 'توضیحاتی برای این مسابقه ثبت نشده است. برای موفقیت، جزوه را با دقت مطالعه کنید.'}
           </p>
+
+          {/* بخش نمایش ویدیو آپارات - اینجا اضافه کن */}
+          {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
+            <div className="w-full overflow-hidden rounded-[2rem] shadow-sm border border-gray-100 bg-black aspect-video mt-2">
+              <iframe
+                src={getAparatEmbedUrl(contest.video_url)}
+                allowFullScreen
+                className="w-full h-full border-0"
+                title="Aparat Video Player"
+              ></iframe>
+            </div>
+          )}
 
           {/* بخش جوایز و منبع مسابقه (موجود در کد شما) */}
           <div className="grid grid-cols-2 gap-3 pt-2">

@@ -1,13 +1,14 @@
 # backend/app/main.py
-import random
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from . import crud, schemas, models, auth, database
-import shutil, os
+import shutil, os, random, httpx, base64
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 
 app = FastAPI()
 
@@ -267,3 +268,110 @@ def get_user_submission(contest_id: int, db: Session = Depends(database.get_db),
         raise HTTPException(status_code=404, detail="نتیجه‌ای یافت نشد")
         
     return {"answers_map": sub.answers_map or {}}
+
+@app.get("/admin/stats")
+async def get_admin_stats(db: Session = Depends(database.get_db)):
+    # تعداد کل کاربرها
+    total_users = db.query(models.User).count()
+    # تعداد کل مسابقات
+    total_contests = db.query(models.Contest).count()
+    # تعداد مسابقات فعال
+    active_contests = db.query(models.Contest).filter(models.Contest.status == "active").count()
+    # ۲. دیتای نمودار برای ۷ روز اخیر
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    # کوئری برای گروه‌بندی بر اساس تاریخ
+    chart_query = db.query(
+        func.date(models.User.created_at).label('date'),
+        func.count(models.User.id).label('count')
+    ).filter(models.User.created_at >= seven_days_ago)\
+     .group_by(func.date(models.User.created_at))\
+     .order_by(func.date(models.User.created_at)).all()
+    # تبدیل فرمت برای فرانت‌ند
+    chart_data = [{"name": str(row.date), "users": row.count} for row in chart_query]
+    
+    return {
+        "total_users": total_users,
+        "total_contests": total_contests,
+        "active_contests": active_contests,
+        "chart_data": chart_data
+    }
+
+@app.get("/admin/export-data")
+def get_export_data(db: Session = Depends(database.get_db)):
+    # ۱. گرفتن تمام کاربران
+    users = db.query(models.User).all()
+    
+    report = []
+    for u in users:
+        # ۲. پیدا کردن نمره این کاربر خاص در جدول Submission
+        # فرض می‌کنیم در مدل Submission فیلدی به نام user_id داری
+        submission = db.query(models.Submission).filter(models.Submission.user_id == u.id).first()
+        
+        # ۳. پیدا کردن نام مسابقه (اگر شرکت کرده باشد)
+        contest_title = "شرکت نکرده"
+        if submission:
+            contest = db.query(models.Contest).filter(models.Contest.id == submission.contest_id).first()
+            if contest:
+                contest_title = contest.title
+
+        report.append({
+            "نام": u.first_name or "---",
+            "نام خانوادگی": u.last_name or "---",
+            "شماره تماس": u.phone,
+            "کد ملی": u.national_id or "---",
+            "استان": u.province or "---",
+            "جنسیت": u.gender or "---",
+            "نام مسابقه": contest_title,
+            "نمره": submission.score if submission else 0,
+            "زمان (ثانیه)": submission.time_taken if submission else 0,
+            "تاریخ ثبت‌نام": u.created_at.strftime("%Y/%m/%d") if u.created_at else "---"
+        })
+    
+    return report
+    # ۱. گرفتن تمام کاربران (حتی کسانی که هنوز شرکت نکرده‌اند)
+    users = db.query(models.User).all()
+    
+    # اگر کلاً کاربری نبود
+    if not users:
+        return []
+
+    report = []
+    for u in users:
+        # ۲. پیدا کردن آخرین شرکت در مسابقه برای این کاربر (اگر وجود داشته باشد)
+        # فرض می‌کنیم رابطه submissions در مدل User تعریف شده است
+        last_submission = db.query(models.Submission).filter(models.Submission.user_id == u.id).first()
+        
+        report.append({
+            "نام": u.first_name or "---",
+            "نام خانوادگی": u.last_name or "---",
+            "شماره تماس": u.phone,
+            "کد ملی": getattr(u, 'national_id', '---'), # اگر فیلد کد ملی نداری جاش خالی می‌مونه
+            "نام مسابقه": last_submission.contest.title if last_submission else "شرکت نکرده",
+            "نمره": last_submission.score if last_submission else 0,
+            "زمان (ثانیه)": last_submission.time_taken if last_submission else 0,
+            "تاریخ ثبت نام": str(u.created_at) if hasattr(u, 'created_at') else "---"
+        })
+    
+    return report
+
+@app.post("/proxy-upload")
+async def proxy_get_profile_photo(request_data: dict):
+    # آدرس API مقصد (ایتا)
+    EITAA_API_URL = "http://10.10.10.4:3000/send" 
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                EITAA_API_URL,
+                json=request_data,
+                timeout=30.0
+            )
+            
+            result = response.json()
+            
+            # اگر دیتا به صورت خام (bytes) بود، اینجا مطمئن می‌شویم که برای JSON معتبر است
+            # معمولاً کلاینت‌های تلگرامی دیتای bytes را به صورت base64 برمی‌گردانند
+            return result
+            
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
