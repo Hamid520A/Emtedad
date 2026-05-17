@@ -2,16 +2,41 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
-import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, RotateCcw, Eye, Globe, Send } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-// منطق تحلیل نمره 
+// منطق تحلیل نمره بر اساس درصدهای معادل امتیاز گواهی خوب و عالی
 const getAnalysis = (score: number) => {
-  const s = parseInt(score.toString());
-  if (s === 100) return { msg: "فوق‌العاده! تو یک نابغه‌ای.", color: "text-green-600", bg: "bg-green-50", emoji: "🏆" };
-  if (s >= 80) return { msg: "عالی بود! تسلط خیلی خوبی داشتید.", color: "text-[#1a2e44]", bg: "bg-blue-50", emoji: "🥇" };
-  if (s >= 50) return { msg: "خوب بود، اما جای پیشرفت داری.", color: "text-orange-600", bg: "bg-orange-50", emoji: "🥈" };
-  return { msg: "تلاشت خوب بود، بیشتر مطالعه کن.", color: "text-red-600", bg: "bg-red-50", emoji: "📚" };
+  const s = parseFloat(score.toString());
+  
+  if (s >= 85.71) {
+    // معادل ۱۲۰ تا ۱۴۰ امتیاز (۱۲ تا ۱۴ سوال درست)
+    return { 
+      msg: "فوق‌العاده! شما موفق به کسب «گواهی عالی» شدید.", 
+      certMsg: "امتیاز شما در بازه گواهی عالی قرار دارد.",
+      color: "text-green-600", 
+      bg: "bg-green-50", 
+      emoji: "🏆" 
+    };
+  }
+  if (s >= 64.28) {
+    // معادل ۹۰ تا ۱۲۰ امتیاز (۹ تا ۱۱ سوال درست)
+    return { 
+      msg: "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید.", 
+      certMsg: "امتیاز شما در بازه گواهی خوب قرار دارد.",
+      color: "text-blue-600", 
+      bg: "bg-blue-50", 
+      emoji: "🥇" 
+    };
+  }
+  // کمتر از ۶۴.۲۸ درصد (کمتر از ۹ سوال درست) -> بدون گواهی
+  return { 
+    msg: "تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ۹ سوال پاسخ صحیح بدهید.", 
+    certMsg: "حد نصاب قبولی برای صدور گواهی کسب نشد.",
+    color: "text-red-600", 
+    bg: "bg-red-50", 
+    emoji: "📚" 
+  };
 };
 
 export default function ExamPage({ params }: { params: { id: string } }) {
@@ -68,7 +93,8 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   }, [timeLeft]);
 
   useEffect(() => {
-    if (isSubmitted && result && result.score >= 50) {
+    // جشن شادی فقط در صورت کسب حداقل امتیاز گواهی خوب (۶۴.۲۸٪)
+    if (isSubmitted && result && result.score >= 64.28) {
       const duration = 3 * 1000;
       const end = Date.now() + duration;
 
@@ -87,7 +113,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     return `${m}:${s}`;
   };
 
-  // محاسبه زمان پیشنهادی برای هر سوال باقی‌مانده
   const getRecommendedTime = () => {
     const remainingQuestions = questions.length - currentQIndex;
     if (remainingQuestions <= 0) return 0;
@@ -113,13 +138,14 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     try {
       await api.post('/submissions', {
         contest_id: parseInt(contestId),
-        score: Math.round(finalScore),
+        score: Math.round(finalScore), // نمره رند شده کماکان روی مبنای ۱۰۰ ارسال می‌شود
         time_taken: timeTaken,
         answers_map: answers
       });
 
       setResult({
         score: Math.round(finalScore),
+        correctCount: correctCount,
         timeTaken: timeTaken,
         analysis: getAnalysis(finalScore)
       });
@@ -157,17 +183,17 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           <Award className={`w-14 h-14 ${result.analysis.color}`} />
         </div>
         <h2 className="text-2xl font-black text-[#1a2e44] mb-1">پایان مسابقه {result.analysis.emoji}</h2>
-        <p className="text-gray-500 text-sm mb-8">خسته نباشید، عملکرد شما با موفقیت ثبت شد.</p>
+        <p className="text-gray-500 text-sm mb-8">{result.analysis.certMsg}</p>
 
         <div className="w-full bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-8">
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-50 p-5 rounded-3xl text-center border border-gray-100">
-              <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">نمره نهایی</span>
-              <span className="text-3xl font-black text-[#1a2e44]">{result.score}%</span>
+              <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">پاسخ‌های صحیح</span>
+              <span className="text-3xl font-black text-[#1a2e44]">{result.correctCount} <span className="text-xs text-gray-400">از {questions.length}</span></span>
             </div>
             <div className="bg-gray-50 p-5 rounded-3xl text-center border border-gray-100">
-              <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">زمان صرف شده</span>
-              <span className="text-2xl font-bold text-[#c5a059]">{result.timeTaken}s</span>
+              <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">درصد نهایی</span>
+              <span className="text-3xl font-black text-[#c5a059]">{result.score}%</span>
             </div>
           </div>
           <div className={`p-4 rounded-2xl text-center ${result.analysis.bg} ${result.analysis.color}`}>

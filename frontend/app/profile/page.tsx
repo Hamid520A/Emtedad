@@ -32,9 +32,7 @@ export default function ProfilePage() {
               "phone": myProfile.phone,
               "first_name": myProfile.first_name
             }]
-          },
-          token: process.env.NEXT_PUBLIC_EITAA_TOKEN,
-          imei: process.env.NEXT_PUBLIC_EITAA_IMEI
+          }
         });
 
         // ۲. تحلیل دقیق پاسخ (مطابق عکسی که فرستادی)

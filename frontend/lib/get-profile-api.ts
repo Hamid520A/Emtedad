@@ -20,9 +20,7 @@ export const getProfilePicture = async (photoLocation: any, userData: any) => {
         },
         offset: 0,
         limit: 524288
-      },
-      token: process.env.NEXT_PUBLIC_EITAA_TOKEN,
-      imei: process.env.NEXT_PUBLIC_EITAA_IMEI
+      }
     });
 
     // اینجا همون bytes که توی عکس فرستادی رو می‌گیریم

@@ -6,11 +6,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from . import crud, schemas, models, auth, database
-import shutil, os, random, httpx, base64
+import shutil, os, random, httpx, base64, redis
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+from .redis_config import redis_client
 
 app = FastAPI()
+ACCOUNT_REDIS_HOST = os.getenv("REDIS_HOST", "10.10.10.6")
+ACCOUNT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+ACCOUNT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
+ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989944771219")
+r = redis.Redis(host=ACCOUNT_REDIS_HOST, port=ACCOUNT_REDIS_PORT, db=ACCOUNT_REDIS_DB, decode_responses=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -356,6 +362,52 @@ def get_export_data(db: Session = Depends(database.get_db)):
 
 @app.post("/proxy-upload")
 async def proxy_get_profile_photo(request_data: dict):
+    # ۱. تعریف آدرس گیت‌وی ایتا
+    EITAA_API_URL = "http://10.10.10.4:3000/send" 
+    
+    try:
+        # ۲. خواندن توکن و imei از ردیس (از کلاینتی که در فایل کانفیگ می‌سازیم)
+        token = r.get("eitaa_token")
+        imei = r.get("eitaa_imei")
+
+        if not token or not imei:
+            raise HTTPException(status_code=500, detail="تنظیمات توکن یا IMEI در ردیس یافت نشد.")
+        
+        # ۳. تزریق توکن و IMEI به درخواستی که از فرانت‌ند آمده
+        request_data["token"] = token
+        request_data["imei"] = imei
+
+        # ۴. ارسال درخواست نهایی به سرور ایتا
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                EITAA_API_URL,
+                json=request_data,
+                timeout=30.0
+            )
+            return response.json()
+            
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    # خواندن توکن و imei از ردیس
+    token = r.hget(ACCOUNT_KEY,"token")
+    imei = r.hget(ACCOUNT_KEY,"imei")
+
+    if not token or not imei:
+            raise HTTPException(status_code=500, detail="تنظیمات توکن یا IMEI در ردیس یافت نشد.")
+    
+# ۳. ارسال درخواست نهایی به سرور ایتا
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            EITAA_API_URL,
+            json=request_data,
+            timeout=30.0
+        )
+        return response.json()
+
+    # تزریق به درخواستی که از فرانت‌ند آمده
+    request_data["token"] = token
+    request_data["imei"] = imei
+
     # آدرس API مقصد (ایتا)
     EITAA_API_URL = "http://10.10.10.4:3000/send" 
     
