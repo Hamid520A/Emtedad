@@ -9,13 +9,12 @@ from . import crud, schemas, models, auth, database
 import shutil, os, random, httpx, base64, redis
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-from .redis_config import redis_client
 
 app = FastAPI()
 ACCOUNT_REDIS_HOST = os.getenv("REDIS_HOST", "10.10.10.6")
 ACCOUNT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 ACCOUNT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
-ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989944771219")
+ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989944774408")
 r = redis.Redis(host=ACCOUNT_REDIS_HOST, port=ACCOUNT_REDIS_PORT, db=ACCOUNT_REDIS_DB, decode_responses=True)
 
 app.add_middleware(
@@ -277,28 +276,45 @@ def get_user_submission(contest_id: int, db: Session = Depends(database.get_db),
 
 @app.get("/admin/stats")
 async def get_admin_stats(db: Session = Depends(database.get_db)):
-    # تعداد کل کاربرها
+    # ۱. تعداد کل کاربرها
     total_users = db.query(models.User).count()
-    # تعداد کل مسابقات
+    
+    # ۲. تعداد کل مسابقات
     total_contests = db.query(models.Contest).count()
-    # تعداد مسابقات فعال
+    
+    # ۳. تعداد مسابقات فعال (تیکه‌ای که جا افتاده بود)
     active_contests = db.query(models.Contest).filter(models.Contest.status == "active").count()
-    # ۲. دیتای نمودار برای ۷ روز اخیر
+    
+    # ۴. پیدا کردن استانی که بیشترین ثبت‌نامی را داشته است
+    top_province_query = db.query(
+        models.User.province, 
+        func.count(models.User.id).label('user_count')
+    ).filter(models.User.province != None, models.User.province != "")\
+     .group_by(models.User.province)\
+     .order_by(func.count(models.User.id).desc())\
+     .first()
+     
+    top_province = top_province_query[0] if top_province_query else "بدون داده"
+
+    # ۵. دیتای نمودار برای ۷ روز اخیر
     seven_days_ago = datetime.now() - timedelta(days=7)
-    # کوئری برای گروه‌بندی بر اساس تاریخ
+    
     chart_query = db.query(
         func.date(models.User.created_at).label('date'),
         func.count(models.User.id).label('count')
     ).filter(models.User.created_at >= seven_days_ago)\
      .group_by(func.date(models.User.created_at))\
      .order_by(func.date(models.User.created_at)).all()
+     
     # تبدیل فرمت برای فرانت‌ند
     chart_data = [{"name": str(row.date), "users": row.count} for row in chart_query]
     
+    # خروجی کامل شامل تمام متغیرها
     return {
         "total_users": total_users,
         "total_contests": total_contests,
-        "active_contests": active_contests,
+        "active_contests": active_contests, # حالا این فیلد هم به سلامت برگشت!
+        "top_province": top_province,
         "chart_data": chart_data
     }
 
@@ -391,9 +407,10 @@ async def proxy_get_profile_photo(request_data: dict):
     # خواندن توکن و imei از ردیس
     token = r.hget(ACCOUNT_KEY,"token")
     imei = r.hget(ACCOUNT_KEY,"imei")
+    print(f"Read from Redis - Token: {token}, IMEI: {imei}")
 
     if not token or not imei:
-            raise HTTPException(status_code=500, detail="تنظیمات توکن یا IMEI در ردیس یافت نشد.")
+            raise HTTPException(status_code=500, detail=f"تنظیمات توکن یا IMEI در ردیس یافت نشد.")
     
 # ۳. ارسال درخواست نهایی به سرور ایتا
     async with httpx.AsyncClient() as client:
@@ -427,3 +444,53 @@ async def proxy_get_profile_photo(request_data: dict):
             
         except Exception as e:
             return {"status": "error", "message": str(e)}
+        
+# backend/app/main.py
+
+@app.get("/admin/users-list")
+def get_admin_users_list(db: Session = Depends(database.get_db)):
+    users = db.query(models.User).all()
+    results = []
+    
+    for u in users:
+        # پیدا کردن وضعیت آخرین مسابقه کاربر
+        last_sub = db.query(models.Submission).filter(
+            models.Submission.user_id == u.id
+        ).order_by(models.Submission.id.desc()).first()
+        
+        results.append({
+            "id": u.id,
+            "name": f"{u.first_name or ''} {u.last_name or ''}".strip() or "بدون نام",
+            "phone": u.phone,
+            "national_id": u.national_id or "---",
+            "province": u.province or "---",
+            "gender": u.gender or "---",
+            "last_contest": last_sub.contest.title if last_sub else "شرکت نکرده",
+            "last_score": f"{last_sub.score}%" if last_sub else "---"
+        })
+        
+    return results
+
+@app.get("/admin/provinces-report")
+async def get_admin_provinces_report(db: Session = Depends(database.get_db)):
+    # تعداد کل کاربران برای محاسبه درصد مشارکت هر استان
+    total_users = db.query(models.User).count() or 1
+
+    # گرفتن آمار استان‌ها به ترتیب بیشترین کاربر
+    report_query = db.query(
+        models.User.province,
+        func.count(models.User.id).label('user_count')
+    ).filter(models.User.province != None, models.User.province != "")\
+     .group_by(models.User.province)\
+     .order_by(func.count(models.User.id).desc()).all()
+
+    report_data = []
+    for row in report_query:
+        percentage = (row.user_count / total_users) * 100
+        report_data.append({
+            "province": row.province,
+            "count": row.user_count,
+            "percentage": round(percentage, 1)
+        })
+
+    return report_data

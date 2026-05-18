@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, ShieldCheck, Lock, Loader2 } from 'lucide-react';
-// import api from '../../../lib/api'; // در صورت نیاز فعال کنید
+import api from '../../../lib/api'; // فعال‌سازی اتصال به API
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -18,15 +18,17 @@ export default function ChangePasswordPage() {
     
     setSaving(true);
     try {
-      // این کد زمانی که بک‌ند آماده بود فعال شود:
-      // await api.post('/users/change-password', { old_password: passwords.old, new_password: passwords.new });
+      // ارسال درخواست واقعی به اندپوینت بک‌ند برای تغییر رمز عبور ادمین
+      await api.post('/users/change-password', { 
+        old_password: passwords.old, 
+        new_password: passwords.new 
+      });
       
-      // فعلا شبیه‌سازی:
-      await new Promise(r => setTimeout(r, 1000));
-      alert('رمز عبور با موفقیت تغییر کرد.');
-      router.push('/profile');
-    } catch (error) {
-      alert('خطا در تغییر رمز عبور. رمز فعلی را بررسی کنید.');
+      alert('رمز عبور مدیر با موفقیت تغییر کرد.');
+      router.push('/admin/dashboard'); // هدایت مجدد به دشبورد مدیریت
+    } catch (error: any) {
+      const serverError = error.response?.data?.detail || 'خطا در تغییر رمز عبور. رمز فعلی را بررسی کنید.';
+      alert(serverError);
     } finally {
       setSaving(false);
     }
@@ -35,10 +37,11 @@ export default function ChangePasswordPage() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] font-sans text-[#1a2e44]" dir="rtl">
       <header className="p-6 flex items-center gap-3 bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-10">
-        <button onClick={() => router.back()} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
+        {/* دکمه بازگشت هوشمند به دشبورد مدیریت */}
+        <button onClick={() => router.push('/admin/dashboard')} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
           <ArrowRight size={20} />
         </button>
-        <span className="font-black text-xl">تغییر رمز عبور</span>
+        <span className="font-black text-xl">تغییر رمز عبور مدیر</span>
       </header>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -48,7 +51,7 @@ export default function ChangePasswordPage() {
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">رمز عبور فعلی</label>
             <div className="relative">
               <Lock className="absolute right-4 top-4 text-gray-400" size={18} />
-              <input type="password" dir="ltr" placeholder="••••••••" value={passwords.old} onChange={e => setPasswords({...passwords, old: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-orange-400 font-bold text-sm text-left" required />
+              <input type="password" dir="ltr" placeholder="••••••••" value={passwords.old} onChange={e => setPasswords({...passwords, old: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm text-left" required />
             </div>
           </div>
 

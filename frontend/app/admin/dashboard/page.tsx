@@ -2,17 +2,18 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { 
-  Users, Trophy, Layout, Plus, Settings, 
-  BarChart3, ArrowUpRight, Activity, ChevronLeft, Award, TrendingUp
+import {
+  Users, Trophy, Layout, Plus, Settings,
+  BarChart3, ArrowUpRight, ChevronLeft, Award, TrendingUp, Globe
 } from 'lucide-react';
-// اضافه کردن المان‌های نمودار
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+// المان‌های نمودار
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import * as XLSX from 'xlsx';
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [stats, setStats] = useState({ users: 0, contests: 0, active: 0 });
+  // تغییر ساختار استیت به استان برتر
+  const [stats, setStats] = useState({ users: 0, contests: 0, topProvince: 'در حال بارگذاری...' });
   const [contests, setContests] = useState([]);
   const [chartData, setChartData] = useState([]);
 
@@ -21,9 +22,8 @@ export default function AdminDashboard() {
       const res = await api.get('/admin/export-data');
       let data = res.data;
 
-      console.log("Data received from API:", data); // چک کن در کنسول چی چاپ میشه
+      console.log("Data received from API:", data);
 
-      // اگر دیتا خالی بود، برای تست این آرایه رو استفاده کن
       if (!data || data.length === 0) {
         console.warn("API returned empty data, using mock data for test.");
         data = [
@@ -31,13 +31,11 @@ export default function AdminDashboard() {
         ];
       }
 
-      // ساخت شیت
       const worksheet = XLSX.utils.json_to_sheet(data);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "شرکت‌کنندگان");
 
-      // تنظیمات فارسی (RTL)
-      if(!worksheet['!cols']) worksheet['!cols'] = [];
+      if (!worksheet['!cols']) worksheet['!cols'] = [];
       worksheet['!dir'] = 'rtl';
 
       XLSX.writeFile(workbook, `گزارش_${new Date().getTime()}.xlsx`);
@@ -52,14 +50,14 @@ export default function AdminDashboard() {
       try {
         const statsRes = await api.get('/admin/stats');
         const contestsRes = await api.get('/contests');
-        
+
         setContests(contestsRes.data);
-        setChartData(statsRes.data.chart_data); // دیتای واقعی نمودار
-        
+        setChartData(statsRes.data.chart_data);
+
         setStats({
-          users: statsRes.data.total_users, 
+          users: statsRes.data.total_users,
           contests: statsRes.data.total_contests,
-          active: statsRes.data.active_contests
+          topProvince: statsRes.data.top_province // دریافت مستقیم رشته نام استان از بک‌ند
         });
       } catch (error) {
         console.error("Admin Dashboard Error:", error);
@@ -76,8 +74,9 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-black tracking-tight">پنل مدیریت امتداد</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">مانیتورینگ هوشمند سیستم</p>
         </div>
-        <button 
-          onClick={() => router.push('/admin/create-contest')}
+        {/* اصلاح دکمه مسابقه جدید */}
+        <button
+          onClick={() => router.push('/dashboard/create')} // ریدایرکت به صفحه ساخت مسابقه
           className="bg-[#1a2e44] text-white px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-xl shadow-blue-900/20 active:scale-95 transition-all"
         >
           <Plus size={20} className="text-[#c5a059]" /> مسابقه جدید
@@ -87,9 +86,27 @@ export default function AdminDashboard() {
       <main className="px-8 space-y-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard title="کل شرکت‌کنندگان" value={stats.users} icon={<Users />} color="blue" />
-          <StatCard title="تعداد مسابقات" value={stats.contests} icon={<Trophy />} color="gold" />
-          <StatCard title="رقابت‌های فعال" value={stats.active} icon={<Activity />} color="emerald" />
+          <StatCard
+            title="کل شرکت‌کنندگان"
+            value={stats.users}
+            icon={<Users />}
+            color="blue"
+            onClick={() => router.push('/admin/users')}
+          />
+          <StatCard
+            title="تعداد مسابقات"
+            value={stats.contests}
+            icon={<Trophy />}
+            color="gold"
+            onClick={() => router.push('/admin/contests')}
+          />
+          <StatCard
+            title="استان پیشتاز در مشارکت"
+            value={stats.topProvince} // مقدار متنی نام استان (مثل: تهران) را نمایش می‌دهد
+            icon={<Globe />}
+            color="emerald"
+            onClick={() => router.push('/admin/provinces')} // روت جدید برای گزارش استانی
+          />
         </div>
 
         {/* بخش نمودار پیشرفت */}
@@ -107,15 +124,15 @@ export default function AdminDashboard() {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#c5a059" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#c5a059" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#c5a059" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#c5a059" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 'bold'}} dy={10} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} dy={10} />
                 <YAxis hide />
-                <Tooltip 
-                  contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontFamily: 'inherit'}}
+                <Tooltip
+                  contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontFamily: 'inherit' }}
                 />
                 <Area type="monotone" dataKey="users" stroke="#c5a059" strokeWidth={4} fillOpacity={1} fill="url(#colorUsers)" />
               </AreaChart>
@@ -156,12 +173,16 @@ export default function AdminDashboard() {
 
           {/* ابزارهای مدیریتی */}
           <div className="bg-[#1a2e44] rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
-             <h3 className="font-black text-xl mb-8">ابزارهای سریع</h3>
-             <div className="space-y-3">
-               <QuickAction label="گزارش اکسل شرکت‌کنندگان" icon={<BarChart3 size={18} />}onClick={exportToExcel}/>
-               <QuickAction label="تنظیمات گواهی‌ها" icon={<Award size={18} />} />
-               <QuickAction label="تغییر رمز عبور مدیر" icon={<Settings size={18} />} />
-             </div>
+            <h3 className="font-black text-xl mb-8">ابزارهای سریع</h3>
+            <div className="space-y-3">
+              <QuickAction label="گزارش اکسل شرکت‌کنندگان" icon={<BarChart3 size={18} />} onClick={exportToExcel} />
+              <QuickAction label="تنظیمات گواهی‌ها" icon={<Award size={18} />} />
+              <QuickAction
+                label="تغییر رمز عبور مدیر"
+                icon={<Settings size={18} />}
+                onClick={() => router.push('/profile/change-password')}
+              />
+            </div>
           </div>
         </div>
       </main>
@@ -169,16 +190,21 @@ export default function AdminDashboard() {
   );
 }
 
-// کامپوننت‌های کمکی StatCard و QuickAction رو همون قبلی‌ها رو بذار (فقط مطمئن شو Award رو از lucide ایمپورت کردی)
-function StatCard({ title, value, icon, color }: any) {
+function StatCard({ title, value, icon, color, onClick }: any) {
+  // بررسی اینکه آیا مقدار یک عدد است یا رشته (مثل نام استان) برای نمایش متناسب فرمت محلی
+  const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
+
   return (
-    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-5 transition-transform hover:-translate-y-1">
+    <div
+      onClick={onClick}
+      className={`bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-5 transition-transform hover:-translate-y-1 ${onClick ? 'cursor-pointer active:scale-95 select-none' : ''}`}
+    >
       <div className={`p-4 rounded-2xl ${color === 'blue' ? 'bg-blue-50 text-blue-500' : color === 'gold' ? 'bg-orange-50 text-orange-500' : 'bg-emerald-50 text-emerald-500'}`}>
         {React.cloneElement(icon, { size: 28 })}
       </div>
       <div>
         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{title}</p>
-        <p className="text-3xl font-black text-[#1a2e44]">{value.toLocaleString()}</p>
+        <p className="text-2xl font-black text-[#1a2e44] mt-1">{displayValue}</p>
       </div>
     </div>
   );
@@ -186,8 +212,8 @@ function StatCard({ title, value, icon, color }: any) {
 
 function QuickAction({ label, icon, onClick }: any) {
   return (
-    <button 
-      onClick={onClick} // اتصال کلیک به دکمه اصلی
+    <button
+      onClick={onClick}
       className="w-full flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all text-sm font-bold group"
     >
       <div className="flex items-center gap-3">

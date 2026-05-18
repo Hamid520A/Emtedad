@@ -2,25 +2,27 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle } from 'lucide-react'; // آیکون Award اضافه شد
+import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle } from 'lucide-react'; 
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
-import TimePicker from "react-multi-date-picker/plugins/time_picker"; // برای اضافه شدن بخش ساعت
+import TimePicker from "react-multi-date-picker/plugins/time_picker";
+const DatePickerComponent = DatePicker as any;
+const TimePickerPlugin = TimePicker as any;
 
 export default function CreateContestPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     title: '',
     description: '',
     award: '',
     status: 'upcoming',
     image_url: '',
     file_url: '',
-    start_time: '',
+    start_time: null, // تغییر از رشته خالی به null برای سازگاری کامل با دیت‌پیکر
     time_limit: 10,
     question_limit: 15,
-    certificate_type: 'none', // ۱. مقدار پیش‌فرض: بدون گواهی
+    certificate_type: 'none', 
     video_url: ''
   });
 
@@ -30,31 +32,32 @@ export default function CreateContestPage() {
     const now = new Date().toISOString();
 
     const finalData = {
-      ...formData,
-      start_time: (formData.status === 'upcoming' && formData.start_time && formData.start_time !== "") 
-                  ? new Date(formData.start_time).toISOString() 
-                  : now,
-      end_time: now, 
+      title: formData.title,
       description: formData.description || "",
       award: formData.award || "",
+      status: formData.status,
       image_url: formData.image_url || "",
       file_url: formData.file_url || "",
-      time_limit: parseInt(formData.time_limit.toString()),
-      // اطمینان از ارسال نوع گواهی
-      certificate_type: formData.certificate_type || 'none'
+      video_url: formData.video_url || "",
+      time_limit: parseInt(formData.time_limit.toString(), 10) || 0,
+      question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
+      certificate_type: formData.certificate_type || 'none',
+      start_time: (formData.status === 'upcoming' && formData.start_time) 
+                  ? new Date(formData.start_time).toISOString() 
+                  : now,
+      end_time: now 
     };
 
     try {
       await api.post('/contests', finalData);
       alert("مسابقه با موفقیت ساخته و منتشر شد!");
-      router.push('/dashboard');
+      router.push('/admin/dashboard'); 
     } catch (error: any) {
-      const serverError = error.response?.data?.detail?.[0]?.msg || "مشکل فنی در سرور";
+      const serverError = error.response?.data?.detail?.[0]?.msg || error.response?.data?.detail || "مشکل فنی در سرور";
       alert("خطا: " + serverError);
     }
   };  
 
-  // ... تابع handleFileUpload بدون تغییر باقی می‌ماند ...
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -64,7 +67,7 @@ export default function CreateContestPage() {
       const response = await api.post('/upload', uploadData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setFormData(prev => ({ ...prev, [fieldName]: response.data.url }));
+      setFormData((prev: any) => ({ ...prev, [fieldName]: response.data.url }));
       alert("فایل با موفقیت آپلود شد");
     } catch (error) {
       alert("خطا در آپلود فایل");
@@ -82,18 +85,17 @@ export default function CreateContestPage() {
 
       <form onSubmit={handleSubmit} className="px-6 space-y-6">
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-5">
-          {/* ... بخش‌های عنوان و توضیحات بدون تغییر ... */}
+          
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
-            <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold" placeholder="مثلاً: مسابقه هوش مصنوعی" onChange={(e) => setFormData({...formData, title: e.target.value})} />
+            <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold" placeholder="مثلاً: مسابقه هوش مصنوعی" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
           </div>
 
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">توضیحات جامع</label>
-            <textarea rows={3} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." onChange={(e) => setFormData({...formData, description: e.target.value})} />
+            <textarea rows={3} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
           </div>
 
-          {/* ردیف جوایز و وضعیت */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">جوایز مسابقه</label>
@@ -112,7 +114,6 @@ export default function CreateContestPage() {
             </div>
           </div>
 
-          {/* ۲. بخش جدید: انتخاب گواهی دوره */}
           <div>
             <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
             <div className="relative">
@@ -130,19 +131,18 @@ export default function CreateContestPage() {
             </div>
           </div>
 
-          {/* ... مابقی فیلدها (تعداد سوال، زمان، تصویر و ...) ... */}
           <div className="grid grid-cols-2 gap-4">
              <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">زمان آزمون (دقیقه)</label>
               <div className="relative">
                 <Clock className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input type="number" min="1" required className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" value={formData.time_limit} onChange={(e) => setFormData({...formData, time_limit: parseInt(e.target.value)})} />
+                <input type="number" min="1" required className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" value={formData.time_limit} onChange={(e) => setFormData({...formData, time_limit: parseInt(e.target.value, 10) || 0})} />
               </div>
             </div>
 
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تعداد سوالات</label>
-              <input type="number" className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold" value={formData.question_limit} onChange={(e) => setFormData({...formData, question_limit: parseInt(e.target.value)})} />
+              <input type="number" min="1" className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold" value={formData.question_limit} onChange={(e) => setFormData({...formData, question_limit: parseInt(e.target.value, 10) || 0})} />
             </div>
           </div>
 
@@ -153,18 +153,23 @@ export default function CreateContestPage() {
               </label>
               <div className="relative">
                 <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-                <DatePicker
+                <DatePickerComponent
                   calendar={persian}
                   locale={persian_fa}
                   calendarPosition="bottom-right"
-                  format="YYYY/MM/DD HH:mm" // نمایش تاریخ و ساعت
+                  format="YYYY/MM/DD HH:mm"
+                  // با این روش فراخوانی شیء، تداخل کدهای لوکال و تایپ‌اسکریپت کاملاً برطرف می‌شود
                   plugins={[
-                    <TimePicker position="bottom" hideSeconds /> // اضافه کردن انتخابگر ساعت
+                    React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })
                   ]}
                   value={formData.start_time}
                   onChange={(date: any) => {
-                    // تبدیل تاریخ شمسی به آبجکت استاندارد برای ارسال به بک‌ند
-                    setFormData({ ...formData, start_time: date?.toDate?.() || "" });
+                    if (date) {
+                      const jsDate = date.toDate ? date.toDate() : new Date(date);
+                      setFormData({ ...formData, start_time: jsDate });
+                    } else {
+                      setFormData({ ...formData, start_time: null });
+                    }
                   }}
                   containerClassName="w-full"
                   inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
@@ -187,10 +192,9 @@ export default function CreateContestPage() {
               onChange={(e) => setFormData({...formData, video_url: e.target.value})} 
             />
           </div>
-          <p className="text-[9px] text-gray-400 mt-1 mr-2">لینک صفحه ویدیو یا کد اشتراک‌گذاری آپارات را وارد کنید.</p>
+          <p className="text-[9px] text-gray-400 mt-1 mr-2">لینک صفحه ویدیو یا کد اشتراق‌گذاری آپارات را وارد کنید.</p>
         </div>
 
-        {/* بخش آپلود فایل‌ها */}
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-5">
           <h2 className="font-black text-[#1a2e44] flex items-center gap-2 mb-4 pb-4 border-b border-gray-50">
             <Settings size={20} className="text-[#c5a059]" /> محتوا و پیوست‌ها
