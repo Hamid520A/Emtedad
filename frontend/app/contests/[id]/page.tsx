@@ -16,8 +16,13 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
-
+  const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
+  
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const adminStatus = localStorage.getItem('isAdmin') === 'true';
+      setIsAdminUser(adminStatus); // 👈 تغییر نام تابع ست‌آپر
+    }
     setMounted(true);
     const fetchData = async () => {
       try {
@@ -149,7 +154,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
       <main className="px-6 space-y-6 relative z-30 -mt-10">
               
         {/* پنل اکشن سریع ادمین */}
-        {isAdmin && (
+        {isAdminUser && (
           <div className="bg-white/90 backdrop-blur-md border border-red-100 p-4 rounded-2xl flex flex-col gap-3 shadow-lg mb-4 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
             

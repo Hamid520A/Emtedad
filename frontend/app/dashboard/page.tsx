@@ -15,6 +15,14 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
+    // جلوگیری از ورود ادمین به دشبورد کاربری
+    const isAdmin = localStorage.getItem('isAdmin') === 'true';
+    if (isAdmin) {
+      // ادمین حق ندارد این صفحه را ببیند، پس مستقیم هدایتش میکنیم به دشبورد خودش
+      router.push('/admin/dashboard');
+      return;
+    }
+
     const fetchContests = async () => {
       try {
         const response = await api.get('/contests');
@@ -61,22 +69,6 @@ export default function DashboardPage() {
           <span className="font-black text-2xl text-[#1a2e44]">امتداد امام</span>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={() => router.push('/admin/add-question')} 
-            className="p-3 bg-white rounded-full text-[#c5a059] shadow-sm border border-gray-100 hover:bg-[#1a2e44] hover:text-white transition-all"
-            title="مدیریت سوالات"
-          >
-            <LayoutList size={20} /> 
-          </button>
-          
-          <button 
-            onClick={() => router.push('/dashboard/create')} 
-            className="p-3 bg-white rounded-full text-[#1a2e44] shadow-sm border border-gray-100 hover:bg-[#1a2e44] hover:text-white transition-all"
-            title="افزودن مسابقه"
-          >
-            <Plus size={20} />
-          </button>
-
           <div className="relative">
             <button 
               onClick={() => setIsNotifOpen(!isNotifOpen)}

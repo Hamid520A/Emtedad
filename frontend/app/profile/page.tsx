@@ -129,25 +129,35 @@ export default function ProfilePage() {
             </div>
 
             {/* اطلاعات تکمیلی */}
-            <div className="bg-gray-50/50 rounded-3xl p-4 grid grid-cols-2 gap-y-4">
-              <div className="space-y-1 text-center border-l border-gray-100">
-                <span className="block text-[10px] text-gray-400 font-bold uppercase">کد ملی</span>
-                <span className="text-sm font-black" dir="ltr">{profile.national_id || '---'}</span>
+            {/* نمونه کدهای اصلاح شده برای بخش مشخصات */}
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div>
+                <p className="text-xs text-gray-400">کد ملی</p>
+                {/* مطمئن شو نام فیلد دقیقا همان چیزی است که بک‌ند می‌فرستد، مثلا national_id */}
+                <p className="font-bold text-[#1a2e44] mt-1">
+                  {profile?.national_id || profile?.nationalId || "---"}
+                </p>
               </div>
               
-              <div className="space-y-1 text-center">
-                <span className="block text-[10px] text-gray-400 font-bold uppercase">تاریخ تولد</span>
-                <span className="text-sm font-black" dir="ltr">{profile.birth_date || '---'}</span>
+              <div>
+                <p className="text-xs text-gray-400">تاریخ تولد</p>
+                <p className="font-bold text-[#1a2e44] mt-1">
+                  {profile?.birth_date || profile?.birthDate || "---"}
+                </p>
               </div>
 
-              <div className="space-y-1 text-center border-t border-l border-gray-100 pt-3">
-                <span className="block text-[10px] text-gray-400 font-bold uppercase">استان</span>
-                <span className="text-sm font-black">{profile.province || '---'}</span>
+              <div>
+                <p className="text-xs text-gray-400">استان</p>
+                <p className="font-bold text-[#1a2e44] mt-1">
+                  {profile?.province || "---"}
+                </p>
               </div>
 
-              <div className="space-y-1 text-center border-t border-gray-100 pt-3">
-                <span className="block text-[10px] text-gray-400 font-bold uppercase">شهرستان</span>
-                <span className="text-sm font-black">{profile.city || '---'}</span>
+              <div>
+                <p className="text-xs text-gray-400">شهرستان</p>
+                <p className="font-bold text-[#1a2e44] mt-1">
+                  {profile?.county || profile?.city || "---"}
+                </p>
               </div>
             </div>
 

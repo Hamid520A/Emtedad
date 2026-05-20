@@ -21,6 +21,10 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     id: int
+    total_score: int = 0
+    contests_count: int = 0
+    history: list = []
+    
     class Config:
         from_attributes = True
 

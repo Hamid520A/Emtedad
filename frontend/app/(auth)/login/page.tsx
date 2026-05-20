@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api'; // مسیر را بررسی کن
+import api from '../../../lib/api'; 
 import { Lock, Phone, ArrowRight, Trophy } from 'lucide-react';
 
 export default function LoginPage() {
@@ -13,16 +13,26 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // ارسال مستقیم اطلاعات به صورت JSON که دقیقاً با UserLogin بک‌ند همخوانی دارد
+      // ارسال اطلاعات به بک‌ند
       const response = await api.post('/login', {
         phone: formData.phone,
         password: formData.password
       });
 
-      // ذخیره توکن و هدایت به داشبورد
       if (response.data.access_token) {
+        // ۱. ذخیره توکن اصلی در مرورگر
         localStorage.setItem('token', response.data.access_token);
-        router.push('/dashboard');
+        
+        // ۲. ذخیره وضعیت نقش کاربر (ادمین بودن یا نبودن)
+        const isAdmin = response.data.is_admin === true;
+        localStorage.setItem('isAdmin', isAdmin.toString());
+        
+        // ۳. هدایت هوشمند بر اساس نقش تفکیک‌شده
+        if (isAdmin) {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (error: any) {
       console.error("Login Error:", error.response?.data);
@@ -71,7 +81,6 @@ export default function LoginPage() {
               />
             </div>
             
-            {/* دکمه فراموشی رمز عبور */}
             <div className="flex justify-end mt-3">
               <button 
                 type="button"

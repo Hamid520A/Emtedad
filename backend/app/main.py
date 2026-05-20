@@ -33,8 +33,32 @@ if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+def require_admin(current_user: models.User = Depends(auth.get_current_user)):
+    """بررسی سطح دسترسی مدیر سیستم"""
+    if not getattr(current_user, "is_admin", False):
+        raise HTTPException(status_code=403, detail="شما دسترسی به این بخش را ندارید")
+    return current_user
+
+def fa_to_en_digits(text: str) -> str:
+    """تبدیل تمام اعداد فارسی و عربی یک متن به اعداد انگلیسی استاندارد"""
+    if not text:
+        return text
+    
+    # مپینگ اعداد فارسی و عربی به انگلیسی
+    fa_digits = "۰۱۲۳۴۵۶۷۸۹"
+    ar_digits = "٠١٢٣٤٥٦٧٨٩"
+    en_digits = "0123456789"
+    
+    # ساخت جدول ترجمه
+    translation_table = str.maketrans(fa_digits + ar_digits, en_digits + en_digits)
+    return text.translate(translation_table)
+
 @app.post("/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
+    # یکدست‌سازی شماره تلفن و رمز عبور به اعداد انگلیسی
+    user.phone = fa_to_en_digits(user.phone)
+    user.password = fa_to_en_digits(user.password) # 👈 این خط اضافه شد
+    
     db_user = crud.get_user_by_phone(db, phone=user.phone)
     if db_user:
         raise HTTPException(status_code=400, detail="شماره قبلاً ثبت شده")
@@ -45,11 +69,20 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
   
 @app.post("/login")
 def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db)):
+    # یکدست‌سازی شماره تلفن و رمز عبور به اعداد انگلیسی
+    login_data.phone = fa_to_en_digits(login_data.phone)
+    login_data.password = fa_to_en_digits(login_data.password) # 👈 این خط اضافه شد
+    
     user = db.query(models.User).filter(models.User.phone == login_data.phone).first()
     if not user or not auth.verify_password(login_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="شماره یا رمز عبور اشتباه است")
     token = auth.create_access_token(data={"sub": user.phone})
-    return {"access_token": token, "token_type": "bearer"}
+    
+    return {
+        "access_token": token, 
+        "token_type": "bearer",
+        "is_admin": getattr(user, "is_admin", False)
+    }
 
 @app.get("/contests", response_model=List[schemas.Contest])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)):
@@ -144,7 +177,7 @@ def get_user_profile(db: Session = Depends(database.get_db), current_user: model
         contest_id = sub.contest_id
         if contest_id not in unique_history or sub.score > unique_history[contest_id]['score']:
             unique_history[contest_id] = {
-                "contest_id": contest_id, # این خط اضافه شد تا فرانت‌ند مسابقه رو پیدا کنه
+                "contest_id": contest_id,
                 "contest_title": sub.contest.title,
                 "score": sub.score,
                 "time_taken": sub.time_taken,
@@ -155,14 +188,20 @@ def get_user_profile(db: Session = Depends(database.get_db), current_user: model
     history = list(unique_history.values())
     total_score = sum(item['score'] for item in history)
         
+    # خروجی کامل شامل مشخصات مفقود شده کاربر برای فرانت‌ند
     return {
+        "id": current_user.id,
         "first_name": current_user.first_name,
         "last_name": current_user.last_name,
         "phone": current_user.phone,
+        "national_id": current_user.national_id,
+        "province": current_user.province,
+        "city": current_user.city,
+        "gender": current_user.gender,
+        "birth_date": current_user.birth_date, 
         "total_score": total_score,
         "contests_count": len(history),
-        "history": history,
-        "id": current_user.id
+        "history": history
     }
 
 # --- اضافه کردن اندپوینت ثبت نمره (با جلوگیری از تقلب و ثبت تکراری) ---
@@ -275,17 +314,17 @@ def get_user_submission(contest_id: int, db: Session = Depends(database.get_db),
     return {"answers_map": sub.answers_map or {}}
 
 @app.get("/admin/stats")
-async def get_admin_stats(db: Session = Depends(database.get_db)):
+async def get_admin_stats(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     # ۱. تعداد کل کاربرها
     total_users = db.query(models.User).count()
     
     # ۲. تعداد کل مسابقات
     total_contests = db.query(models.Contest).count()
     
-    # ۳. تعداد مسابقات فعال (تیکه‌ای که جا افتاده بود)
+    # ۳. تعداد مسابقات فعال
     active_contests = db.query(models.Contest).filter(models.Contest.status == "active").count()
     
-    # ۴. پیدا کردن استانی که بیشترین ثبت‌نامی را داشته است
+    # ۴. پیدا کردن استانی که بیشترین ثبت‌نامی را داشته است (با مدیریت خطا در صورت خالی بودن)
     top_province_query = db.query(
         models.User.province, 
         func.count(models.User.id).label('user_count')
@@ -294,32 +333,49 @@ async def get_admin_stats(db: Session = Depends(database.get_db)):
      .order_by(func.count(models.User.id).desc())\
      .first()
      
-    top_province = top_province_query[0] if top_province_query else "بدون داده"
+    top_province = top_province_query[0] if top_province_query and len(top_province_query) > 0 else "بدون داده"
+
+    # زمان‌بندی برای تفکیک دو هفته اخیر
+    now_time = datetime.now()
+    seven_days_ago = now_time - timedelta(days=7)
+    fourteen_days_ago = now_time - timedelta(days=14)
+
+    # تعداد ثبت‌نامی‌های این هفته و هفته گذشته
+    this_week_users = db.query(models.User).filter(models.User.created_at >= seven_days_ago).count()
+    last_week_users = db.query(models.User).filter(models.User.created_at >= fourteen_days_ago, models.User.created_at < seven_days_ago).count()
+
+    # محاسبه درصد رشد (مدیریت تقسیم بر صفر)
+    if last_week_users == 0:
+        growth_percentage = 100 if this_week_users > 0 else 0
+    else:
+        growth_percentage = round(((this_week_users - last_week_users) / last_week_users) * 100, 1)
 
     # ۵. دیتای نمودار برای ۷ روز اخیر
-    seven_days_ago = datetime.now() - timedelta(days=7)
+    seven_days_ago_chart = datetime.now() - timedelta(days=7)
+    try:
+        chart_query = db.query(
+            func.date(models.User.created_at).label('date'),
+            func.count(models.User.id).label('count')
+        ).filter(models.User.created_at >= seven_days_ago_chart)\
+         .group_by(func.date(models.User.created_at))\
+         .order_by(func.date(models.User.created_at)).all()
+         
+        chart_data = [{"name": str(row.date), "users": row.count} for row in chart_query]
+    except Exception:
+        chart_data = []
     
-    chart_query = db.query(
-        func.date(models.User.created_at).label('date'),
-        func.count(models.User.id).label('count')
-    ).filter(models.User.created_at >= seven_days_ago)\
-     .group_by(func.date(models.User.created_at))\
-     .order_by(func.date(models.User.created_at)).all()
-     
-    # تبدیل فرمت برای فرانت‌ند
-    chart_data = [{"name": str(row.date), "users": row.count} for row in chart_query]
-    
-    # خروجی کامل شامل تمام متغیرها
+    # خروجی نهایی بدون کرش کردن
     return {
         "total_users": total_users,
         "total_contests": total_contests,
-        "active_contests": active_contests, # حالا این فیلد هم به سلامت برگشت!
+        "active_contests": active_contests,
         "top_province": top_province,
+        "growth_percentage": growth_percentage,
         "chart_data": chart_data
     }
 
 @app.get("/admin/export-data")
-def get_export_data(db: Session = Depends(database.get_db)):
+def get_export_data(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     # ۱. گرفتن تمام کاربران
     users = db.query(models.User).all()
     
@@ -347,31 +403,6 @@ def get_export_data(db: Session = Depends(database.get_db)):
             "نمره": submission.score if submission else 0,
             "زمان (ثانیه)": submission.time_taken if submission else 0,
             "تاریخ ثبت‌نام": u.created_at.strftime("%Y/%m/%d") if u.created_at else "---"
-        })
-    
-    return report
-    # ۱. گرفتن تمام کاربران (حتی کسانی که هنوز شرکت نکرده‌اند)
-    users = db.query(models.User).all()
-    
-    # اگر کلاً کاربری نبود
-    if not users:
-        return []
-
-    report = []
-    for u in users:
-        # ۲. پیدا کردن آخرین شرکت در مسابقه برای این کاربر (اگر وجود داشته باشد)
-        # فرض می‌کنیم رابطه submissions در مدل User تعریف شده است
-        last_submission = db.query(models.Submission).filter(models.Submission.user_id == u.id).first()
-        
-        report.append({
-            "نام": u.first_name or "---",
-            "نام خانوادگی": u.last_name or "---",
-            "شماره تماس": u.phone,
-            "کد ملی": getattr(u, 'national_id', '---'), # اگر فیلد کد ملی نداری جاش خالی می‌مونه
-            "نام مسابقه": last_submission.contest.title if last_submission else "شرکت نکرده",
-            "نمره": last_submission.score if last_submission else 0,
-            "زمان (ثانیه)": last_submission.time_taken if last_submission else 0,
-            "تاریخ ثبت نام": str(u.created_at) if hasattr(u, 'created_at') else "---"
         })
     
     return report
@@ -448,7 +479,7 @@ async def proxy_get_profile_photo(request_data: dict):
 # backend/app/main.py
 
 @app.get("/admin/users-list")
-def get_admin_users_list(db: Session = Depends(database.get_db)):
+def get_admin_users_list(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     users = db.query(models.User).all()
     results = []
     
@@ -472,7 +503,7 @@ def get_admin_users_list(db: Session = Depends(database.get_db)):
     return results
 
 @app.get("/admin/provinces-report")
-async def get_admin_provinces_report(db: Session = Depends(database.get_db)):
+async def get_admin_provinces_report(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     # تعداد کل کاربران برای محاسبه درصد مشارکت هر استان
     total_users = db.query(models.User).count() or 1
 

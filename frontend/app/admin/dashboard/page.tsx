@@ -13,7 +13,7 @@ import * as XLSX from 'xlsx';
 export default function AdminDashboard() {
   const router = useRouter();
   // تغییر ساختار استیت به استان برتر
-  const [stats, setStats] = useState({ users: 0, contests: 0, topProvince: 'در حال بارگذاری...' });
+  const [stats, setStats] = useState({ users: 0, contests: 0, topProvince: 'در حال بارگذاری...', growth: 0 });
   const [contests, setContests] = useState([]);
   const [chartData, setChartData] = useState([]);
 
@@ -57,7 +57,8 @@ export default function AdminDashboard() {
         setStats({
           users: statsRes.data.total_users,
           contests: statsRes.data.total_contests,
-          topProvince: statsRes.data.top_province // دریافت مستقیم رشته نام استان از بک‌ند
+          topProvince: statsRes.data.top_province, // دریافت مستقیم رشته نام استان از بک‌ند
+          growth: statsRes.data.growth_percentage // دریافت درصد رشد از بک‌ند
         });
       } catch (error) {
         console.error("Admin Dashboard Error:", error);
@@ -70,17 +71,32 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
       {/* Header */}
       <header className="p-8 flex justify-between items-center">
+        {/* بخش عنوان پنل مدیریت */}
         <div>
-          <h1 className="text-3xl font-black tracking-tight">پنل مدیریت امتداد</h1>
+          <h1 className="text-3xl font-black tracking-tight text-[#1a2e44]">پنل مدیریت امتداد</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">مانیتورینگ هوشمند سیستم</p>
         </div>
-        {/* اصلاح دکمه مسابقه جدید */}
-        <button
-          onClick={() => router.push('/dashboard/create')} // ریدایرکت به صفحه ساخت مسابقه
-          className="bg-[#1a2e44] text-white px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-xl shadow-blue-900/20 active:scale-95 transition-all"
-        >
-          <Plus size={20} className="text-[#c5a059]" /> مسابقه جدید
-        </button>
+
+        {/* دسته بندی دکمه‌ها در یک باکس مشترک برای جلوگیری از به هم خوردن تراز justify-between */}
+        <div className="flex items-center gap-3">
+          {/* دکمه افزودن سوال */}
+          <button 
+            onClick={() => router.push('/admin/add-question')}
+            className="bg-white text-[#1a2e44] border border-gray-200 px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-sm active:scale-95 transition-all hover:bg-gray-50"
+          >
+            <Plus size={20} className="text-[#c5a059]" /> 
+            <span>افزودن سوال</span>
+          </button>
+
+          {/* دکمه مسابقه جدید */}
+          <button
+            onClick={() => router.push('/admin/create-contest')}
+            className="bg-[#1a2e44] text-white px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-xl shadow-blue-900/20 active:scale-95 transition-all hover:bg-[#2a405a]"
+          >
+            <Plus size={20} className="text-[#c5a059]" /> 
+            <span>مسابقه جدید</span>
+          </button>
+        </div>
       </header>
 
       <main className="px-8 space-y-8">
@@ -115,10 +131,16 @@ export default function AdminDashboard() {
             <h3 className="font-black text-xl flex items-center gap-2">
               <TrendingUp className="text-[#c5a059]" /> نمودار رشد شرکت‌کنندگان
             </h3>
-            <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full">
-              ۲۴٪ رشد نسبت به هفته گذشته
+
+            {/* نشانگر داینامیک و هوشمند درصد رشد واقعی سیستم */}
+            <span className={`text-[10px] font-black px-3 py-1 rounded-full select-none transition-colors duration-300 ${stats.growth >= 0
+                ? 'text-emerald-500 bg-emerald-50'
+                : 'text-rose-500 bg-rose-50'
+              }`}>
+              {stats.growth >= 0 ? `+${stats.growth}%` : `${stats.growth}%`} رشد نسبت به هفته گذشته
             </span>
           </div>
+
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -129,17 +151,35 @@ export default function AdminDashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} dy={10} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fontWeight: 'bold', fill: '#9ca3af' }}
+                  dy={10}
+                />
                 <YAxis hide />
                 <Tooltip
-                  contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontFamily: 'inherit' }}
+                  contentStyle={{
+                    borderRadius: '20px',
+                    border: 'none',
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                    fontFamily: 'inherit',
+                    direction: 'rtl'
+                  }}
                 />
-                <Area type="monotone" dataKey="users" stroke="#c5a059" strokeWidth={4} fillOpacity={1} fill="url(#colorUsers)" />
+                <Area
+                  type="monotone"
+                  dataKey="users"
+                  stroke="#c5a059"
+                  strokeWidth={4}
+                  fillOpacity={1}
+                  fill="url(#colorUsers)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* لیست مسابقات اخیر */}
           <div className="lg:col-span-2 bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
