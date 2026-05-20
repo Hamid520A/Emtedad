@@ -23,6 +23,18 @@ export default function AdminContestsPage() {
     fetchContests();
   }, []);
 
+  const getStatusBadgeStyle = (status: string) => {
+    if (status === 'active') return 'bg-emerald-100 text-emerald-600';
+    if (status === 'finished') return 'bg-gray-100 text-gray-500';
+    return 'bg-orange-100 text-orange-600';
+  };
+
+  const getStatusText = (status: string) => {
+    if (status === 'active') return 'در حال اجرا';
+    if (status === 'finished') return 'پایان یافته';
+    return 'به زودی';
+  };
+
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
       {/* Header */}
@@ -68,13 +80,14 @@ export default function AdminContestsPage() {
                     <div>
                       <h4 className="font-bold text-[#1a2e44]">{c.title}</h4>
                       <div className="flex gap-2 items-center mt-1">
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${c.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
-                          {c.status === 'active' ? 'در حال اجرا' : 'آینده'}
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${getStatusBadgeStyle(c.status)}`}>
+                          {getStatusText(c.status)}
                         </span>
                         <span className="text-[9px] text-gray-400 font-bold">{c.question_limit} سوال</span>
                       </div>
                     </div>
                   </div>
+                  {/* 👈 دکمه مجدداً به صفحه خود مسابقه هدایت می‌کند */}
                   <button 
                     onClick={() => router.push(`/contests/${c.id}`)} 
                     className="p-3 bg-white rounded-xl shadow-sm text-gray-400 hover:text-[#1a2e44] hover:scale-110 transition-all"

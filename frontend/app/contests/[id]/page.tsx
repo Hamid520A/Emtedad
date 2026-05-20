@@ -165,22 +165,30 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               </div>
               
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => router.push(`/admin/contests/${contest.id}/questions`)}
+                  className="flex-1 bg-amber-50 border border-amber-200 text-amber-800 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-2 hover:bg-amber-100 transition-all active:scale-95"
+                >
+                  📝 مدیریت و ویرایش سوالات
+                </button>
                 <button 
                   onClick={() => router.push(`/admin/contest/${contest.id}/participants`)}
-                  className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors flex items-center gap-1"
+                  className="bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 p-1.5 px-2.5 rounded-xl transition-all flex items-center gap-1 shadow-sm active:scale-95"
                   title="مشاهده لیست شرکت‌کنندگان"
                 >
-                  <Users size={16} />
-                  <span className="text-[10px] font-bold">شرکت‌کنندگان</span>
+                  <Users size={14} />
+                  <span className="text-[10px] font-black">شرکت‌کنندگان</span>
                 </button>
-                <div className="w-px h-4 bg-gray-200 mx-1"></div>
+
+                <div className="w-px h-4 bg-gray-200 mx-1 self-center"></div>
+
                 <button 
                   onClick={deleteContest}
-                  className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors flex items-center gap-1"
+                  className="bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 p-1.5 px-2.5 rounded-xl transition-all flex items-center gap-1 shadow-sm active:scale-95"
                   title="حذف کامل مسابقه"
                 >
-                  <Trash2 size={16} />
-                  <span className="text-[10px] font-bold">حذف</span>
+                  <Trash2 size={14} />
+                  <span className="text-[10px] font-black">حذف</span>
                 </button>
               </div>
             </div>
@@ -401,7 +409,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
 
             <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
               <h3 className="font-black text-[#1a2e44] mb-5 text-center flex justify-center items-center gap-2">
-                <Trophy size={20} className="text-[#c5a059]" /> برندگان مسابقه
+                <Trophy size={20} className="text-[#c5a059]" /> برندگان برتر مسابقه
               </h3>
               <div className="space-y-3">
                 {topThree.length === 0 ? (

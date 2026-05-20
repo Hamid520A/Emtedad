@@ -11,6 +11,10 @@ const DatePickerComponent = DatePicker as any;
 const TimePickerPlugin = TimePicker as any;
 
 export default function CreateContestPage() {
+  const toEnglishDigits = (str: string) => {
+    return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
+              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
+  };
   const router = useRouter();
   const [formData, setFormData] = useState<any>({
     title: '',
@@ -132,20 +136,46 @@ export default function CreateContestPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             <div>
+            <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">زمان آزمون (دقیقه)</label>
               <div className="relative">
                 <Clock className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input type="number" min="1" required className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" value={formData.time_limit} onChange={(e) => setFormData({...formData, time_limit: parseInt(e.target.value, 10) || 0})} />
+                <input 
+                  type="number" // 👈 فلش‌های نیتیو بالا و پایین برگشتند
+                  min="0"
+                  required 
+                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" 
+                  value={formData.time_limit} 
+                  onChange={(e) => {
+                    const val = toEnglishDigits(e.target.value);
+                    setFormData({
+                      ...formData, 
+                      // اجازه می‌دهد ورودی خالی شود تا کیبورد قفل نکند
+                      time_limit: val === '' ? '' : parseInt(val, 10)
+                    });
+                  }} 
+                />
               </div>
             </div>
 
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تعداد سوالات</label>
-              <input type="number" min="1" className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold" value={formData.question_limit} onChange={(e) => setFormData({...formData, question_limit: parseInt(e.target.value, 10) || 0})} />
+              <input 
+                type="number" // 👈 فلش‌های نیتیو بالا و پایین برگشتند
+                min="0"
+                className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm" 
+                value={formData.question_limit} 
+                onChange={(e) => {
+                  const val = toEnglishDigits(e.target.value);
+                  setFormData({
+                    ...formData, 
+                    question_limit: val === '' ? '' : parseInt(val, 10)
+                  });
+                }} 
+              />
             </div>
           </div>
-
+          
           {formData.status === 'upcoming' && (
             <div className="transition-all duration-300 animate-in fade-in slide-in-from-top-2">
               <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">

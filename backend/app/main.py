@@ -27,6 +27,15 @@ app.add_middleware(
 class StatusUpdate(BaseModel):
     status: str
 
+class QuestionUpdate(BaseModel):
+    text: str
+    description: Optional[str] = None
+    option_1: str
+    option_2: str
+    option_3: str
+    option_4: str
+    correct_option: int
+
 models.Base.metadata.create_all(bind=database.engine)
 UPLOAD_DIR = "static/uploads"
 if not os.path.exists(UPLOAD_DIR):
@@ -85,8 +94,34 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
     }
 
 @app.get("/contests", response_model=List[schemas.Contest])
-def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)):
-    return crud.get_contests(db, status=status)
+def get_all_contests(status: Optional[int] = None, db: Session = Depends(database.get_db)):
+    contests = db.query(models.Contest).all()
+    now = datetime.now()
+    
+    modified = False
+    for contest in contests:
+        # ۱. فقط در صورتی خودکار پایان‌یافته شود که وضعیتش 'active' (در حال اجرا) باشد و واقعاً وقتش تمام شده باشد
+        if contest.status == 'active' and contest.end_time and contest.end_time < now:
+            contest.status = 'finished'
+            modified = True
+            
+        # ۲. فقط در صورتی خودکار فعال شود که وضعیتش 'upcoming' باشد و زمان شروعش رسیده یا گذشته باشد
+        elif contest.status == 'upcoming' and contest.start_time and contest.start_time <= now:
+            # یک شرط محافظتی: مطمئن شویم زمان پایانش نگذشته باشد
+            if not contest.end_time or contest.end_time > now:
+                contest.status = 'active'
+                modified = True
+            else:
+                contest.status = 'finished'
+                modified = True
+            
+    if modified:
+        db.commit()
+
+    if status:
+        return db.query(models.Contest).filter(models.Contest.status == status).all()
+        
+    return db.query(models.Contest).all()
 
 @app.get("/contests/{contest_id}", response_model=schemas.Contest)
 def get_contest_detail(contest_id: int, db: Session = Depends(database.get_db)):
@@ -247,6 +282,11 @@ def get_global_leaderboard(db: Session = Depends(database.get_db)):
     for user in users:
         # پیدا کردن بهترین نمره و زمان هر مسابقه برای این کاربر
         submissions = db.query(models.Submission).filter(models.Submission.user_id == user.id).all()
+        
+        # 👈 تغییر اصلی: اگر کاربر اصلاً هیچ آزمونی نداده باشد، کلاً از چرخه خارج شود
+        if not submissions:
+            continue
+            
         unique_scores = {}
         for sub in submissions:
             # اگر مسابقه جدید بود یا نمره این دفعه از نمره قبلی بیشتر بود
@@ -256,26 +296,26 @@ def get_global_leaderboard(db: Session = Depends(database.get_db)):
         total_score = sum(item['score'] for item in unique_scores.values())
         total_time = sum(item['time'] for item in unique_scores.values())
         
-        if total_score > 0:  # فقط کسانی که امتیازی کسب کرده‌اند
-            national_id = user.national_id or "****"
-            last_four = national_id[-4:] if len(national_id) >= 4 else national_id
-            
-            results.append({
-                "id": user.id,
-                "name": f"{user.first_name} {user.last_name}",
-                "total_score": total_score,
-                "total_time": total_time,
-                "last_four_id": last_four
-            })
+        # 👈 حالا حتی اگر نمره کل کاربر 0 باشد ولی آزمون ثبت کرده باشد، در لیدربورد لود می‌شود
+        national_id = user.national_id or "****"
+        last_four = national_id[-4:] if len(national_id) >= 4 else national_id
+        
+        results.append({
+            "id": user.id,
+            "name": f"{user.first_name} {user.last_name or ''}".strip(),
+            "total_score": total_score,
+            "total_time": total_time,
+            "last_four_id": last_four
+        })
     
-    # مرتب‌سازی: اول بر اساس بیشترین نمره، بعد بر اساس کمترین زمان
+    # مرتب‌سازی بر اساس بیشترین نمره و سپس کمترین زمان
     results.sort(key=lambda x: (x["total_score"], -x["total_time"]), reverse=True)
     
-    # اختصاص رتبه
+    # اختصاص رتبه دقیق به کاربران
     for index, item in enumerate(results):
         item["rank"] = index + 1
         
-    return results[:10]  # نمایش ۱۰ نفر برتر
+    return results[:10]  # برش آرایه برای نمایش حداکثر ۱۰ نفر برتر
 
 @app.patch("/contests/{contest_id}/status")
 def update_contest_status(contest_id: str, status_update: StatusUpdate, db: Session = Depends(database.get_db)):
@@ -476,15 +516,24 @@ async def proxy_get_profile_photo(request_data: dict):
         except Exception as e:
             return {"status": "error", "message": str(e)}
         
-# backend/app/main.py
-
 @app.get("/admin/users-list")
 def get_admin_users_list(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     users = db.query(models.User).all()
     results = []
     
     for u in users:
-        # پیدا کردن وضعیت آخرین مسابقه کاربر
+        # ۱. محاسبه میانگین نمرات کاربر از جدول Submissions
+        avg_score_query = db.query(func.avg(models.Submission.score))\
+                            .filter(models.Submission.user_id == u.id)\
+                            .scalar()
+        
+        # اگر کاربر هیچ آزمونی نداده باشد، مقدار میانگین را "---" می‌گذاریم، در غیر این صورت گرد می‌کنیم
+        if avg_score_query is not None:
+            average_score = f"{round(float(avg_score_query), 1)}%"
+        else:
+            average_score = "---"
+        
+        # ۲. پیدا کردن وضعیت آخرین مسابقه کاربر (برای ستون آخرین رقابت)
         last_sub = db.query(models.Submission).filter(
             models.Submission.user_id == u.id
         ).order_by(models.Submission.id.desc()).first()
@@ -497,7 +546,7 @@ def get_admin_users_list(db: Session = Depends(database.get_db), current_admin: 
             "province": u.province or "---",
             "gender": u.gender or "---",
             "last_contest": last_sub.contest.title if last_sub else "شرکت نکرده",
-            "last_score": f"{last_sub.score}%" if last_sub else "---"
+            "average_score": average_score  # 👈 ارسال فیلد جدید به جای last_score
         })
         
     return results
@@ -525,3 +574,41 @@ async def get_admin_provinces_report(db: Session = Depends(database.get_db), cur
         })
 
     return report_data
+
+@app.put("/admin/questions/{question_id}")
+def update_contest_question(
+    question_id: int, 
+    question_update: QuestionUpdate, 
+    db: Session = Depends(database.get_db), 
+    current_admin: models.User = Depends(require_admin)
+):
+    # ۱. پیدا کردن سوال در دیتابیس
+    db_question = db.query(models.Question).filter(models.Question.id == question_id).first()
+    if not db_question:
+        raise HTTPException(status_code=404, detail="سوال یافت نشد")
+
+    # ۲. پیدا کردن مسابقه متصل به این سوال برای بررسی وضعیت آن
+    contest = db.query(models.Contest).filter(models.Contest.id == db_question.contest_id).first()
+    if not contest:
+        raise HTTPException(status_code=404, detail="مسابقه متصل به این سوال یافت نشد")
+
+    # ۳. لایه محافظتی: فقط مسابقات «به زودی» قابل ویرایش هستند
+    if contest.status != "upcoming":
+        raise HTTPException(
+            status_code=400, 
+            detail="این مسابقه شروع شده یا پایان یافته است؛ تنها سوالات مسابقاتی که در حالت «به زودی» هستند قابل ویرایش می‌باشند."
+        )
+
+    # ۴. به‌روزرسانی فیلدهای سوال
+    db_question.text = question_update.text
+    db_question.description = question_update.description
+    db_question.option_1 = question_update.option_1
+    db_question.option_2 = question_update.option_2
+    db_question.option_3 = question_update.option_3
+    db_question.option_4 = question_update.option_4
+    db_question.correct_option = question_update.correct_option
+
+    db.commit()
+    db.refresh(db_question)
+    
+    return {"status": "success", "message": "سوال با موفقیت ویرایش شد"}

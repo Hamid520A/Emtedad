@@ -10,7 +10,6 @@ const getAnalysis = (score: number) => {
   const s = parseFloat(score.toString());
   
   if (s >= 85.71) {
-    // معادل ۱۲۰ تا ۱۴۰ امتیاز (۱۲ تا ۱۴ سوال درست)
     return { 
       msg: "فوق‌العاده! شما موفق به کسب «گواهی عالی» شدید.", 
       certMsg: "امتیاز شما در بازه گواهی عالی قرار دارد.",
@@ -20,7 +19,6 @@ const getAnalysis = (score: number) => {
     };
   }
   if (s >= 64.28) {
-    // معادل ۹۰ تا ۱۲۰ امتیاز (۹ تا ۱۱ سوال درست)
     return { 
       msg: "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید.", 
       certMsg: "امتیاز شما در بازه گواهی خوب قرار دارد.",
@@ -29,7 +27,6 @@ const getAnalysis = (score: number) => {
       emoji: "🥇" 
     };
   }
-  // کمتر از ۶۴.۲۸ درصد (کمتر از ۹ سوال درست) -> بدون گواهی
   return { 
     msg: "تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ۹ سوال پاسخ صحیح بدهید.", 
     certMsg: "حد نصاب قبولی برای صدور گواهی کسب نشد.",
@@ -93,7 +90,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   }, [timeLeft]);
 
   useEffect(() => {
-    // جشن شادی فقط در صورت کسب حداقل امتیاز گواهی خوب (۶۴.۲۸٪)
     if (isSubmitted && result && result.score >= 64.28) {
       const duration = 3 * 1000;
       const end = Date.now() + duration;
@@ -138,7 +134,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     try {
       await api.post('/submissions', {
         contest_id: parseInt(contestId),
-        score: Math.round(finalScore), // نمره رند شده کماکان روی مبنای ۱۰۰ ارسال می‌شود
+        score: Math.round(finalScore),
         time_taken: timeTaken,
         answers_map: answers
       });
@@ -185,7 +181,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         <h2 className="text-2xl font-black text-[#1a2e44] mb-1">پایان مسابقه {result.analysis.emoji}</h2>
         <p className="text-gray-500 text-sm mb-8">{result.analysis.certMsg}</p>
 
-        <div className="w-full bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-8">
+        <div className="w-full bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-50 p-5 rounded-3xl text-center border border-gray-100">
               <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">پاسخ‌های صحیح</span>
@@ -197,8 +193,29 @@ export default function ExamPage({ params }: { params: { id: string } }) {
             </div>
           </div>
           <div className={`p-4 rounded-2xl text-center ${result.analysis.bg} ${result.analysis.color}`}>
-             <p className="font-bold text-sm leading-relaxed">{result.analysis.msg}</p>
+              <p className="font-bold text-sm leading-relaxed">{result.analysis.msg}</p>
           </div>
+        </div>
+
+        {/* 👈 دکمه‌های آدرس کانال و وب‌سایت امتداد امام (اضافه شده) */}
+        <div className="w-full flex flex-col gap-2.5 mb-6">
+          <a 
+            href="https://eitaa.com/emtedadeemam" // آدرس واقعی کانال شما
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-full text-center bg-orange-50 hover:bg-orange-100 text-orange-700 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-orange-100"
+          >
+            📢 عضویت در کانال امتداد
+          </a>
+          
+          <a 
+            href="https://emtedad.com" // آدرس واقعی وب‌سایت شما
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-full text-center bg-amber-50 hover:bg-amber-100 text-amber-800 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-amber-100"
+          >
+            🌐 ورود به وب‌سایت امتداد امام
+          </a>
         </div>
 
         <div className="w-full space-y-3">
