@@ -33,7 +33,15 @@ export default function CreateContestPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const now = new Date().toISOString();
+    const now = new Date();
+    // ۱. محاسبه دقیق زمان شروع مسابقه
+    const startTime = (formData.status === 'upcoming' && formData.start_time) 
+                      ? new Date(formData.start_time) 
+                      : now;
+
+    // ۲. محاسبه هوشمند زمان پایان (زمان شروع + تعداد دقیقه‌های زمان آزمون)
+    const durationInMinutes = parseInt(formData.time_limit.toString(), 10) || 10;
+    const endTime = new Date(startTime.getTime() + durationInMinutes * 60 * 1000);
 
     const finalData = {
       title: formData.title,
@@ -43,13 +51,11 @@ export default function CreateContestPage() {
       image_url: formData.image_url || "",
       file_url: formData.file_url || "",
       video_url: formData.video_url || "",
-      time_limit: parseInt(formData.time_limit.toString(), 10) || 0,
+      time_limit: durationInMinutes,
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
       certificate_type: formData.certificate_type || 'none',
-      start_time: (formData.status === 'upcoming' && formData.start_time) 
-                  ? new Date(formData.start_time).toISOString() 
-                  : now,
-      end_time: now 
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString() // 👈 زمان پایان واقعی و در آینده ارسال می‌شود
     };
 
     try {
@@ -60,7 +66,7 @@ export default function CreateContestPage() {
       const serverError = error.response?.data?.detail?.[0]?.msg || error.response?.data?.detail || "مشکل فنی در سرور";
       alert("خطا: " + serverError);
     }
-  };  
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0];

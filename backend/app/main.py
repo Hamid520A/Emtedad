@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from . import crud, schemas, models, auth, database
-import shutil, os, random, httpx, base64, redis
+import shutil, os, random, httpx, base64, redis, json
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 
@@ -14,7 +14,7 @@ app = FastAPI()
 ACCOUNT_REDIS_HOST = os.getenv("REDIS_HOST", "10.10.10.6")
 ACCOUNT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 ACCOUNT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
-ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989944774408")
+ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989371787445")
 r = redis.Redis(host=ACCOUNT_REDIS_HOST, port=ACCOUNT_REDIS_PORT, db=ACCOUNT_REDIS_DB, decode_responses=True)
 
 app.add_middleware(
@@ -94,20 +94,19 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
     }
 
 @app.get("/contests", response_model=List[schemas.Contest])
-def get_all_contests(status: Optional[int] = None, db: Session = Depends(database.get_db)):
+def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)): # 👈 تغییر int به str برای رفع ارور فیلتر وضعیت
     contests = db.query(models.Contest).all()
     now = datetime.now()
     
     modified = False
     for contest in contests:
-        # ۱. فقط در صورتی خودکار پایان‌یافته شود که وضعیتش 'active' (در حال اجرا) باشد و واقعاً وقتش تمام شده باشد
+        # ۱. فقط در صورتی خودکار پایان‌یافته شود که وضعیتش 'active' باشد و واقعاً وقتش تمام شده باشد
         if contest.status == 'active' and contest.end_time and contest.end_time < now:
             contest.status = 'finished'
             modified = True
             
         # ۲. فقط در صورتی خودکار فعال شود که وضعیتش 'upcoming' باشد و زمان شروعش رسیده یا گذشته باشد
         elif contest.status == 'upcoming' and contest.start_time and contest.start_time <= now:
-            # یک شرط محافظتی: مطمئن شویم زمان پایانش نگذشته باشد
             if not contest.end_time or contest.end_time > now:
                 contest.status = 'active'
                 modified = True
@@ -449,22 +448,39 @@ def get_export_data(db: Session = Depends(database.get_db), current_admin: model
 
 @app.post("/proxy-upload")
 async def proxy_get_profile_photo(request_data: dict):
-    # ۱. تعریف آدرس گیت‌وی ایتا
     EITAA_API_URL = "http://10.10.10.4:3000/send" 
     
     try:
-        # ۲. خواندن توکن و imei از ردیس (از کلاینتی که در فایل کانفیگ می‌سازیم)
-        token = r.get("eitaa_token")
-        imei = r.get("eitaa_imei")
+        # ۱. خواندن کل رشته متنی از ردیس (چون دیتات STRING است نه HASH)
+        session_json_str = r.get(ACCOUNT_KEY)
+
+        if not session_json_str:
+            return {
+                "status": "error", 
+                "message": f"500: کلید سشن {ACCOUNT_KEY} در ردیس یافت نشد یا منقضی شده است."
+            }
+        
+        # ۲. تبدیل متن JSON به دیکشنری پایتون
+        session_data = json.loads(session_json_str)
+        
+        # ۳. استخراج مقادیر توکن و imei از داخل آبجکت
+        token = session_data.get("token")
+        imei = session_data.get("imei")
+
+        # چاپ در ترمینال برای اطمینان از صحت استخراج داده‌ها
+        print(f"Successfully Parsed - Token: {token}, IMEI: {imei}")
 
         if not token or not imei:
-            raise HTTPException(status_code=500, detail="تنظیمات توکن یا IMEI در ردیس یافت نشد.")
+            return {
+                "status": "error", 
+                "message": "500: مقادیر token یا imei در دیتای داخل ردیس مفقود هستند."
+            }
         
-        # ۳. تزریق توکن و IMEI به درخواستی که از فرانت‌ند آمده
+        # ۴. تزریق توکن و IMEI به بدنه درخواست فرانت‌ند
         request_data["token"] = token
         request_data["imei"] = imei
 
-        # ۴. ارسال درخواست نهایی به سرور ایتا
+        # ۵. ارسال درخواست نهایی به سرور ایتا
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 EITAA_API_URL,
@@ -473,48 +489,10 @@ async def proxy_get_profile_photo(request_data: dict):
             )
             return response.json()
             
+    except json.JSONDecodeError:
+        return {"status": "error", "message": "500: ساختار متنی موجود در ردیس فرمت JSON معتبری ندارد."}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
-    # خواندن توکن و imei از ردیس
-    token = r.hget(ACCOUNT_KEY,"token")
-    imei = r.hget(ACCOUNT_KEY,"imei")
-    print(f"Read from Redis - Token: {token}, IMEI: {imei}")
-
-    if not token or not imei:
-            raise HTTPException(status_code=500, detail=f"تنظیمات توکن یا IMEI در ردیس یافت نشد.")
-    
-# ۳. ارسال درخواست نهایی به سرور ایتا
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            EITAA_API_URL,
-            json=request_data,
-            timeout=30.0
-        )
-        return response.json()
-
-    # تزریق به درخواستی که از فرانت‌ند آمده
-    request_data["token"] = token
-    request_data["imei"] = imei
-
-    # آدرس API مقصد (ایتا)
-    EITAA_API_URL = "http://10.10.10.4:3000/send" 
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                EITAA_API_URL,
-                json=request_data,
-                timeout=30.0
-            )
-            
-            result = response.json()
-            
-            # اگر دیتا به صورت خام (bytes) بود، اینجا مطمئن می‌شویم که برای JSON معتبر است
-            # معمولاً کلاینت‌های تلگرامی دیتای bytes را به صورت base64 برمی‌گردانند
-            return result
-            
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"500: خطا در برقراری ارتباط: {str(e)}"}
         
 @app.get("/admin/users-list")
 def get_admin_users_list(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):

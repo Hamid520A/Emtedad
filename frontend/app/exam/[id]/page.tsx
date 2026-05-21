@@ -6,8 +6,11 @@ import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Ey
 import confetti from 'canvas-confetti';
 
 // منطق تحلیل نمره بر اساس درصدهای معادل امتیاز گواهی خوب و عالی
-const getAnalysis = (score: number) => {
+const getAnalysis = (score: number, totalQuestions: number = 3) => {
   const s = parseFloat(score.toString());
+  
+  // محاسبه پویا و خودکار حداقل تعداد پاسخ صحیح بر اساس حد نصاب ۶۴.۲۸٪
+  const minRequired = Math.ceil(totalQuestions * 0.6428);
   
   if (s >= 85.71) {
     return { 
@@ -28,7 +31,7 @@ const getAnalysis = (score: number) => {
     };
   }
   return { 
-    msg: "تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ۹ سوال پاسخ صحیح بدهید.", 
+    msg: `تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ${minRequired} سوال پاسخ صحیح بدهید.`, 
     certMsg: "حد نصاب قبولی برای صدور گواهی کسب نشد.",
     color: "text-red-600", 
     bg: "bg-red-50", 

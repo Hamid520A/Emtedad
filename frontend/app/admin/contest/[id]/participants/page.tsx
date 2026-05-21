@@ -101,8 +101,14 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                     
                     <div>
                       <span className="font-bold text-sm text-[#1a2e44] block">{user.name}</span>
-                      {/* اصلاح بخش زمان در اینجا انجام شده است */}
-                      <span className="text-[10px] text-gray-400 font-bold">زمان: {user.time || user.time_taken || 0} ثانیه</span>
+                      {/* 👈 اصلاح متادیتای زیر اسم برای رندر موازی زمان و ۴ رقم آخر کد ملی */}
+                      <div className="flex gap-2 items-center mt-1 text-[10px] text-gray-400 font-bold">
+                        <span>زمان: {user.time || user.time_taken || 0} ثانیه</span>
+                        <span className="text-gray-200">•</span>
+                        <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md font-black text-[9px]">
+                          کد ملی: {user.last_four_id || '****'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   
