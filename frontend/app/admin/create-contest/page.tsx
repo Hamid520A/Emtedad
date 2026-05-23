@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle } from 'lucide-react'; 
+import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle, Plus, Trash2 } from 'lucide-react'; 
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -16,37 +16,62 @@ export default function CreateContestPage() {
               .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
   };
   const router = useRouter();
+  
+  // ۱. استیت اختصاصی برای مدیریت جوایز چندگانه رتبه‌بندی
+  const [awards, setAwards] = useState<{ rank: number; title: string }[]>([
+    { rank: 1, title: '' }
+  ]);
+
   const [formData, setFormData] = useState<any>({
     title: '',
     description: '',
-    award: '',
     status: 'upcoming',
     image_url: '',
     file_url: '',
-    start_time: null, // تغییر از رشته خالی به null برای سازگاری کامل با دیت‌پیکر
+    start_time: null, 
     time_limit: 10,
     question_limit: 15,
     certificate_type: 'none', 
     video_url: ''
   });
 
+  // توابع مدیریت پویای لیست جوایز
+  const handleAwardChange = (index: number, field: 'rank' | 'title', value: string) => {
+    const updated = [...awards];
+    if (field === 'rank') {
+      updated[index].rank = value === '' ? 1 : parseInt(toEnglishDigits(value), 10);
+    } else {
+      updated[index].title = value;
+    }
+    setAwards(updated);
+  };
+
+  const addAwardField = () => {
+    const nextRank = awards.length > 0 ? Math.max(...awards.map(a => a.rank)) + 1 : 1;
+    setAwards([...awards, { rank: nextRank, title: '' }]);
+  };
+
+  const removeAwardField = (index: number) => {
+    setAwards(awards.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const now = new Date();
-    // ۱. محاسبه دقیق زمان شروع مسابقه
     const startTime = (formData.status === 'upcoming' && formData.start_time) 
                       ? new Date(formData.start_time) 
                       : now;
 
-    // ۲. محاسبه هوشمند زمان پایان (زمان شروع + تعداد دقیقه‌های زمان آزمون)
     const durationInMinutes = parseInt(formData.time_limit.toString(), 10) || 10;
     const endTime = new Date(startTime.getTime() + durationInMinutes * 60 * 1000);
+
+    const validAwards = awards.filter(a => a.title.trim() !== "");
 
     const finalData = {
       title: formData.title,
       description: formData.description || "",
-      award: formData.award || "",
+      award: JSON.stringify(validAwards), 
       status: formData.status,
       image_url: formData.image_url || "",
       file_url: formData.file_url || "",
@@ -55,7 +80,7 @@ export default function CreateContestPage() {
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
       certificate_type: formData.certificate_type || 'none',
       start_time: startTime.toISOString(),
-      end_time: endTime.toISOString() // 👈 زمان پایان واقعی و در آینده ارسال می‌شود
+      end_time: endTime.toISOString() 
     };
 
     try {
@@ -85,36 +110,83 @@ export default function CreateContestPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
-      <header className="p-6 flex items-center gap-3 sticky top-0 bg-[#faf9f6]/90 backdrop-blur-md z-20">
-        <button onClick={() => router.back()} className="p-2 bg-white rounded-full shadow-sm border border-gray-100 hover:bg-gray-50 transition">
-          <ArrowRight size={20} className="text-[#1a2e44]" />
+    // 👈 تغییر پهنا به max-w-5xl برای هماهنگی با تراز ویندوزی دشبورد اصلی ادمین
+    <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
+      
+      {/* هدر پهن دسکتاپ */}
+      <header className="p-8 flex items-center gap-4 sticky top-0 bg-[#faf9f6]/90 backdrop-blur-md z-20">
+        <button onClick={() => router.back()} className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition text-gray-500 hover:text-[#1a2e44]">
+          <ArrowRight size={20} />
         </button>
-        <h1 className="font-black text-xl text-[#1a2e44]">تعریف مسابقه جدید</h1>
+        <div>
+          <h1 className="font-black text-2xl text-[#1a2e44]">تعریف مسابقه جدید</h1>
+          <p className="text-gray-400 text-xs font-bold mt-1">ایجاد رقابت جدید، تنظیم زمان‌بندی و جوایز رتبه‌بندی</p>
+        </div>
       </header>
 
-      <form onSubmit={handleSubmit} className="px-6 space-y-6">
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-5">
-          
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
-            <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold" placeholder="مثلاً: مسابقه هوش مصنوعی" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">توضیحات جامع</label>
-            <textarea rows={3} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">جوایز مسابقه</label>
-              <div className="relative">
-                <Trophy className="absolute right-4 top-4 text-gray-400" size={18} />
-                <textarea rows={3} className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" placeholder="جوایز..." value={formData.award} onChange={(e) => setFormData({...formData, award: e.target.value})} />
-              </div>
-            </div>
+      {/* 👈 تقسیم فضا به صورت گرید: بخش محتوا (۲ ستون) و بخش تنظیمات/آپلودها (۱ ستون) */}
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
+        
+        {/* ستون راست: اطلاعات متنی و اصلی مسابقه */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
             
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
+              <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" placeholder="مثلاً: مسابقه هوش مصنوعی" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">توضیحات جامع</label>
+              <textarea rows={4} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+            </div>
+
+            {/* بخش پویای جوایز رتبه‌بندی با چیدمان عریض و بسیار تمیز */}
+            <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100 space-y-3">
+              <div className="flex items-center gap-1.5 mb-1 text-gray-500">
+                <Trophy size={16} className="text-[#c5a059]" />
+                <label className="block text-[10px] font-black uppercase tracking-widest">تعیین جوایز بر اساس رتبه‌بندی</label>
+              </div>
+              
+              {awards.map((award, index) => (
+                <div key={index} className="flex gap-2 items-center animate-in fade-in duration-200">
+                  <div className="w-24">
+                    <input 
+                      type="number" min="1" required
+                      className="w-full p-3 bg-white border border-gray-200 rounded-xl text-center text-xs font-black text-[#1a2e44] outline-none focus:ring-2 focus:ring-[#c5a059]" 
+                      placeholder="رتبه" value={award.rank}
+                      onChange={(e) => handleAwardChange(index, 'rank', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <input 
+                      type="text" required
+                      className="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-2 focus:ring-[#c5a059]" 
+                      placeholder={`جایزه رتبه ${award.rank}...`} value={award.title}
+                      onChange={(e) => handleAwardChange(index, 'title', e.target.value)}
+                    />
+                  </div>
+                  {awards.length > 1 && (
+                    <button type="button" onClick={() => removeAwardField(index)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              
+              <button type="button" onClick={addAwardField} className="w-full py-3 bg-white border border-dashed border-gray-300 rounded-xl text-xs font-black text-[#c5a059] flex items-center justify-center gap-1 hover:bg-gray-50 transition-all active:scale-95">
+                <Plus size={14} /> افزودن جایزه برای رتبه بعدی
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        {/* ستون چپ: ابزارها، زمان‌بندی، ویدیو و فایل‌های پیوست */}
+        <div className="lg:col-span-1 space-y-6">
+          
+          {/* باکس پیکربندی مسابقه */}
+          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">وضعیت انتشار</label>
               <select className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
@@ -122,136 +194,81 @@ export default function CreateContestPage() {
                 <option value="active">در حال برگزاری</option>
               </select>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
-            <div className="relative">
-              <Award className="absolute right-4 top-4 text-gray-400" size={18} />
-              <select 
-                className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none" 
-                value={formData.certificate_type} 
-                onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}
-              >
-                <option value="none">بدون گواهی</option>
-                <option value="level_1">گواهی رتبه ۱</option>
-                <option value="level_2">گواهی رتبه ۲</option>
-                <option value="level_3">گواهی رتبه ۳</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">زمان آزمون (دقیقه)</label>
+              <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
               <div className="relative">
-                <Clock className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input 
-                  type="number" // 👈 فلش‌های نیتیو بالا و پایین برگشتند
-                  min="0"
-                  required 
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" 
-                  value={formData.time_limit} 
-                  onChange={(e) => {
-                    const val = toEnglishDigits(e.target.value);
-                    setFormData({
-                      ...formData, 
-                      // اجازه می‌دهد ورودی خالی شود تا کیبورد قفل نکند
-                      time_limit: val === '' ? '' : parseInt(val, 10)
-                    });
-                  }} 
-                />
+                <Award className="absolute right-4 top-4 text-gray-400" size={18} />
+                <select className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none" value={formData.certificate_type} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
+                  <option value="none">بدون گواهی</option>
+                  <option value="level_1">گواهی رتبه ۱</option>
+                  <option value="level_2">گواهی رتبه ۲</option>
+                  <option value="level_3">گواهی رتبه ۳</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">زمان (دقیقه)</label>
+                <div className="relative">
+                  <Clock className="absolute right-3 top-4 text-gray-400" size={16} />
+                  <input type="number" min="0" required className="w-full p-4 pr-10 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" value={formData.time_limit} onChange={(e) => setFormData({...formData, time_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تعداد سوالات</label>
+                <input type="number" min="0" className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm" value={formData.question_limit} onChange={(e) => setFormData({...formData, question_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} />
+              </div>
+            </div>
+            
+            {formData.status === 'upcoming' && (
+              <div className="transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+                <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
+                <div className="relative">
+                  <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                  <DatePickerComponent
+                    calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
+                    plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
+                    value={formData.start_time}
+                    onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
+                    containerClassName="w-full"
+                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                    placeholder="انتخاب تاریخ و ساعت"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* باکس بارگذاری و ویدیو */}
+          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
+              <div className="relative">
+                <PlayCircle className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                <input type="text" className="w-full p-3 pr-9 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-xs" placeholder="https://www.aparat.com/v/xxxxx" value={formData.video_url} onChange={(e) => setFormData({...formData, video_url: e.target.value})} />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تعداد سوالات</label>
-              <input 
-                type="number" // 👈 فلش‌های نیتیو بالا و پایین برگشتند
-                min="0"
-                className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm" 
-                value={formData.question_limit} 
-                onChange={(e) => {
-                  const val = toEnglishDigits(e.target.value);
-                  setFormData({
-                    ...formData, 
-                    question_limit: val === '' ? '' : parseInt(val, 10)
-                  });
-                }} 
-              />
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><ImageIcon size={14} /> تصویر بنر</label>
+              <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl outline-none text-xs text-gray-500 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#1a2e44] file:text-white cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> جزوه (PDF)</label>
+              <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl outline-none text-xs text-gray-500 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#c5a059] file:text-[#1a2e44] cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
             </div>
           </div>
-          
-          {formData.status === 'upcoming' && (
-            <div className="transition-all duration-300 animate-in fade-in slide-in-from-top-2">
-              <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                <CalendarClock size={14} /> زمان شروع مسابقه
-              </label>
-              <div className="relative">
-                <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-                <DatePickerComponent
-                  calendar={persian}
-                  locale={persian_fa}
-                  calendarPosition="bottom-right"
-                  format="YYYY/MM/DD HH:mm"
-                  // با این روش فراخوانی شیء، تداخل کدهای لوکال و تایپ‌اسکریپت کاملاً برطرف می‌شود
-                  plugins={[
-                    React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })
-                  ]}
-                  value={formData.start_time}
-                  onChange={(date: any) => {
-                    if (date) {
-                      const jsDate = date.toDate ? date.toDate() : new Date(date);
-                      setFormData({ ...formData, start_time: jsDate });
-                    } else {
-                      setFormData({ ...formData, start_time: null });
-                    }
-                  }}
-                  containerClassName="w-full"
-                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
-                  placeholder="انتخاب تاریخ و ساعت شروع"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">لینک ویدیو آپارات (اختیاری)</label>
-          <div className="relative">
-            <PlayCircle className="absolute right-4 top-4 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" 
-              placeholder="https://www.aparat.com/v/xxxxx" 
-              value={formData.video_url} 
-              onChange={(e) => setFormData({...formData, video_url: e.target.value})} 
-            />
-          </div>
-          <p className="text-[9px] text-gray-400 mt-1 mr-2">لینک صفحه ویدیو یا کد اشتراق‌گذاری آپارات را وارد کنید.</p>
+
+          {/* دکمه ثبت نهایی فرم */}
+          <button type="submit" className="w-full bg-[#1a2e44] text-white p-4 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-[#2a405a] transition-all shadow-xl shadow-blue-900/10 active:scale-95">
+            <Save size={20} className="text-[#c5a059]" /> ذخیره و انتشار مسابقه
+          </button>
+
         </div>
 
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-5">
-          <h2 className="font-black text-[#1a2e44] flex items-center gap-2 mb-4 pb-4 border-b border-gray-50">
-            <Settings size={20} className="text-[#c5a059]" /> محتوا و پیوست‌ها
-          </h2>
-          <div>
-            <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-              <ImageIcon size={14} /> بارگذاری تصویر بنر
-            </label>
-            <input type="file" accept="image/*" className="w-full p-3 bg-[#faf9f6] border-2 border-dashed border-gray-200 rounded-2xl outline-none text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#1a2e44] file:text-white cursor-pointer transition-all hover:border-[#c5a059]" onChange={(e) => handleFileUpload(e, 'image_url')} />
-          </div>
-          <div>
-            <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-              <FileText size={14} /> فایل جزوه (PDF)
-            </label>
-            <input type="file" accept=".pdf" className="w-full p-3 bg-[#faf9f6] border-2 border-dashed border-gray-200 rounded-2xl outline-none text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#c5a059] file:text-[#1a2e44] cursor-pointer transition-all hover:border-[#c5a059]" onChange={(e) => handleFileUpload(e, 'file_url')} />
-          </div>
-        </div>
-
-        <button type="submit" className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-[#2a405a] transition-all shadow-xl shadow-blue-900/10 active:scale-95 mt-4">
-          <Save size={22} className="text-[#c5a059]" /> ذخیره و انتشار مسابقه
-        </button>
       </form>
     </div>
   );

@@ -247,41 +247,30 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           )}
 
           {/* بخش جوایز و منبع مسابقه (موجود در کد شما) */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <div className="bg-orange-50 p-4 rounded-2xl flex flex-col border border-orange-100 min-h-[100px]">
-              <div className="flex items-center gap-2 mb-2">
-                <Gift size={20} className="text-orange-500" />
-                <span className="text-[10px] text-orange-400 font-bold uppercase tracking-widest">جوایز رقابت</span>
-              </div>
-              
-              <div className="space-y-1">
-                {contest.award ? (
-                  contest.award.split('\n').map((item: string, index: number) => (
-                    item.trim() && (
-                      <div key={index} className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-1.5 flex-shrink-0"></span>
-                        <span className="font-black text-orange-600 text-[11px] leading-relaxed">
-                          {item.trim()}
-                        </span>
+          {(() => {
+            try {
+              const parsedAwards = JSON.parse(contest.award);
+              if (Array.isArray(parsedAwards) && parsedAwards.length > 0) {
+                return (
+                  <div className="mt-4 p-4 bg-amber-50/50 rounded-2xl border border-amber-100 space-y-2.5 text-right">
+                    <h4 className="font-black text-xs text-amber-800 flex items-center gap-1.5 mb-3">
+                      🏆 لیست جوایز برندگان این مسابقه:
+                    </h4>
+                    {parsedAwards.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center text-xs bg-white p-2.5 rounded-xl border border-amber-100/50">
+                        <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">رتبه {item.rank}</span>
+                        <span className="font-bold text-[#1a2e44]">{item.title}</span>
                       </div>
-                    )
-                  ))
-                ) : (
-                  <span className="text-xs text-orange-400 font-bold">نامشخص</span>
-                )}
-              </div>
-            </div>
-            
-            <a 
-              href={contest.file_url || '#'} 
-              target="_blank"
-              className="bg-blue-50 p-4 rounded-2xl flex flex-col items-center justify-center border border-blue-100 hover:bg-blue-100 transition-colors"
-            >
-              <Download size={24} className="text-blue-500 mb-1" />
-              <span className="text-[10px] text-blue-400 font-bold mb-1">منبع مسابقه</span>
-              <span className="font-black text-blue-600 text-sm">دانلود جزوه</span>
-            </a>
-          </div>
+                    ))}
+                  </div>
+                );
+              }
+            } catch (e) {
+              return contest.award && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-2xl text-xs font-bold text-gray-600">جایزه: {contest.award}</div>
+              );
+            }
+          })()}
 
           {/* ====================================================== */}
           {/* بخش جدید: نمایش وضعیت گواهی دوره به کاربر (اضافه شده) */}

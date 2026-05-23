@@ -7,22 +7,29 @@ import { ArrowRight, Users, Loader2, Search, Trophy, Medal, Crown } from 'lucide
 export default function ParticipantsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [participants, setParticipants] = useState<any[]>([]);
+  // 👈 اضافه کردن استیت مسابقه برای حل مشکل عدم شناسایی contest
+  const [contest, setContest] = useState<any>(null); 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const fetchParticipants = async () => {
+    const fetchPageData = async () => {
       try {
-        // از همون API لیدربورد برای گرفتن لیست افراد این مسابقه استفاده می‌کنیم
-        const response = await api.get(`/contests/${params.id}/leaderboard`);
-        setParticipants(response.data);
+        // 👈 دریافت همزمان لیدربرد و جزئیات مسابقه با بهره‌گیری از Promise.all
+        const [leaderboardRes, contestRes] = await Promise.all([
+          api.get(`/contests/${params.id}/leaderboard`),
+          api.get(`/contests/${params.id}`)
+        ]);
+        
+        setParticipants(leaderboardRes.data);
+        setContest(contestRes.data); // ذخیره اطلاعات مسابقه در استیت
       } catch (error) {
-        console.error("خطا در دریافت لیست شرکت‌کنندگان", error);
+        console.error("خطا در دریافت اطلاعات صفحه مدیریت", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchParticipants();
+    fetchPageData();
   }, [params.id]);
 
   if (loading) {
@@ -69,6 +76,32 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
           />
         </div>
 
+        {/* 👈 بخش رندر هوشمند جوایز رتبه‌بندی (با شرط وجود دیتای contest) */}
+        {contest && (() => {
+          try {
+            const parsedAwards = JSON.parse(contest.award);
+            if (Array.isArray(parsedAwards) && parsedAwards.length > 0) {
+              return (
+                <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100 space-y-2.5 text-right animate-in fade-in duration-300">
+                  <h4 className="font-black text-xs text-amber-800 flex items-center gap-1.5 mb-3">
+                    <Trophy size={14} className="text-[#c5a059]" /> لیست جوایز برندگان این مسابقه:
+                  </h4>
+                  {parsedAwards.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center text-xs bg-white p-2.5 rounded-xl border border-amber-100/50">
+                      <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">رتبه {item.rank}</span>
+                      <span className="font-bold text-[#1a2e44]">{item.title}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+          } catch (e) {
+            return contest.award && (
+              <div className="p-4 bg-gray-50 rounded-2xl text-xs font-bold text-gray-600">جایزه: {contest.award}</div>
+            );
+          }
+        })()}
+
         {/* لیست افراد */}
         <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-gray-100">
           {filteredParticipants.length === 0 ? (
@@ -101,7 +134,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                     
                     <div>
                       <span className="font-bold text-sm text-[#1a2e44] block">{user.name}</span>
-                      {/* 👈 اصلاح متادیتای زیر اسم برای رندر موازی زمان و ۴ رقم آخر کد ملی */}
                       <div className="flex gap-2 items-center mt-1 text-[10px] text-gray-400 font-bold">
                         <span>زمان: {user.time || user.time_taken || 0} ثانیه</span>
                         <span className="text-gray-200">•</span>
