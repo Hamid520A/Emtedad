@@ -414,17 +414,38 @@ async def get_admin_stats(db: Session = Depends(database.get_db), current_admin:
     }
 
 @app.get("/admin/export-data")
-def get_export_data(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
-    # ۱. گرفتن تمام کاربران
+def get_export_data(
+    contest_id: Optional[int] = None, # 👈 اضافه شدن پارامتر اختیاری فیلتر مسابقه
+    db: Session = Depends(database.get_db), 
+    current_admin: models.User = Depends(require_admin)
+):
+    # ۱. حالت اول: اگر مسابقه خاصی فیلتر شده باشد، فقط سابمیشن‌های همان مسابقه را خروجی می‌گیریم
+    if contest_id:
+        submissions = db.query(models.Submission).filter(models.Submission.contest_id == contest_id).all()
+        report = []
+        for sub in submissions:
+            u = sub.user
+            if not u:
+                continue
+            report.append({
+                "نام": u.first_name or "---",
+                "نام خانوادگی": u.last_name or "---",
+                "شماره تماس": u.phone,
+                "کد ملی": u.national_id or "---",
+                "استان": u.province or "---",
+                "جنسیت": u.gender or "---",
+                "نام مسابقه": sub.contest.title if sub.contest else "---",
+                "نمره": f"{sub.score}%",
+                "زمان (ثانیه)": sub.time_taken,
+                "تاریخ ثبت‌نام": u.created_at.strftime("%Y/%m/%d") if u.created_at else "---"
+            })
+        return report
+
+    # ۲. حالت دوم: اگر مسابقه‌ای انتخاب نشده باشد، تمام کاربران سیستم (به همراه وضعیت مسابقه‌شان) خروجی گرفته می‌شوند
     users = db.query(models.User).all()
-    
     report = []
     for u in users:
-        # ۲. پیدا کردن نمره این کاربر خاص در جدول Submission
-        # فرض می‌کنیم در مدل Submission فیلدی به نام user_id داری
         submission = db.query(models.Submission).filter(models.Submission.user_id == u.id).first()
-        
-        # ۳. پیدا کردن نام مسابقه (اگر شرکت کرده باشد)
         contest_title = "شرکت نکرده"
         if submission:
             contest = db.query(models.Contest).filter(models.Contest.id == submission.contest_id).first()
@@ -439,11 +460,10 @@ def get_export_data(db: Session = Depends(database.get_db), current_admin: model
             "استان": u.province or "---",
             "جنسیت": u.gender or "---",
             "نام مسابقه": contest_title,
-            "نمره": submission.score if submission else 0,
+            "نمره": f"{submission.score}%" if submission else "0%",
             "زمان (ثانیه)": submission.time_taken if submission else 0,
             "تاریخ ثبت‌نام": u.created_at.strftime("%Y/%m/%d") if u.created_at else "---"
         })
-    
     return report
 
 @app.post("/proxy-upload")
@@ -500,18 +520,21 @@ def get_admin_users_list(db: Session = Depends(database.get_db), current_admin: 
     results = []
     
     for u in users:
-        # ۱. محاسبه میانگین نمرات کاربر از جدول Submissions
+        # ۱. محاسبه میانگین نمرات
         avg_score_query = db.query(func.avg(models.Submission.score))\
                             .filter(models.Submission.user_id == u.id)\
                             .scalar()
         
-        # اگر کاربر هیچ آزمونی نداده باشد، مقدار میانگین را "---" می‌گذاریم، در غیر این صورت گرد می‌کنیم
         if avg_score_query is not None:
             average_score = f"{round(float(avg_score_query), 1)}%"
         else:
             average_score = "---"
         
-        # ۲. پیدا کردن وضعیت آخرین مسابقه کاربر (برای ستون آخرین رقابت)
+        # 👈 ۲. پیدا کردن تمام مسابقاتی که کاربر تا به حال در آن‌ها شرکت کرده است
+        all_subs = db.query(models.Submission).filter(models.Submission.user_id == u.id).all()
+        participated_contests = [sub.contest.title for sub in all_subs if sub.contest]
+        
+        # ۳. پیدا کردن وضعیت آخرین مسابقه کاربر
         last_sub = db.query(models.Submission).filter(
             models.Submission.user_id == u.id
         ).order_by(models.Submission.id.desc()).first()
@@ -524,7 +547,8 @@ def get_admin_users_list(db: Session = Depends(database.get_db), current_admin: 
             "province": u.province or "---",
             "gender": u.gender or "---",
             "last_contest": last_sub.contest.title if last_sub else "شرکت نکرده",
-            "average_score": average_score  # 👈 ارسال فیلد جدید به جای last_score
+            "all_contests": participated_contests,  # 👈 ارسال آرایه کامل تاریخچه به فرانت‌ند
+            "average_score": average_score  
         })
         
     return results
@@ -590,3 +614,63 @@ def update_contest_question(
     db.refresh(db_question)
     
     return {"status": "success", "message": "سوال با موفقیت ویرایش شد"}
+
+@app.get("/admin/users/{user_id}/detail")
+def get_admin_user_detail(user_id: int, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+    # ۱. پیدا کردن کاربر در دیتابیس
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد")
+        
+    # ۲. استخراج تمام نتایج و سابمیشن‌های این کاربر خاص
+    all_submissions = db.query(models.Submission).filter(models.Submission.user_id == user.id).all()
+    
+    history = []
+    for sub in all_submissions:
+        history.append({
+            "contest_id": sub.contest_id,
+            "contest_title": sub.contest.title if sub.contest else "مسابقه حذف شده",
+            "score": sub.score,
+            "time_taken": sub.time_taken,
+            "status": sub.contest.status if sub.contest else "unknown"
+        })
+        
+    # ۳. بازگرداندن پکیج کامل اطلاعات کاربر برای ادمین
+    return {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "phone": user.phone,
+        "national_id": user.national_id,
+        "province": user.province,
+        "city": user.city,
+        "gender": user.gender,
+        "birth_date": user.birth_date,
+        "history": history
+    }
+
+@app.put("/admin/users/{user_id}/update")
+def update_admin_user_profile(
+    user_id: int, 
+    payload: dict, 
+    db: Session = Depends(database.get_db), 
+    current_admin: models.User = Depends(require_admin)
+):
+    # ۱. پیدا کردن کاربر
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد")
+        
+    # ۲. اعمال تغییرات ارسالی از سمت ادمین
+    user.first_name = payload.get("first_name", user.first_name)
+    user.last_name = payload.get("last_name", user.last_name)
+    user.phone = payload.get("phone", user.phone)
+    user.national_id = payload.get("national_id", user.national_id)
+    user.province = payload.get("province", user.province)
+    user.city = payload.get("city", user.city)
+    user.gender = payload.get("gender", user.gender)
+    user.birth_date = payload.get("birth_date", user.birth_date)
+    
+    # ۳. ذخیره‌سازی نهایی در دیتابیس
+    db.commit()
+    return {"status": "success", "message": "اطلاعات کاربر با موفقیت ویرایش شد"}

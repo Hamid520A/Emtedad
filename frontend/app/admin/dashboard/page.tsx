@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import {
   Users, Trophy, Layout, Plus, Settings,
-  BarChart3, ArrowUpRight, ChevronLeft, Award, TrendingUp, Globe
+  BarChart3, ArrowUpRight, ChevronLeft, Award, TrendingUp, Globe,
+  ImageIcon
 } from 'lucide-react';
 // المان‌های نمودار
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -12,14 +13,22 @@ import * as XLSX from 'xlsx';
 
 export default function AdminDashboard() {
   const router = useRouter();
-  // تغییر ساختار استیت به استان برتر
   const [stats, setStats] = useState({ users: 0, contests: 0, topProvince: 'در حال بارگذاری...', growth: 0 });
   const [contests, setContests] = useState([]);
   const [chartData, setChartData] = useState([]);
+  
+  // 👈 ۱. استیت جدید برای ذخیره آیدی مسابقه انتخابی جهت فیلتر اکسل در دشبورد
+  const [exportContestId, setExportContestId] = useState('');
 
+  // 👈 ۲. تابع خروجی اکسل ارتقا یافته و مجهز به فیلتر هوشمند مسابقه
   const exportToExcel = async () => {
     try {
-      const res = await api.get('/admin/export-data');
+      // ساخت آدرس URL پویا بر اساس فیلتر انتخاب شده
+      const url = exportContestId 
+        ? `/admin/export-data?contest_id=${exportContestId}` 
+        : '/admin/export-data';
+
+      const res = await api.get(url);
       let data = res.data;
 
       console.log("Data received from API:", data);
@@ -38,7 +47,13 @@ export default function AdminDashboard() {
       if (!worksheet['!cols']) worksheet['!cols'] = [];
       worksheet['!dir'] = 'rtl';
 
-      XLSX.writeFile(workbook, `گزارش_${new Date().getTime()}.xlsx`);
+      // پیدا کردن مشخصات مسابقه برای نام‌گذاری دقیق فایل خروجی
+      const selectedContestObj: any = contests.find((c: any) => String(c.id) === String(exportContestId));
+      const fileName = selectedContestObj 
+        ? `گزارش_مسابقه_${selectedContestObj.title}_${new Date().getTime()}.xlsx`
+        : `گزارش_کل_سیستم_${new Date().getTime()}.xlsx`;
+
+      XLSX.writeFile(workbook, fileName);
     } catch (error) {
       console.error("Export error:", error);
       alert("خطا در دریافت دیتا از سرور");
@@ -57,8 +72,8 @@ export default function AdminDashboard() {
         setStats({
           users: statsRes.data.total_users,
           contests: statsRes.data.total_contests,
-          topProvince: statsRes.data.top_province, // دریافت مستقیم رشته نام استان از بک‌ند
-          growth: statsRes.data.growth_percentage // دریافت درصد رشد از بک‌ند
+          topProvince: statsRes.data.top_province, 
+          growth: statsRes.data.growth_percentage 
         });
       } catch (error) {
         console.error("Admin Dashboard Error:", error);
@@ -71,15 +86,12 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
       {/* Header */}
       <header className="p-8 flex justify-between items-center">
-        {/* بخش عنوان پنل مدیریت */}
         <div>
           <h1 className="text-3xl font-black tracking-tight text-[#1a2e44]">پنل مدیریت امتداد</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">مانیتورینگ هوشمند سیستم</p>
         </div>
 
-        {/* دسته بندی دکمه‌ها در یک باکس مشترک برای جلوگیری از به هم خوردن تراز justify-between */}
         <div className="flex items-center gap-3">
-          {/* دکمه افزودن سوال */}
           <button 
             onClick={() => router.push('/admin/add-question')}
             className="bg-white text-[#1a2e44] border border-gray-200 px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-sm active:scale-95 transition-all hover:bg-gray-50"
@@ -88,7 +100,6 @@ export default function AdminDashboard() {
             <span>افزودن سوال</span>
           </button>
 
-          {/* دکمه مسابقه جدید */}
           <button
             onClick={() => router.push('/admin/create-contest')}
             className="bg-[#1a2e44] text-white px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-xl shadow-blue-900/20 active:scale-95 transition-all hover:bg-[#2a405a]"
@@ -118,21 +129,20 @@ export default function AdminDashboard() {
           />
           <StatCard
             title="استان پیشتاز در مشارکت"
-            value={stats.topProvince} // مقدار متنی نام استان (مثل: تهران) را نمایش می‌دهد
+            value={stats.topProvince} 
             icon={<Globe />}
             color="emerald"
-            onClick={() => router.push('/admin/provinces')} // روت جدید برای گزارش استانی
+            onClick={() => router.push('/admin/provinces')} 
           />
         </div>
 
-        {/* بخش نمودار پیشرفت */}
+        {/* نمودار پیشرفت */}
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-8">
             <h3 className="font-black text-xl flex items-center gap-2">
               <TrendingUp className="text-[#c5a059]" /> نمودار رشد شرکت‌کنندگان
             </h3>
 
-            {/* نشانگر داینامیک و هوشمند درصد رشد واقعی سیستم */}
             <span className={`text-[10px] font-black px-3 py-1 rounded-full select-none transition-colors duration-300 ${stats.growth >= 0
                 ? 'text-emerald-500 bg-emerald-50'
                 : 'text-rose-500 bg-rose-50'
@@ -180,6 +190,7 @@ export default function AdminDashboard() {
             </ResponsiveContainer>
           </div>
         </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* لیست مسابقات اخیر */}
           <div className="lg:col-span-2 bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
@@ -214,13 +225,36 @@ export default function AdminDashboard() {
           {/* ابزارهای مدیریتی */}
           <div className="bg-[#1a2e44] rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
             <h3 className="font-black text-xl mb-8">ابزارهای سریع</h3>
-            <div className="space-y-3">
+            <div className="space-y-4">
+              
+              {/* 👈 ۳. منوی کشویی انتخاب مسابقه برای خروجی اکسل با استایل هماهنگ تم تاریک */}
+              <div className="space-y-1.5 mb-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">فیلتر مسابقه برای خروجی اکسل</label>
+                <select
+                  value={exportContestId}
+                  onChange={(e) => setExportContestId(e.target.value)}
+                  className="w-full p-3 bg-white/5 border border-white/10 rounded-2xl text-white text-xs font-bold outline-none focus:border-[#c5a059] cursor-pointer"
+                >
+                  <option value="" className="text-[#1a2e44] bg-white font-black">📊 همه مسابقات (کل کاربران)</option>
+                  {contests.map((c: any) => (
+                    <option key={c.id} value={c.id} className="text-[#1a2e44] bg-white font-bold">
+                      #{c.id} - {c.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <QuickAction label="گزارش اکسل شرکت‌کنندگان" icon={<BarChart3 size={18} />} onClick={exportToExcel} />
               <QuickAction label="تنظیمات گواهی‌ها" icon={<Award size={18} />} />
               <QuickAction
                 label="تغییر رمز عبور مدیر"
                 icon={<Settings size={18} />}
                 onClick={() => router.push('/profile/change-password')}
+              />
+              <QuickAction 
+                label="تنظیم بنر تبلیغاتی جدید" 
+                icon={<ImageIcon size={18} />} 
+                onClick={() => router.push('/admin/banners')} 
               />
             </div>
           </div>
@@ -231,9 +265,7 @@ export default function AdminDashboard() {
 }
 
 function StatCard({ title, value, icon, color, onClick }: any) {
-  // بررسی اینکه آیا مقدار یک عدد است یا رشته (مثل نام استان) برای نمایش متناسب فرمت محلی
   const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
-
   return (
     <div
       onClick={onClick}
