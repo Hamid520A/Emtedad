@@ -6,9 +6,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from . import crud, schemas, models, auth, database
-import shutil, os, random, httpx, base64, redis, json
+import shutil, os, random, httpx, base64, redis, json, io, requests, textwrap
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+from PIL import Image, ImageDraw, ImageFont
+from fastapi.responses import JSONResponse, StreamingResponse
+from datetime import datetime
 
 app = FastAPI()
 ACCOUNT_REDIS_HOST = os.getenv("REDIS_HOST", "10.10.10.6")
@@ -24,6 +27,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 class StatusUpdate(BaseModel):
     status: str
 
@@ -48,6 +52,20 @@ def require_admin(current_user: models.User = Depends(auth.get_current_user)):
         raise HTTPException(status_code=403, detail="شما دسترسی به این بخش را ندارید")
     return current_user
 
+def safe_load_image(url_str):
+    if not url_str:
+        return None
+    try:
+        # 👈 اگر آدرس با / شروع شده بود، آدرس کامل سرور لوکال را به آن می‌چسبانیم
+        if url_str.startswith("/"):
+            url_str = f"http://127.0.0.1:8000{url_str}"
+            
+        response = requests.get(url_str, timeout=5)
+        return Image.open(io.BytesIO(response.content)).convert("RGBA")
+    except Exception as e:
+        print(f"⚠️ خطا در بارگذاری تصویر ({url_str}): {e}")
+        return None
+
 def fa_to_en_digits(text: str) -> str:
     """تبدیل تمام اعداد فارسی و عربی یک متن به اعداد انگلیسی استاندارد"""
     if not text:
@@ -61,6 +79,189 @@ def fa_to_en_digits(text: str) -> str:
     # ساخت جدول ترجمه
     translation_table = str.maketrans(fa_digits + ar_digits, en_digits + en_digits)
     return text.translate(translation_table)
+
+def to_persian_digits(number_str):
+    persian_labels = {
+        '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴',
+        '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹'
+    }
+    return "".join(persian_labels.get(char, char) for char in str(number_str))
+
+def wrap_persian_text(text, max_chars=50):
+    words = text.split()
+    lines = []
+    current_line = []
+    current_length = 0
+    for word in words:
+        if current_length + len(word) <= max_chars:
+            current_line.append(word)
+            current_length += len(word) + 1
+        else:
+            lines.append(" ".join(current_line))
+            current_line = [word]
+            current_length = len(word)
+    if current_line:
+        lines.append(" ".join(current_line))
+    return lines
+
+def draw_centered_rtl_text(draw, center_x, y, text, font, fill):
+    try:
+        # محاسبه دقیق ابعاد متن رندر شده
+        bbox = draw.textbbox((0, 0), text, font=font, direction="rtl")
+        text_width = bbox[2] - bbox[0]
+    except:
+        text_width = len(text) * 13 # بک‌آپ محاسباتی در صورت لود نشدن کادر
+        
+    # تنظیم نقطه شروع بر اساس مرکز افقی هدف
+    actual_x = center_x - (text_width // 2)
+    safe_draw_text(draw, (actual_x, y), text, font, fill, direction="rtl")
+
+def safe_draw_text(draw, position, text, font, fill, direction=None):
+    try:
+        if direction:
+            draw.text(position, text, font=font, fill=fill, direction=direction)
+        else:
+            draw.text(position, text, font=font, fill=fill)
+    except Exception as e:
+        # اگر به خاطر فونت پیش‌فرض یا نبود libraqm خطای جهت‌نویسی داد، بدون جهت رسمش کن
+        try:
+            draw.text(position, text, font=font, fill=fill)
+        except:
+            pass
+
+def draw_certificate_canvas(user, contest, submission):
+    # ۱. بارگذاری هوشمند تصویر پس‌زمینه
+    bg_url = getattr(contest, 'certificate_bg_url', None)
+    img = safe_load_image(bg_url)
+    if img:
+        img = img.resize((1200, 800), Image.Resampling.LANCZOS)
+    else:
+        img = Image.new("RGBA", (1200, 800), color=(26, 46, 68))
+        
+    draw = ImageDraw.Draw(img)
+    
+    # بارگذاری آنلاین بایت‌های فونت وزیر
+    try:
+        url_bold = "https://raw.githubusercontent.com/rastikerdar/vazirmatn/v33.003/fonts/ttf/Vazirmatn-Bold.ttf"
+        url_medium = "https://raw.githubusercontent.com/rastikerdar/vazirmatn/v33.003/fonts/ttf/Vazirmatn-Medium.ttf"
+        res_bold = requests.get(url_bold, timeout=5)
+        res_medium = requests.get(url_medium, timeout=5)
+        font_bytes_bold = io.BytesIO(res_bold.content)
+        font_sub = ImageFont.truetype(io.BytesIO(res_medium.content), 20)
+    except Exception as e:
+        print(f"⚠️ خطای بارگذاری فونت لوح: {e}")
+        font_bytes_bold = None
+        font_sub = ImageFont.load_default()
+
+    # پردازش متغیرهای داینامیک متن لوح
+    try: score_val = float(str(submission.score).replace("%", ""))
+    except: score_val = 0
+
+    rank_text = "عالی" if score_val >= 85 else "خیلی خوب" if score_val >= 70 else "خوب"
+    user_full_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "شرکت‌کننده امتداد"
+    template = getattr(contest, 'certificate_text_template', None) or "بدین‌وسیله گواهی می‌شود {{name}} در مسابقه شرکت نموده است."
+    
+    full_text = template.replace("{{name}}", user_full_name)\
+                        .replace("{{national_id}}", user.national_id or "---")\
+                        .replace("{{birth_date}}", user.birth_date or "---")\
+                        .replace("{{rank}}", rank_text)
+
+    # ۲. تراز دقیق راست‌چین شماره سریال و تاریخ کاملاً فارسی
+    contest_id = getattr(contest, 'id', 1)
+    user_id = getattr(user, 'id', 1)
+    persian_serial = to_persian_digits(f"1405{contest_id:02d}{user_id:02d}")
+    persian_date = to_persian_digits(datetime.now().strftime("%Y/%m/%d"))
+    
+    txt_serial = f"شماره: {persian_serial}"
+    txt_date = f"تاریخ: {persian_date}"
+    
+    try:
+        w_s = draw.textbbox((0, 0), txt_serial, font=font_sub, direction="rtl")[2] - draw.textbbox((0, 0), txt_serial, font=font_sub, direction="rtl")[0]
+        w_d = draw.textbbox((0, 0), txt_date, font=font_sub, direction="rtl")[2] - draw.textbbox((0, 0), txt_date, font=font_sub, direction="rtl")[0]
+    except:
+        w_s, w_d = 160, 160
+        
+    safe_draw_text(draw, (1120 - w_s, 70), txt_serial, font_sub, "#FFFFFF", direction="rtl")
+    safe_draw_text(draw, (1120 - w_d, 105), txt_date, font_sub, "#FFFFFF", direction="rtl")
+
+    # ۳. موتور تنظیم سایز خودکار و رندر کاملاً متقارن متن اصلی لوح
+    target_font_size = 32
+    lines = []
+    while target_font_size > 18:
+        if font_bytes_bold:
+            font_bytes_bold.seek(0)
+            font_main = ImageFont.truetype(font_bytes_bold, target_font_size)
+        else:
+            font_main = ImageFont.load_default()
+            
+        max_chars = int(900 // (target_font_size * 0.55))
+        lines = wrap_persian_text(full_text, max_chars=max_chars)
+        total_height = len(lines) * (target_font_size + 16)
+        if total_height <= 200:
+            break
+        target_font_size -= 2
+
+    y_offset = 380 - ((len(lines) * (target_font_size + 16)) // 2)
+    for line in lines:
+        draw_centered_rtl_text(draw, 600, y_offset, line, font_main, "#FFFFFF")
+        y_offset += target_font_size + 16
+
+    # ۴. بارگذاری و پِیست کردن لوگوی بالا وسط
+    logo_url = getattr(contest, 'certificate_logo_url', None)
+    if logo_url:
+        logo_img = safe_load_image(logo_url)
+        if logo_img:
+            logo_img = logo_img.resize((150, 150))
+            img.paste(logo_img, (525, 40), logo_img)
+
+    # ۵. موتور چیدمان داینامیک و متقارن امضاکنندگان و تصاویر امضا
+    if font_bytes_bold:
+        font_bytes_bold.seek(0)
+        font_sign = ImageFont.truetype(font_bytes_bold, 24)
+    else:
+        font_sign = ImageFont.load_default()
+
+    active_signers = []
+    if getattr(contest, 'signer_name', None):
+        active_signers.append(('signer_name', 'signer_title', 'signer_signature_url'))
+    if getattr(contest, 'signer_2_name', None):
+        active_signers.append(('signer_2_name', 'signer_2_title', 'signer_2_signature_url'))
+    if getattr(contest, 'signer_3_name', None):
+        active_signers.append(('signer_3_name', 'signer_3_title', 'signer_3_signature_url'))
+
+    num_signers = len(active_signers)
+    if num_signers == 1:
+        anchors = [600]
+    elif num_signers == 2:
+        anchors = [380, 820]
+    elif num_signers == 3:
+        anchors = [250, 600, 950]
+    else:
+        anchors = []
+
+    for idx, (name_key, title_key, sig_img_key) in enumerate(active_signers):
+        center_anchor = anchors[idx]
+        
+        # بارگذاری و درج تصویر امضای شیشه‌ای (PNG)
+        sig_file_url = getattr(contest, sig_img_key, None)
+        if sig_file_url:
+            sig_img = safe_load_image(sig_file_url)
+            if sig_img:
+                sig_img = sig_img.resize((140, 70), Image.Resampling.LANCZOS)
+                img.paste(sig_img, (center_anchor - 70, 530), sig_img)
+
+        # چاپ متقارن نام و سِمَت مدیران
+        s_name = getattr(contest, name_key, None)
+        draw_centered_rtl_text(draw, center_anchor, 620, s_name, font_sign, "#F3E5AB")
+        
+        s_title = getattr(contest, title_key, None)
+        if s_title:
+            draw_centered_rtl_text(draw, center_anchor, 660, s_title, font_sub, "#A7975B")
+
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+    return img_byte_arr
 
 @app.post("/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
@@ -238,6 +439,70 @@ def get_user_profile(db: Session = Depends(database.get_db), current_user: model
         "history": history
     }
 
+@app.options("/users/me/contests/{contest_id}/certificate/download")
+def options_download_certificate():
+    from fastapi.responses import Response
+    return Response(headers={
+        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    })
+
+@app.get("/users/me/contests/{contest_id}/certificate/download")
+def download_my_certificate(
+    contest_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    cors_headers = {
+        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    }
+
+    try:
+        submission = db.query(models.Submission).filter(
+            models.Submission.user_id == current_user.id,
+            models.Submission.contest_id == contest_id
+        ).first()
+        
+        if not submission:
+            return JSONResponse(status_code=403, content={"detail": "شما هنوز در این مسابقه شرکت نکرده‌اید."}, headers=cors_headers)
+            
+        contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+        if not contest:
+            return JSONResponse(status_code=404, content={"detail": "مسابقه مورد نظر یافت نشد."}, headers=cors_headers)
+            
+        if contest.certificate_type == 'none':
+            return JSONResponse(status_code=400, content={"detail": "این مسابقه فاقد امتیاز صدور گواهی نامه است."}, headers=cors_headers)
+
+        try:
+            user_score = float(str(submission.score).replace("%", ""))
+        except:
+            user_score = 0
+            
+        if user_score < 50:
+            return JSONResponse(status_code=400, content={"detail": "امتیاز شما برای دریافت گواهی کافی نیست."}, headers=cors_headers)
+
+        # اجرای ایمن موتور بوم گرافیکی
+        try:
+            canvas = draw_certificate_canvas(current_user, contest, submission)
+        except Exception as canvas_err:
+            print(f"❌ خطای داخلی در موتور گرافیکی: {canvas_err}")
+            return JSONResponse(status_code=500, content={"detail": f"خطای ترسیم تصویر: {str(canvas_err)}"}, headers=cors_headers)
+
+        response_headers = {
+            **cors_headers, 
+            "Content-Disposition": f"attachment; filename=certificate_{contest_id}.png"
+        }
+        return StreamingResponse(canvas, media_type="image/png", headers=response_headers)
+
+    except Exception as global_err:
+        print(f"❌ خطای سراسری اندپوینت: {global_err}")
+        return JSONResponse(status_code=500, content={"detail": f"خطای سرور: {str(global_err)}"}, headers=cors_headers)
+        
 # --- اضافه کردن اندپوینت ثبت نمره (با جلوگیری از تقلب و ثبت تکراری) ---
 @app.post("/submissions")
 def submit_exam(submission: schemas.SubmissionCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -674,3 +939,108 @@ def update_admin_user_profile(
     # ۳. ذخیره‌سازی نهایی در دیتابیس
     db.commit()
     return {"status": "success", "message": "اطلاعات کاربر با موفقیت ویرایش شد"}
+
+@app.put("/admin/contests/{contest_id}/certificate-template")
+def update_certificate_template(contest_id: int, data: dict, db: Session = Depends(database.get_db)):
+    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+    if not contest:
+        raise HTTPException(status_code=404, detail="مسابقه مورد نظر یافت نشد")
+    
+    # 👈 ذخیره سازی فیلدهای متنی و بک‌گراند
+    contest.certificate_text_template = data.get("certificate_text_template")
+    contest.certificate_bg_url = data.get("certificate_bg_url")
+    contest.certificate_logo_url = data.get("certificate_logo_url")
+    
+    # 👈 ذخیره سازی اطلاعات امضای اول
+    contest.signer_name = data.get("signer_name")
+    contest.signer_title = data.get("signer_title")
+    contest.signer_signature_url = data.get("signer_signature_url")
+    
+    # 👈 ذخیره سازی اطلاعات امضای دوم
+    contest.signer_2_name = data.get("signer_2_name")
+    contest.signer_2_title = data.get("signer_2_title")
+    contest.signer_2_signature_url = data.get("signer_2_signature_url")
+    
+    # 👈 ذخیره سازی اطلاعات امضای سوم
+    contest.signer_3_name = data.get("signer_3_name")
+    contest.signer_3_title = data.get("signer_3_title")
+    contest.signer_3_signature_url = data.get("signer_3_signature_url")
+    
+    db.commit()
+    return {"status": "success", "message": "تنظیمات گواهی با موفقیت ذخیره شد"}
+    
+@app.get("/admin/users/{user_id}/contests/{contest_id}/certificate/download")
+def generate_user_certificate_image(
+    user_id: int,
+    contest_id: int,
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin)
+):
+    # ۱. واکشی اطلاعات کاربر، مسابقه و سابمیشن نمره
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+    submission = db.query(models.Submission).filter(
+        models.Submission.user_id == user_id, 
+        models.Submission.contest_id == contest_id
+    ).first()
+    
+    if not user or not contest or not submission:
+        raise HTTPException(status_code=404, detail="اطلاعات کاربر یا کارنامه یافت نشد")
+
+    # ۲. لود کردن عکس پس‌زمینه گواهی (اگر نبود یک بک‌گراند سفید پیش‌فرض می‌سازد)
+    bg_url = contest.certificate_bg_url
+    try:
+        response = requests.get(bg_url)
+        img = Image.open(io.BytesIO(response.content)).convert("RGBA")
+    except:
+        img = Image.new("RGBA", (1200, 800), color=(250, 249, 246)) # ابعاد استاندارد گواهی دسکتاپ
+        
+    draw = ImageDraw.Draw(img)
+    
+    # ۳. لود فونت فارسی (باید فایل فونت مثلاً Vazir.ttf در پوشه پروژه شما باشد)
+    try:
+        font_main = ImageFont.truetype("assets/fonts/Vazir-Bold.ttf", 26)
+        font_sub = ImageFont.truetype("assets/fonts/Vazir-Medium.ttf", 20)
+    except:
+        font_main = ImageFont.load_default()
+        font_sub = ImageFont.load_default()
+
+    # ۴. تعیین رتبه بر اساس نمره کاربر (عالی، خیلی خوب، خوب)
+    rank_text = "خوب"
+    if submission.score >= 85:
+        rank_text = "عالی"
+    elif submission.score >= 70:
+        rank_text = "خیلی خوب"
+
+    # ۵. جایگذاری متغیرهای داینامیک در متن قالب ادمین
+    user_full_name = f"{user.first_name} {user.last_name or ''}".strip()
+    template = contest.certificate_text_template or "بدین‌وسیله گواهی می‌شود {{name}} در مسابقه شرکت نموده است."
+    
+    full_text = template.replace("{{name}}", user_full_name)\
+                        .replace("{{national_id}}", user.national_id)\
+                        .replace("{{birth_date}}", user.birth_date or "---")\
+                        .replace("{{rank}}", rank_text)
+
+    # ۶. نوشتن متن‌ها روی بوم تصویر (مختصات x و y بر اساس ابعاد ۱۲۰۰ در ۸۰۰ فرضی)
+    # شماره سریال و تاریخ در گوشه بالا
+    serial_number = f"EMT-{contest_id}-{user_id}"
+    today_date = datetime.now().strftime("%Y/%m/%d")
+    draw.text((100, 80), f"شماره: {serial_number}", font=font_sub, fill="#1a2e44")
+    draw.text((100, 110), f"تاریخ: {today_date}", font=font_sub, fill="#1a2e44")
+
+    # متن اصلی گواهی (راست‌چین یا وسط‌چین فرضی)
+    # Pillow در نسخه‌های جدید از direction="rtl" برای فونت‌های عربی/فارسی پشتیبانی می‌کند
+    draw.text((1000, 350), full_text, font=font_main, fill="#1a2e44", direction="rtl")
+
+    # مشخصات امضاکننده در پایین سمت چپ
+    if contest.signer_name:
+        draw.text((250, 600), contest.signer_name, font=font_main, fill="#1a2e44", direction="rtl")
+    if contest.signer_title:
+        draw.text((250, 640), contest.signer_title, font=font_sub, fill="#c5a059", direction="rtl")
+
+    # ۷. خروجی گرفتن مستقیم به صورت Stream بدون ذخیره فایل روی هارد سرور (فوق‌العاده بهینه)
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+    
+    return StreamingResponse(img_byte_arr, media_type="image/png")

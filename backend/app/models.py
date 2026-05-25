@@ -1,6 +1,7 @@
 # backend/app/models.py
+from pyparsing import Optional
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, JSON, Float, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from .database import Base
 import datetime
@@ -38,7 +39,19 @@ class Contest(Base):
     question_limit = Column(Integer, default=15) # تعداد سوالاتی که در هر آزمون نمایش داده می‌شود
     certificate_type = Column(String, nullable=True, default="none") # نوع گواهی‌نامه
     video_url = Column(String, nullable=True) 
-    
+    certificate_text_template: Mapped[str | None] = mapped_column(Text, nullable=True)
+    certificate_bg_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    certificate_logo_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_2_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_2_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_3_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_3_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_signature_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_2_signature_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    signer_3_signature_url: Mapped[str | None] = mapped_column(String, nullable=True)
+
     questions = relationship("Question", back_populates="contest")
 
 class Submission(Base):

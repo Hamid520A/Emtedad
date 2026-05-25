@@ -17,13 +17,12 @@ export default function AdminDashboard() {
   const [contests, setContests] = useState([]);
   const [chartData, setChartData] = useState([]);
   
-  // 👈 ۱. استیت جدید برای ذخیره آیدی مسابقه انتخابی جهت فیلتر اکسل در دشبورد
+  // استیت جدید برای ذخیره آیدی مسابقه انتخابی جهت فیلتر اکسل در دشبورد
   const [exportContestId, setExportContestId] = useState('');
 
-  // 👈 ۲. تابع خروجی اکسل ارتقا یافته و مجهز به فیلتر هوشمند مسابقه
+  // تابع خروجی اکسل ارتقا یافته و مجهز به فیلتر هوشمند مسابقه
   const exportToExcel = async () => {
     try {
-      // ساخت آدرس URL پویا بر اساس فیلتر انتخاب شده
       const url = exportContestId 
         ? `/admin/export-data?contest_id=${exportContestId}` 
         : '/admin/export-data';
@@ -47,7 +46,6 @@ export default function AdminDashboard() {
       if (!worksheet['!cols']) worksheet['!cols'] = [];
       worksheet['!dir'] = 'rtl';
 
-      // پیدا کردن مشخصات مسابقه برای نام‌گذاری دقیق فایل خروجی
       const selectedContestObj: any = contests.find((c: any) => String(c.id) === String(exportContestId));
       const fileName = selectedContestObj 
         ? `گزارش_مسابقه_${selectedContestObj.title}_${new Date().getTime()}.xlsx`
@@ -222,12 +220,12 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* ابزارهای مدیریتی */}
+          {/* ابزارهای مدیریتی سریع */}
           <div className="bg-[#1a2e44] rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
             <h3 className="font-black text-xl mb-8">ابزارهای سریع</h3>
             <div className="space-y-4">
               
-              {/* 👈 ۳. منوی کشویی انتخاب مسابقه برای خروجی اکسل با استایل هماهنگ تم تاریک */}
+              {/* منوی کشویی انتخاب مسابقه برای خروجی اکسل */}
               <div className="space-y-1.5 mb-2">
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">فیلتر مسابقه برای خروجی اکسل</label>
                 <select
@@ -245,7 +243,14 @@ export default function AdminDashboard() {
               </div>
 
               <QuickAction label="گزارش اکسل شرکت‌کنندگان" icon={<BarChart3 size={18} />} onClick={exportToExcel} />
-              <QuickAction label="تنظیمات گواهی‌ها" icon={<Award size={18} />} />
+              
+              {/* 👈 دکمه تنظیمات گواهی‌ها به صفحه طراحی گواهی‌ها متصل شد */}
+              <QuickAction 
+                label="تنظیمات گواهی‌ها" 
+                icon={<Award size={18} />} 
+                onClick={() => router.push('/admin/certificates')} 
+              />
+              
               <QuickAction
                 label="تغییر رمز عبور مدیر"
                 icon={<Settings size={18} />}

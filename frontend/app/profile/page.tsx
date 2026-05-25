@@ -2,12 +2,11 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../lib/api';
-// ایمپورت تابع کمکی برای دریافت عکس
 import { getProfilePicture } from '../../lib/get-profile-api'; 
 import { 
   User, Trophy, Medal, History, ArrowRight, 
   LogOut, Loader2, Star, Settings, ShieldCheck, 
-  HelpCircle, ChevronLeft, Crown
+  HelpCircle, ChevronLeft, Crown, Award, Download, X
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -15,6 +14,11 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [profileImg, setProfileImg] = useState<string | null>(null);
+  const [certModalOpen, setCertModalOpen] = useState(false);
+  const [myCertificates, setMyCertificates] = useState<any[]>([]);
+  
+  // 👈 استیت جدید برای مدیریت وضعیت انیمیشن لودینگ دانلود هر گواهی
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchCompleteProfile = async () => {
@@ -23,7 +27,7 @@ export default function ProfilePage() {
         const myProfile = res.data;
         setProfile(myProfile);
 
-        // ۱. فراخوانی کانتکت‌ها
+        // ۱. فراخوانی کانتکت‌ها برای ایتا
         const contactRes = await api.post('/proxy-upload', {
           method: "contacts.importContacts",
           param: {
@@ -35,14 +39,11 @@ export default function ProfilePage() {
           }
         });
 
-        // ۲. تحلیل دقیق پاسخ (مطابق عکسی که فرستادی)
-        // چون دیتا مستقیماً در contactRes.data است و فیلد result ندارد:
         const eitaaUsers = contactRes.data?.users; 
 
         if (eitaaUsers && eitaaUsers.length > 0) {
           const eitaaUser = eitaaUsers[0];
           
-          // چک کردن وجود فیلد photo
           if (eitaaUser.photo && eitaaUser.photo.photo_small) {
             console.log("Photo found! Fetching bytes...");
             
@@ -52,7 +53,6 @@ export default function ProfilePage() {
               volume_id: eitaaUser.photo.photo_small.volume_id
             };
 
-            // ۳. حالا درخواست دوم (getFile) باید اینجا ارسال شود
             const imgData = await getProfilePicture(photoLocation, {
               id: eitaaUser.id,
               access_hash: eitaaUser.access_hash
@@ -74,6 +74,66 @@ export default function ProfilePage() {
 
     fetchCompleteProfile();
   }, [router]);
+
+  const openCertificateModal = () => {
+    if (!profile || !profile.history) return;
+    
+    const qualified = profile.history.filter((item: any) => {
+      const numericScore = typeof item.score === 'string' 
+        ? parseFloat(item.score.replace('%', '')) 
+        : item.score;
+        
+      return numericScore >= 50 && item.status !== 'active';
+    });
+    
+    setMyCertificates(qualified);
+    setCertModalOpen(true);
+  };
+
+  // 👈 تابع جدید دانلود امن گواهی مجهز به توکن احراز هویت و شبیه‌ساز دانلود لایو
+  const handleDownloadCertificate = async (contestId: number, contestTitle: string) => {
+    setDownloadingId(contestId);
+    try {
+      const response = await api.get(`/users/me/contests/${contestId}/certificate/download`, {
+        responseType: 'blob' // دریافت پاسخ به صورت داده خام باینری
+      });
+      
+      // تبدیل باینری به آدرس لینک موقت در مرورگر
+      const blob = new Blob([response.data], { type: 'image/png' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // ساخت تگ دانلود فرضی و تحریک کلیک آن برای ذخیره شدن در سیستم کاربر
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `گواهی_مسابقه_${contestTitle.replace(/\s+/g, '_')}.png`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // پاک‌سازی حافظه موقت مرورگر
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error("Error downloading certificate:", error);
+      
+      // اگر سرور متنی فرستاده بود، همان را نشان بده تا علت دقیق را بفهمیم
+      if (error.response && error.response.data) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const result = JSON.parse(reader.result as string);
+            alert(`❌ خطا: ${result.detail || "مشکلی در سرور رخ داده است"}`);
+          } catch {
+            alert("خطا در دریافت پاسخ سرور");
+          }
+        };
+        reader.readAsText(error.response.data);
+      } else {
+        alert("خطا در دانلود گواهی. لطفا مجدداً تلاش کنید.");
+      }
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -129,11 +189,9 @@ export default function ProfilePage() {
             </div>
 
             {/* اطلاعات تکمیلی */}
-            {/* نمونه کدهای اصلاح شده برای بخش مشخصات */}
             <div className="grid grid-cols-2 gap-4 text-center">
               <div>
                 <p className="text-xs text-gray-400">کد ملی</p>
-                {/* مطمئن شو نام فیلد دقیقا همان چیزی است که بک‌ند می‌فرستد، مثلا national_id */}
                 <p className="font-bold text-[#1a2e44] mt-1">
                   {profile?.national_id || profile?.nationalId || "---"}
                 </p>
@@ -190,6 +248,22 @@ export default function ProfilePage() {
                   <span className="font-bold text-[#1a2e44]">ویرایش اطلاعات پروفایل</span>
                 </div>
                 <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
+              </button>
+
+              <button 
+                onClick={openCertificateModal} 
+                className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-amber-50 text-[#c5a059] rounded-2xl group-hover:scale-105 transition-transform">
+                    <Award size={22} />
+                  </div>
+                  <span className="font-black text-[#1a2e44]">گواهی‌های دوره امتداد</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="bg-amber-50 text-[#c5a059] text-[9px] font-black px-2 py-0.5 rounded-md animate-pulse">جدید</span>
+                  <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
+                </div>
               </button>
 
               <button onClick={() => router.push('/profile/change-password')} className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
@@ -268,6 +342,65 @@ export default function ProfilePage() {
           </button>
         </nav>
       </div>
+
+      {/* مُدال نمایش و دانلود تصاویر گواهی‌های معتبر کاربر */}
+      {certModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl border border-gray-100 p-6 flex flex-col text-right">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
+              <div className="flex items-center gap-2">
+                <Award className="text-[#c5a059]" size={20} />
+                <h4 className="font-black text-base text-[#1a2e44]">لوح‌ها و گواهی‌های شما</h4>
+              </div>
+              <button onClick={() => setCertModalOpen(false)} className="p-1.5 bg-gray-50 hover:bg-gray-100 text-gray-400 rounded-full">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[45vh] overflow-y-auto">
+              {myCertificates.length === 0 ? (
+                <p className="text-center text-xs text-gray-400 font-bold py-8">شما هنوز گواهی فعالی در سیستم ندارید.</p>
+              ) : (
+                myCertificates.map((cert: any, idx: number) => {
+                  const s = typeof cert.score === 'string' ? parseFloat(cert.score.replace('%', '')) : cert.score;
+                  const rankLabel = s >= 85 ? 'رتبه عالی' : s >= 70 ? 'رتبه خیلی خوب' : 'رتبه خوب';
+                  const isCurrentDownloading = downloadingId === (cert.contest_id || cert.id);
+                  
+                  return (
+                    <div key={idx} className="p-4 bg-[#faf9f6] rounded-2xl border border-gray-100 flex items-center justify-between gap-3 shadow-inner">
+                      <div>
+                        <h5 className="font-black text-xs text-[#1a2e44] leading-tight">{cert.contest_title}</h5>
+                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded mt-1.5 inline-block">
+                          سطح: {rankLabel} ({s}%)
+                        </span>
+                      </div>
+                      
+                      {/* 👈 دکمه دانلود با امنیت بالا و مجهز به مکانیزم ارسال توکن هدر */}
+                      <button 
+                        disabled={isCurrentDownloading}
+                        onClick={() => handleDownloadCertificate(cert.contest_id || cert.id, cert.contest_title)}
+                        className="p-2.5 bg-[#1a2e44] text-white hover:bg-[#2a405a] rounded-xl text-[10px] font-black flex items-center gap-1 transition-all shadow-md shrink-0 disabled:opacity-50 min-w-[105px] justify-center"
+                      >
+                        {isCurrentDownloading ? (
+                          <>
+                            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>در حال دانلود...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download size={12} className="text-[#c5a059]" /> دانلود تصویر لوح
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

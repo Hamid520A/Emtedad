@@ -97,6 +97,10 @@ class ContestCreate(BaseModel):
     question_limit: int = 15
     certificate_type: Optional[str] = "none"
     video_url: Optional[str] = None
+    certificate_text_template: Optional[str] = None  # مثل: "بدین‌وسیله گواهی می‌شود {{name}}..."
+    certificate_bg_url: Optional[str] = None         # آدرس عکس پس‌زمینه گواهی
+    signer_name: Optional[str] = None                # نام امضاکننده
+    signer_title: Optional[str] = None               # عنوان امضاکننده (مثلاً: دبیر برگزاری)
     
 class Contest(ContestBase):
     id: int
