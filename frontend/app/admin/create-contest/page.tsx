@@ -22,10 +22,11 @@ export default function CreateContestPage() {
     { rank: 1, title: '' }
   ]);
 
+  // ۲. استیت فرم با وضعیت پیش‌فرض 'upcoming' (به زودی)
   const [formData, setFormData] = useState<any>({
     title: '',
     description: '',
-    status: 'upcoming',
+    status: 'upcoming', // 👈 همیشه روی به زودی قفل می‌ماند
     image_url: '',
     file_url: '',
     start_time: null, 
@@ -59,9 +60,8 @@ export default function CreateContestPage() {
     e.preventDefault();
     
     const now = new Date();
-    const startTime = (formData.status === 'upcoming' && formData.start_time) 
-                      ? new Date(formData.start_time) 
-                      : now;
+    // وضعیت همیشه upcoming است، پس زمان شروع را از دیت‌پیکر می‌خوانیم
+    const startTime = formData.start_time ? new Date(formData.start_time) : now;
 
     const durationInMinutes = parseInt(formData.time_limit.toString(), 10) || 10;
     const endTime = new Date(startTime.getTime() + durationInMinutes * 60 * 1000);
@@ -110,7 +110,6 @@ export default function CreateContestPage() {
   };
 
   return (
-    // 👈 تغییر پهنا به max-w-5xl برای هماهنگی با تراز ویندوزی دشبورد اصلی ادمین
     <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
       
       {/* هدر پهن دسکتاپ */}
@@ -124,7 +123,7 @@ export default function CreateContestPage() {
         </div>
       </header>
 
-      {/* 👈 تقسیم فضا به صورت گرید: بخش محتوا (۲ ستون) و بخش تنظیمات/آپلودها (۱ ستون) */}
+      {/* تقسیم فضا به صورت گرید: بخش محتوا (۲ ستون) و بخش تنظیمات/آپلودها (۱ ستون) */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
         
         {/* ستون راست: اطلاعات متنی و اصلی مسابقه */}
@@ -141,7 +140,7 @@ export default function CreateContestPage() {
               <textarea rows={4} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
             </div>
 
-            {/* بخش پویای جوایز رتبه‌بندی با چیدمان عریض و بسیار تمیز */}
+            {/* بخش جوایز رتبه‌بندی */}
             <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100 space-y-3">
               <div className="flex items-center gap-1.5 mb-1 text-gray-500">
                 <Trophy size={16} className="text-[#c5a059]" />
@@ -187,23 +186,19 @@ export default function CreateContestPage() {
           
           {/* باکس پیکربندی مسابقه */}
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">وضعیت انتشار</label>
-              <select className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
-                <option value="upcoming">به زودی</option>
-                <option value="active">در حال برگزاری</option>
-              </select>
-            </div>
+            
+            {/* 👈 اصلاح اول: بخش وضعیت انتشار کاملاً حذف شد و مقدار پیش‌فرض آن روی 'upcoming' اعمال شده است */}
 
+            {/* 👈 اصلاح دوم: تغییر مقادیر و عناوین گواهی‌ها به عالی، خیلی خوب و خوب */}
             <div>
               <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
               <div className="relative">
                 <Award className="absolute right-4 top-4 text-gray-400" size={18} />
-                <select className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none" value={formData.certificate_type} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
+                <select className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none cursor-pointer" value={formData.certificate_type} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
                   <option value="none">بدون گواهی</option>
-                  <option value="level_1">گواهی رتبه ۱</option>
-                  <option value="level_2">گواهی رتبه ۲</option>
-                  <option value="level_3">گواهی رتبه ۳</option>
+                  <option value="excellent">گواهی رتبه عالی</option>
+                  <option value="very_good">گواهی رتبه خیلی خوب</option>
+                  <option value="good">گواهی رتبه خوب</option>
                 </select>
               </div>
             </div>
@@ -222,23 +217,22 @@ export default function CreateContestPage() {
               </div>
             </div>
             
-            {formData.status === 'upcoming' && (
-              <div className="transition-all duration-300 animate-in fade-in slide-in-from-top-2">
-                <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
-                <div className="relative">
-                  <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-                  <DatePickerComponent
-                    calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
-                    plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
-                    value={formData.start_time}
-                    onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
-                    containerClassName="w-full"
-                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
-                    placeholder="انتخاب تاریخ و ساعت"
-                  />
-                </div>
+            {/* نمایش همیشگی تقویم چون وضعیت مسابقه همیشه روی 'upcoming' تنظیم شده است */}
+            <div className="transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+              <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
+              <div className="relative">
+                <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                <DatePickerComponent
+                  calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
+                  plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
+                  value={formData.start_time}
+                  onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
+                  containerClassName="w-full"
+                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  placeholder="انتخاب تاریخ و ساعت"
+                />
               </div>
-            )}
+            </div>
           </div>
 
           {/* باکس بارگذاری و ویدیو */}

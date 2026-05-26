@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../lib/api';
 import { getProfilePicture } from '../../lib/get-profile-api'; 
@@ -17,7 +17,7 @@ export default function ProfilePage() {
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [myCertificates, setMyCertificates] = useState<any[]>([]);
   
-  // 👈 استیت جدید برای مدیریت وضعیت انیمیشن لودینگ دانلود هر گواهی
+  // مدیریت وضعیت انیمیشن لودینگ دانلود هر گواهی
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -90,32 +90,28 @@ export default function ProfilePage() {
     setCertModalOpen(true);
   };
 
-  // 👈 تابع جدید دانلود امن گواهی مجهز به توکن احراز هویت و شبیه‌ساز دانلود لایو
+  // تابع دانلود امن گواهی مجهز به توکن احراز هویت و شبیه‌ساز دانلود لایو
   const handleDownloadCertificate = async (contestId: number, contestTitle: string) => {
     setDownloadingId(contestId);
     try {
       const response = await api.get(`/users/me/contests/${contestId}/certificate/download`, {
-        responseType: 'blob' // دریافت پاسخ به صورت داده خام باینری
+        responseType: 'blob' 
       });
       
-      // تبدیل باینری به آدرس لینک موقت در مرورگر
       const blob = new Blob([response.data], { type: 'image/png' });
       const url = window.URL.createObjectURL(blob);
       
-      // ساخت تگ دانلود فرضی و تحریک کلیک آن برای ذخیره شدن در سیستم کاربر
       const link = document.createElement('a');
       link.href = url;
       link.download = `گواهی_مسابقه_${contestTitle.replace(/\s+/g, '_')}.png`;
       document.body.appendChild(link);
       link.click();
       
-      // پاک‌سازی حافظه موقت مرورگر
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error("Error downloading certificate:", error);
       
-      // اگر سرور متنی فرستاده بود، همان را نشان بده تا علت دقیق را بفهمیم
       if (error.response && error.response.data) {
         const reader = new FileReader();
         reader.onload = () => {
@@ -250,6 +246,7 @@ export default function ProfilePage() {
                 <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
               </button>
 
+              {/* 👈 اصلاح شد: کلمه‌ی تستی "جدید" از این ساختار به طور کامل حذف گردید */}
               <button 
                 onClick={openCertificateModal} 
                 className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group"
@@ -260,10 +257,7 @@ export default function ProfilePage() {
                   </div>
                   <span className="font-black text-[#1a2e44]">گواهی‌های دوره امتداد</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="bg-amber-50 text-[#c5a059] text-[9px] font-black px-2 py-0.5 rounded-md animate-pulse">جدید</span>
-                  <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
-                </div>
+                <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
               </button>
 
               <button onClick={() => router.push('/profile/change-password')} className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
@@ -375,7 +369,6 @@ export default function ProfilePage() {
                         </span>
                       </div>
                       
-                      {/* 👈 دکمه دانلود با امنیت بالا و مجهز به مکانیزم ارسال توکن هدر */}
                       <button 
                         disabled={isCurrentDownloading}
                         onClick={() => handleDownloadCertificate(cert.contest_id || cert.id, cert.contest_title)}

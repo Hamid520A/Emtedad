@@ -40,6 +40,12 @@ class QuestionUpdate(BaseModel):
     option_4: str
     correct_option: int
 
+class BannerCreate(BaseModel):
+    title: str
+    link_url: Optional[str] = None
+    image_url: str
+    status: Optional[str] = "active"
+
 models.Base.metadata.create_all(bind=database.engine)
 UPLOAD_DIR = "static/uploads"
 if not os.path.exists(UPLOAD_DIR):
@@ -1044,3 +1050,23 @@ def generate_user_certificate_image(
     img_byte_arr.seek(0)
     
     return StreamingResponse(img_byte_arr, media_type="image/png")
+
+@app.post("/admin/banners")
+def create_banner(banner_data: BannerCreate, db: Session = Depends(database.get_db)):
+    db_banner = models.Banner(
+        title=banner_data.title,
+        link_url=banner_data.link_url,
+        image_url=banner_data.image_url,
+        status=banner_data.status
+    )
+    db.add(db_banner)
+    db.commit()
+    db.refresh(db_banner)
+    return {"message": "بنر با موفقیت ذخیره شد", "banner_id": db_banner.id}
+
+# ۳. اندپوینت دریافت بنرهای فعال برای دشبورد کاربر (GET)
+@app.get("/banners")
+def get_active_banners(db: Session = Depends(database.get_db)):
+    # فقط بنرهایی که وضعیت آن‌ها active است را به فرانت‌ند می‌فرستد
+    banners = db.query(models.Banner).filter(models.Banner.status == "active").all()
+    return banners

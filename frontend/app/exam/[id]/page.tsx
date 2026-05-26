@@ -5,14 +5,14 @@ import api from '../../../lib/api';
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-// منطق تحلیل نمره بر اساس درصدهای معادل امتیاز گواهی خوب و عالی
+// 👈 اصلاح منطق تحلیل نمره بر اساس ساختار ۳ سطر جدید: عالی، خیلی خوب و خوب
 const getAnalysis = (score: number, totalQuestions: number = 3) => {
   const s = parseFloat(score.toString());
   
-  // محاسبه پویا و خودکار حداقل تعداد پاسخ صحیح بر اساس حد نصاب ۶۴.۲۸٪
-  const minRequired = Math.ceil(totalQuestions * 0.6428);
+  // حد نصاب ۵۰ درصدی برای دریافت پایین‌ترین سطح گواهی (خوب)
+  const minRequired = Math.ceil(totalQuestions * 0.5);
   
-  if (s >= 85.71) {
+  if (s >= 85) {
     return { 
       msg: "فوق‌العاده! شما موفق به کسب «گواهی عالی» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
       certMsg: "امتیاز شما در بازه گواهی عالی قرار دارد.",
@@ -21,13 +21,22 @@ const getAnalysis = (score: number, totalQuestions: number = 3) => {
       emoji: "🏆" 
     };
   }
-  if (s >= 64.28) {
+  if (s >= 70) {
     return { 
-      msg: "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
-      certMsg: "امتیاز شما در بازه گواهی خوب قرار دارد.",
+      msg: "عالی! شما موفق به کسب «گواهی خیلی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
+      certMsg: "امتیاز شما در بازه گواهی خیلی خوب قرار دارد.",
       color: "text-blue-600", 
       bg: "bg-blue-50", 
       emoji: "🥇" 
+    };
+  }
+  if (s >= 50) {
+    return { 
+      msg: "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
+      certMsg: "امتیاز شما در بازه گواهی خوب قرار دارد.",
+      color: "text-amber-600", 
+      bg: "bg-amber-50", 
+      emoji: "✨" 
     };
   }
   return { 
@@ -92,8 +101,9 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     }
   }, [timeLeft]);
 
+  // 👈 فعال‌سازی انیمیشن جشن برای تمام نمرات بالای ۵۰ (کسب‌کنندگان انواع گواهی)
   useEffect(() => {
-    if (isSubmitted && result && result.score >= 64.28) {
+    if (isSubmitted && result && result.score >= 50) {
       const duration = 3 * 1000;
       const end = Date.now() + duration;
 
@@ -146,7 +156,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         score: Math.round(finalScore),
         correctCount: correctCount,
         timeTaken: timeTaken,
-        analysis: getAnalysis(finalScore)
+        analysis: getAnalysis(finalScore, questions.length)
       });
       setIsSubmitted(true);
     } catch (error) {
@@ -200,10 +210,9 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {/* 👈 دکمه‌های آدرس کانال و وب‌سایت امتداد امام (اضافه شده) */}
         <div className="w-full flex flex-col gap-2.5 mb-6">
           <a 
-            href="https://eitaa.com/emtedadeemam" // آدرس واقعی کانال شما
+            href="https://eitaa.com/emtedadeemam" 
             target="_blank" 
             rel="noopener noreferrer"
             className="w-full text-center bg-orange-50 hover:bg-orange-100 text-orange-700 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-orange-100"
@@ -212,7 +221,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           </a>
           
           <a 
-            href="https://emtedad.com" // آدرس واقعی وب‌سایت شما
+            href="https://emtedad.com" 
             target="_blank" 
             rel="noopener noreferrer"
             className="w-full text-center bg-amber-50 hover:bg-amber-100 text-amber-800 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-amber-100"

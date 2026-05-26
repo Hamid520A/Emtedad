@@ -2,11 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../lib/api'; 
-import { Bell, Trophy, Plus, ChevronLeft, Loader2, PlayCircle, LayoutList, Crown, User } from 'lucide-react';
+import { Bell, Trophy, Plus, ChevronLeft, Loader2, PlayCircle, LayoutList, Crown, User, Megaphone } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
   const [contests, setContests] = useState([]);
+  // 👈 ۱. استیت جدید برای ذخیره‌سازی بنرهای تبلیغاتی دریافتی از سرور
+  const [banners, setBanners] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('active'); 
 
@@ -18,25 +20,47 @@ export default function DashboardPage() {
     // جلوگیری از ورود ادمین به دشبورد کاربری
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
     if (isAdmin) {
-      // ادمین حق ندارد این صفحه را ببیند، پس مستقیم هدایتش میکنیم به دشبورد خودش
       router.push('/admin/dashboard');
       return;
     }
 
-    const fetchContests = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const response = await api.get('/contests');
-        setContests(response.data);
+        // 👈 ۲. دریافت همزمان لیست مسابقات و بنرهای تبلیغاتی ادمین
+        const [contestsRes, bannersRes] = await Promise.all([
+          api.get('/contests'),
+          api.get('/banners') // 📝 مطمئن شو بک‌ند این اندپوینت را برای لیست بنرها دارد
+        ]);
+        
+        setContests(contestsRes.data || []);
+        setBanners(bannersRes.data || []);
       } catch (error) {
-        console.error("خطا در دریافت اطلاعات", error);
+        console.error("خطا در دریافت اطلاعات جامع دشبورد", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchContests();
+    fetchDashboardData();
   }, []);
 
-  // فیلتر کردن لیست پایینی
+  // تابع هوشمند برای پاک‌سازی و رندر تمیز متن جوایز ترکیبی یا JSON
+  const renderCleanAward = (rawText: string) => {
+    if (!rawText) return 'بدون جایزه';
+    try {
+      const parsed = JSON.parse(rawText);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item: any) => item.title || item.text || '').filter(Boolean).join(' - ');
+      }
+      if (typeof parsed === 'object') {
+        return parsed.title || parsed.text || '';
+      }
+    } catch (e) {
+      return rawText;
+    }
+    return rawText;
+  };
+
+  // فیلتر کردن لیست پایینی دشبورد کاربری
   const filteredContests = contests.filter((c: any) => {
     const status = c.status?.toLowerCase().trim();
     if (filter === 'finished') {
@@ -44,13 +68,24 @@ export default function DashboardPage() {
     }
     return status === filter;
   });
-  
-  // پیدا کردن مسابقات برای بنرها (یکی از هر دسته برای تست)
-  const featuredContests = [
-    contests.find((c: any) => c.status?.toLowerCase().trim() === 'active'),
-    contests.find((c: any) => c.status?.toLowerCase().trim() === 'upcoming'),
-    contests.find((c: any) => c.status?.toLowerCase().trim() === 'finished' || c.status?.toLowerCase().trim() === 'ended')
-  ].filter(Boolean); // حذف مقادیر null اگر مسابقه‌ای در آن دسته نباشد
+
+  // 👈 ۳. فیلتر کردن بنرهای فعال تبلیغاتی برای اسلایدر بالا
+  const activeBanners = banners.filter((b: any) => {
+    const status = b.status?.toLowerCase().trim();
+    return status === 'active' || status === 'فعال و در حال نمایش' || status === 'active_display';
+  });
+
+  // تابع مدیریت کلیک روی بنر (هدایت به لینک داخلی یا خارجی)
+  const handleBannerClick = (linkUrl: string) => {
+    if (!linkUrl) return;
+    if (linkUrl.startsWith('http')) {
+      // اگر لینک خارجی بود یا آدرس کامل داشت (مثل سایت یا مسابقه خاص)
+      window.open(linkUrl, '_blank');
+    } else {
+      // اگر آدرس نسبی داخلی پروژه بود
+      router.push(linkUrl);
+    }
+  };
           
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans no-scrollbar" dir="rtl">
@@ -119,43 +154,55 @@ export default function DashboardPage() {
 
       <main className="p-6 space-y-8">
         
-        {/* بخش بنرهای چندگانه (Horizontal Scroll) */}
+        {/* 👈 ۴. اصلاح اسلایدر بالا: رندر داینامیک بنرهای تبلیغاتی ادمین */}
         <section className="relative">
           <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4">
-            {featuredContests.length > 0 ? (
-              featuredContests.map((contest: any) => (
+            {activeBanners.length > 0 ? (
+              activeBanners.map((banner: any) => (
                 <div 
-                  key={contest.id}
-                  className="min-w-[90%] snap-center bg-[#1a2e44] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-lg"
+                  key={banner.id}
+                  className="min-w-[90%] snap-center bg-[#1a2e44] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-lg flex flex-col justify-between min-h-[180px]"
                 >
-                  <div className="relative z-10">
-                    <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 inline-block ${
-                      contest.status === 'active' ? 'bg-[#c5a059] text-[#1a2e44]' : 'bg-white/20 text-white'
-                    }`}>
-                      {contest.status === 'active' ? 'در حال برگزاری' : 
-                       contest.status === 'upcoming' ? 'به زودی' : 'پایان یافته'}
+                  {/* رندر تصویر بنر ساخته شده در پنل ادمین */}
+                  {banner.image_url && (
+                    <>
+                      <img 
+                        src={banner.image_url.startsWith('/') ? `http://127.0.0.1:8000${banner.image_url}` : banner.image_url} 
+                        alt={banner.title} 
+                        className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1a2e44] via-[#1a2e44]/50 to-transparent pointer-events-none"></div>
+                    </>
+                  )}
+
+                  <div className="relative z-10 space-y-2">
+                    <span className="text-[9px] font-black px-2.5 py-1 rounded-full bg-[#c5a059] text-[#1a2e44] uppercase tracking-widest inline-flex items-center gap-1">
+                      <Megaphone size={10} /> اطلاعیه ویژه
                     </span>
-                    <h2 className="text-2xl font-bold mb-2 truncate">{contest.title}</h2>
-                    <p className="text-gray-300 text-sm leading-relaxed mb-6 line-clamp-2 break-words h-10">
-                      {contest.description || 'برای شرکت در این رقابت و کسب امتیاز آماده شوید!'}
-                    </p>
-                    <button 
-                      onClick={() => router.push(`/contests/${contest.id}`)}
-                      className="bg-white text-[#1a2e44] px-6 py-3 rounded-full text-sm font-bold flex items-center gap-2 hover:bg-gray-100 transition-colors"
-                    >
-                       مشاهده جزئیات <ChevronLeft size={16} />
-                    </button>
+                    {/* نمایش عنوان بنر (مثال: فروشگاه امتداد امام) */}
+                    <h2 className="text-xl font-black mb-1 line-clamp-2 leading-snug">{banner.title}</h2>
                   </div>
-                  <div className="absolute -left-6 -bottom-6 opacity-10 rotate-12 pointer-events-none">
-                    <Trophy size={160} />
+
+                  <div className="relative z-10 mt-4">
+                    {banner.link_url || banner.link ? (
+                      <button 
+                        onClick={() => handleBannerClick(banner.link_url || banner.link)}
+                        className="bg-white text-[#1a2e44] px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-1.5 hover:bg-gray-100 transition-colors shadow-md"
+                      >
+                         مشاهده و ورود <ChevronLeft size={14} />
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-gray-300 font-medium">صرفاً جهت اطلاع‌رسانی</span>
+                    )}
                   </div>
                 </div>
               ))
             ) : (
+              // بنر دیفالت در صورت عدم وجود بنر فعال در دیتابیس
               <div className="w-full bg-[#1a2e44] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-sm">
                 <div className="relative z-10">
-                  <h2 className="text-2xl font-bold mb-2">خوش آمدید</h2>
-                  <p className="text-gray-300 text-sm leading-relaxed mb-6">در حال حاضر مسابقه‌ای ثبت نشده است.</p>
+                  <h2 className="text-2xl font-bold mb-2">به امتداد امام خوش آمدید</h2>
+                  <p className="text-gray-300 text-sm leading-relaxed">جدیدترین اطلاعیه‌ها و بسته‌های فرهنگی در این کادر قرار می‌گیرند.</p>
                 </div>
                 <div className="absolute -left-6 -bottom-6 opacity-10 rotate-12">
                   <Trophy size={160} />
@@ -165,7 +212,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* بخش تب‌ها */}
+        {/* بخش تب‌ها و لیست مسابقات (بدون تغییر باقی می‌ماند) */}
         <section>
           <div className="flex bg-white p-1.5 rounded-full shadow-sm border border-gray-100 mb-6">
             {['active', 'upcoming', 'finished'].map((tab) => (
@@ -193,17 +240,15 @@ export default function DashboardPage() {
                 className="bg-white p-4 rounded-3xl border border-gray-100 flex items-center gap-4 shadow-sm active:scale-95 transition cursor-pointer group"
               >
                 <div className="w-16 h-16 bg-[#faf9f6] rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100">
-                  {contest.image_url ? <img src={contest.image_url} className="w-full h-full object-cover" /> : <Trophy className="m-auto mt-5 text-[#c5a059]" size={24} />}
+                  {contest.image_url ? <img src={contest.image_url.startsWith('/') ? `http://127.0.0.1:8000${contest.image_url}` : contest.image_url} className="w-full h-full object-cover" /> : <Trophy className="m-auto mt-5 text-[#c5a059]" size={24} />}
                 </div>
-                {/* این بخش اصلاح شد:
-                  کلاس min-w-0 اضافه شد تا باکس بتونه خودش رو جمع کنه.
-                  برای آیدی کلاس shrink-0 و whitespace-nowrap اضافه شد تا له نشه و بهم نریزه.
-                */}
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-[#1a2e44] text-base mb-1 truncate">{contest.title}</h4>
                   <div className="flex items-center gap-2">
                     <span className="bg-[#f0ece1] text-[#c5a059] text-[10px] px-2 py-0.5 rounded-md font-bold shrink-0 whitespace-nowrap">آیدی: {contest.id}</span>
-                    <span className="text-[11px] text-gray-500 truncate">{contest.award}</span>
+                    <span className="text-[11px] text-gray-500 block break-words line-clamp-2 leading-normal mt-0.5">
+                      {renderCleanAward(contest.award)}
+                    </span>
                   </div>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 group-hover:bg-[#1a2e44] group-hover:text-white transition-colors text-gray-400">

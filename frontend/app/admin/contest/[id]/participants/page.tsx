@@ -7,7 +7,7 @@ import { ArrowRight, Users, Loader2, Search, Trophy, Medal, Crown } from 'lucide
 export default function ParticipantsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [participants, setParticipants] = useState<any[]>([]);
-  // 👈 اضافه کردن استیت مسابقه برای حل مشکل عدم شناسایی contest
+  // استیت مسابقه برای حل مشکل عدم شناسایی contest
   const [contest, setContest] = useState<any>(null); 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -15,7 +15,7 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
   useEffect(() => {
     const fetchPageData = async () => {
       try {
-        // 👈 دریافت همزمان لیدربرد و جزئیات مسابقه با بهره‌گیری از Promise.all
+        // دریافت همزمان لیدربرد و جزئیات مسابقه با بهره‌گیری از Promise.all
         const [leaderboardRes, contestRes] = await Promise.all([
           api.get(`/contests/${params.id}/leaderboard`),
           api.get(`/contests/${params.id}`)
@@ -76,7 +76,7 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
           />
         </div>
 
-        {/* 👈 بخش رندر هوشمند جوایز رتبه‌بندی (با شرط وجود دیتای contest) */}
+        {/* بخش رندر هوشمند جوایز رتبه‌بندی */}
         {contest && (() => {
           try {
             const parsedAwards = JSON.parse(contest.award);
@@ -134,12 +134,25 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                     
                     <div>
                       <span className="font-bold text-sm text-[#1a2e44] block">{user.name}</span>
-                      <div className="flex gap-2 items-center mt-1 text-[10px] text-gray-400 font-bold">
+                      <div className="flex flex-wrap gap-2 items-center mt-1 text-[10px] text-gray-400 font-bold">
                         <span>زمان: {user.time || user.time_taken || 0} ثانیه</span>
                         <span className="text-gray-200">•</span>
                         <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md font-black text-[9px]">
                           کد ملی: {user.last_four_id || '****'}
                         </span>
+
+                        {/* 👈 لایه الحاقی هوشمند جدید: رندر آنی سطح لوح برنده شده در لیست ادمین */}
+                        {contest?.certificate_type !== 'none' && user.score >= 50 && (
+                          <>
+                            <span className="text-gray-200">•</span>
+                            <span className={`px-1.5 py-0.5 rounded-md font-black text-[9px] ${
+                              user.score >= 85 ? 'bg-green-50 text-green-700' :
+                              user.score >= 70 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
+                            }`}>
+                              گواهی {user.score >= 85 ? 'عالی' : user.score >= 70 ? 'خیلی خوب' : 'خوب'}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -147,7 +160,7 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                   <div className="bg-gray-50 px-3 py-2 rounded-xl text-center min-w-[3rem]">
                     <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">نمره</span>
                     <span className={`font-black text-base ${user.score >= 50 ? 'text-[#1a2e44]' : 'text-red-500'}`}>
-                      {user.score}
+                      {user.score}%
                     </span>
                   </div>
                 </div>

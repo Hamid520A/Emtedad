@@ -52,13 +52,14 @@ class Contest(Base):
     signer_2_signature_url: Mapped[str | None] = mapped_column(String, nullable=True)
     signer_3_signature_url: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    questions = relationship("Question", back_populates="contest")
+    questions = relationship("Question", back_populates="contest", cascade="all, delete-orphan")
+    submissions = relationship("Submission", back_populates="contest", cascade="all, delete-orphan")
 
 class Submission(Base):
     __tablename__ = "submissions"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    contest_id = Column(Integer, ForeignKey("contests.id"))
+    contest_id = Column(Integer, ForeignKey("contests.id", ondelete="CASCADE"), nullable=False)
     score = Column(Float)
     time_taken = Column(Integer) # زمان صرف شده به ثانیه
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -85,3 +86,12 @@ class Question(Base):
 
     # ارتباط با جدول مسابقه
     contest = relationship("Contest", back_populates="questions")
+
+class Banner(Base):
+    __tablename__ = "banners"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    link_url = Column(String, nullable=True)
+    image_url = Column(String, nullable=False)
+    status = Column(String, default="active")  # active یا inactive
