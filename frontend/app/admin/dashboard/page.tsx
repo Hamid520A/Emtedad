@@ -1,13 +1,12 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api';
+import api from '../../../lib/api'; 
 import {
   Users, Trophy, Layout, Plus, Settings,
   BarChart3, ArrowUpRight, ChevronLeft, Award, TrendingUp, Globe,
   ImageIcon
 } from 'lucide-react';
-// المان‌های نمودار
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import * as XLSX from 'xlsx';
 
@@ -16,11 +15,36 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ users: 0, contests: 0, topProvince: 'در حال بارگذاری...', growth: 0 });
   const [contests, setContests] = useState([]);
   const [chartData, setChartData] = useState([]);
-  
-  // استیت جدید برای ذخیره آیدی مسابقه انتخابی جهت فیلتر اکسل در دشبورد
   const [exportContestId, setExportContestId] = useState('');
 
-  // تابع خروجی اکسل ارتقا یافته و مجهز به فیلتر هوشمند مسابقه
+  // تابع مبدل برای تیک‌های پایین نمودار (محور X)
+  const formatXAxis = (tickItem: any) => {
+    if (!tickItem) return '';
+    try {
+      const date = new Date(tickItem);
+      if (!isNaN(date.getTime())) {
+        return new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric' }).format(date);
+      }
+    } catch (e) {
+      return tickItem;
+    }
+    return tickItem;
+  };
+
+  // تابع برای شمسی‌سازی کامل تاریخ داخل باکس شناور (Tooltip)
+  const formatTooltipLabel = (label: any) => {
+    if (!label) return '';
+    try {
+      const date = new Date(label);
+      if (!isNaN(date.getTime())) {
+        return new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
+      }
+    } catch (e) {
+      return label;
+    }
+    return label;
+  };
+
   const exportToExcel = async () => {
     try {
       const url = exportContestId 
@@ -30,13 +54,8 @@ export default function AdminDashboard() {
       const res = await api.get(url);
       let data = res.data;
 
-      console.log("Data received from API:", data);
-
       if (!data || data.length === 0) {
-        console.warn("API returned empty data, using mock data for test.");
-        data = [
-          { "نام": "تست", "تلفن": "۰۹۱۲", "امتیاز": "۱۰۰" }
-        ];
+        data = [{ "نام": "تست", "تلفن": "۰۹۱۲", "امتیاز": "۱۰۰" }];
       }
 
       const worksheet = XLSX.utils.json_to_sheet(data);
@@ -59,6 +78,14 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    const isAdmin = localStorage.getItem('isAdmin') === 'true';
+
+    if (!token || !isAdmin) {
+      router.push('/login');
+      return; 
+    }
+
     const fetchAdminData = async () => {
       try {
         const statsRes = await api.get('/admin/stats');
@@ -159,15 +186,19 @@ export default function AdminDashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
+                  tickFormatter={formatXAxis}
                   tick={{ fontSize: 11, fontWeight: 'bold', fill: '#9ca3af' }}
                   dy={10}
                 />
                 <YAxis hide />
+                
                 <Tooltip
+                  labelFormatter={formatTooltipLabel}
                   contentStyle={{
                     borderRadius: '20px',
                     border: 'none',
@@ -176,9 +207,11 @@ export default function AdminDashboard() {
                     direction: 'rtl'
                   }}
                 />
+                
                 <Area
                   type="monotone"
                   dataKey="users"
+                  name="شرکت‌کنندگان"
                   stroke="#c5a059"
                   strokeWidth={4}
                   fillOpacity={1}
@@ -205,9 +238,22 @@ export default function AdminDashboard() {
                     <div>
                       <h4 className="font-bold text-[#1a2e44]">{c.title}</h4>
                       <div className="flex gap-2 items-center mt-1">
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${c.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
-                          {c.status === 'active' ? 'در حال اجرا' : 'آینده'}
-                        </span>
+                        
+                        {/* 👈 🌟 اصلاح اصلی: ساختار شرطی چندگانه برای تفکیک دقیق تمام وضعیت‌ها */}
+                        {(() => {
+                          switch (c.status) {
+                            case 'active':
+                              return <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-600">در حال اجرا</span>;
+                            case 'finished':
+                              return <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">پایان یافته</span>;
+                            case 'draft':
+                              return <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-rose-100 text-rose-600">متوقف اضطراری</span>;
+                            case 'upcoming':
+                            default:
+                              return <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-orange-100 text-orange-600">آینده</span>;
+                          }
+                        })()}
+
                         <span className="text-[9px] text-gray-400 font-bold">{c.question_limit} سوال</span>
                       </div>
                     </div>
@@ -225,7 +271,6 @@ export default function AdminDashboard() {
             <h3 className="font-black text-xl mb-8">ابزارهای سریع</h3>
             <div className="space-y-4">
               
-              {/* منوی کشویی انتخاب مسابقه برای خروجی اکسل */}
               <div className="space-y-1.5 mb-2">
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">فیلتر مسابقه برای خروجی اکسل</label>
                 <select
@@ -243,14 +288,11 @@ export default function AdminDashboard() {
               </div>
 
               <QuickAction label="گزارش اکسل شرکت‌کنندگان" icon={<BarChart3 size={18} />} onClick={exportToExcel} />
-              
-              {/* 👈 دکمه تنظیمات گواهی‌ها به صفحه طراحی گواهی‌ها متصل شد */}
               <QuickAction 
                 label="تنظیمات گواهی‌ها" 
                 icon={<Award size={18} />} 
                 onClick={() => router.push('/admin/certificates')} 
               />
-              
               <QuickAction
                 label="تغییر رمز عبور مدیر"
                 icon={<Settings size={18} />}

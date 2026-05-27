@@ -1,17 +1,19 @@
 # backend/app/main.py
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from . import crud, schemas, models, auth, database
 import shutil, os, random, httpx, base64, redis, json, io, requests, textwrap
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse
-from datetime import datetime
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from .auth import require_admin
 
 app = FastAPI()
 ACCOUNT_REDIS_HOST = os.getenv("REDIS_HOST", "10.10.10.6")
@@ -27,6 +29,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# کانفیگ‌های فرضی JWT
+SECRET_KEY = "YOUR_SUPER_SECRET_KEY"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 class StatusUpdate(BaseModel):
     status: str
@@ -57,6 +65,12 @@ def require_admin(current_user: models.User = Depends(auth.get_current_user)):
     if not getattr(current_user, "is_admin", False):
         raise HTTPException(status_code=403, detail="شما دسترسی به این بخش را ندارید")
     return current_user
+
+def create_jwt_token(data: dict, expires_delta: timedelta):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def safe_load_image(url_str):
     if not url_str:
@@ -801,7 +815,7 @@ def get_admin_users_list(db: Session = Depends(database.get_db), current_admin: 
         else:
             average_score = "---"
         
-        # 👈 ۲. پیدا کردن تمام مسابقاتی که کاربر تا به حال در آن‌ها شرکت کرده است
+        # ۲. پیدا کردن تمام مسابقاتی که کاربر تا به حال در آن‌ها شرکت کرده است
         all_subs = db.query(models.Submission).filter(models.Submission.user_id == u.id).all()
         participated_contests = [sub.contest.title for sub in all_subs if sub.contest]
         
@@ -818,8 +832,9 @@ def get_admin_users_list(db: Session = Depends(database.get_db), current_admin: 
             "province": u.province or "---",
             "gender": u.gender or "---",
             "last_contest": last_sub.contest.title if last_sub else "شرکت نکرده",
-            "all_contests": participated_contests,  # 👈 ارسال آرایه کامل تاریخچه به فرانت‌ند
-            "average_score": average_score  
+            "all_contests": participated_contests,
+            "average_score": average_score,
+            "is_admin": u.is_admin
         })
         
     return results
@@ -1070,3 +1085,129 @@ def get_active_banners(db: Session = Depends(database.get_db)):
     # فقط بنرهایی که وضعیت آن‌ها active است را به فرانت‌ند می‌فرستد
     banners = db.query(models.Banner).filter(models.Banner.status == "active").all()
     return banners
+
+@app.patch("/admin/contests/{contest_id}")
+def update_contest(contest_id: int, contest_data: dict, db: Session = Depends(database.get_db)):
+    db_contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+    if not db_contest:
+        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+    
+    for key, value in contest_data.items():
+        if hasattr(db_contest, key):
+            setattr(db_contest, key, value)
+            
+    db.commit()
+    db.refresh(db_contest)
+    return {"message": "مسابقه با موفقیت به‌روزرسانی شد"}
+
+@app.get("/admin/contests/{contest_id}/analytics")
+def get_contest_analytics(
+    contest_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_admin: models.User = Depends(require_admin)
+):
+    # ۱. بررسی وجود مسابقه در دیتابیس
+    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+    if not contest:
+        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+
+    # ۲. دریافت تمام پاسخنامه‌های ثبت شده برای این مسابقه
+    submissions = db.query(models.Submission).filter(models.Submission.contest_id == contest_id).all()
+
+    # ۳. محاسبه توزیع فراوانی مدت زمان حضور در آزمون
+    time_dist = {
+        "زیر ۳ دقیقه": 0,
+        "۳ تا ۶ دقیقه": 0,
+        "۶ تا ۱۰ دقیقه": 0,
+        "۱۰ تا ۱۵ دقیقه": 0,
+        "بالای ۱۵ دقیقه": 0
+    }
+
+    for sub in submissions:
+        time_taken = sub.time_taken or 0  # زمان به ثانیه
+        if time_taken < 180:
+            time_dist["زیر ۳ دقیقه"] += 1
+        elif 180 <= time_taken < 360:
+            time_dist["۳ تا ۶ دقیقه"] += 1
+        elif 360 <= time_taken < 600:
+            time_dist["۶ تا ۱۰ دقیقه"] += 1
+        elif 600 <= time_taken < 900:
+            time_dist["۱۰ تا ۱۵ دقیقه"] += 1
+        else:
+            time_dist["بالای ۱۵ دقیقه"] += 1
+
+    time_distribution_payload = [
+        {"name": key, "users": value} for key, value in time_dist.items()
+    ]
+
+    # ۴. استخراج سوالات مسابقه و آنالیز فیلد JSON یعنی answers_map
+    questions = db.query(models.Question).filter(models.Question.contest_id == contest_id).order_by(models.Question.id.asc()).all()
+    questions_stats_payload = []
+
+    for index, q in enumerate(questions):
+        correct_count = 0
+        incorrect_count = 0
+
+        for sub in submissions:
+            # بررسی اینکه پاسخنامه حاوی اطلاعات نقشه پاسخ‌ها (JSON) باشد
+            if sub.answers_map and isinstance(sub.answers_map, dict):
+                # در اسناد JSON کلیدها همیشه رشته (String) هستند، پس آی‌دی سوال را به رشته تبدیل یا هر دو حالت را چک می‌کنیم
+                user_choice = sub.answers_map.get(str(q.id)) or sub.answers_map.get(q.id)
+                
+                if user_choice is not None:
+                    # هم‌سنگ‌سازی تایپ‌ها به عدد اینتجر جهت مقایسه بی‌نقص با correct_option دیتابیس
+                    if int(user_choice) == q.correct_option:
+                        correct_count += 1
+                    else:
+                        incorrect_count += 1
+
+        # چسباندن گزینه‌ها در قالب آرایه برای نمایش پاپ‌آپ فرانت‌ند
+        options_list = [q.option_1, q.option_2, q.option_3, q.option_4]
+
+        questions_stats_payload.append({
+            "question_index": index + 1,
+            "correct": correct_count,
+            "incorrect": incorrect_count,
+            "title": q.text,                # 👈 هماهنگ با فیلد text در مدل شما
+            "options": [opt for opt in options_list if opt],
+            "correct_answer": q.correct_option  # 👈 هماهنگ با فیلد correct_option در مدل شما
+        })
+
+    # ۵. ارسال خروجی نهایی ساختاریافته به کلاینت
+    return {
+        "time_distribution": time_distribution_payload,
+        "questions_stats": questions_stats_payload
+    }
+
+@app.post("/auth/refresh")
+def refresh_access_token(payload: dict):
+    refresh_token = payload.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=400, detail="ریفرش توکن ارسال نشده است")
+        
+    try:
+        # تایید اصالت و انقضای ریفرش توکن
+        decoded_data = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = decoded_data.get("sub")
+        is_admin: bool = decoded_data.get("is_admin", False)
+        
+        if username is None:
+            raise HTTPException(status_code=401, detail="توکن نامعتبر است")
+            
+        # 🌟 ساخت اکسس توکن جدید و تازه نفس
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        new_access_token = create_jwt_token(
+            data={"sub": username, "is_admin": is_admin}, 
+            expires_delta=access_token_expires
+        )
+        
+        return {
+            "access_token": new_access_token,
+            "token_type": "bearer"
+        }
+        
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="ریفرش توکن منقضی یا نامعتبر شده است. لطفاً دوباره لاگین کنید"
+        )

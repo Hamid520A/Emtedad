@@ -180,7 +180,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
       <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] flex flex-col items-center justify-center p-6 text-center font-sans">
         <AlertCircle className="w-16 h-16 text-[#c5a059] mb-4" />
         <h2 className="font-bold text-lg text-[#1a2e44]">سوالی یافت نشد</h2>
-        <button onClick={() => router.push('/dashboard')} className="mt-4 bg-[#1a2e44] text-white px-8 py-3 rounded-3xl font-bold">بازگشت</button>
+        <button onClick={() => router.push('/')} className="mt-4 bg-[#1a2e44] text-white px-8 py-3 rounded-3xl font-bold">بازگشت</button>
       </div>
     );
   }
@@ -231,7 +231,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className="w-full space-y-3">
-          <button onClick={() => router.push('/dashboard')} className="w-full bg-[#1a2e44] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
+          <button onClick={() => router.push('/')} className="w-full bg-[#1a2e44] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
             <Home size={20} /> بازگشت به داشبورد
           </button>
           <button 
@@ -320,7 +320,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
 
         {currentQIndex === questions.length - 1 ? (
           <button 
-            onClick={showReview ? () => router.push('/dashboard') : handleSubmitExam} 
+            onClick={showReview ? () => router.push('/') : handleSubmitExam} 
             className={`flex-1 ${showReview ? 'bg-gray-200 text-gray-600' : 'bg-[#c5a059] text-white'} rounded-3xl font-black shadow-sm active:scale-95 transition-all`}
           >
             {showReview ? 'خروج از مرور' : 'تایید و ثبت نتایج'}

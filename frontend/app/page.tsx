@@ -1,13 +1,12 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../lib/api'; 
+import api from '../lib/api'; 
 import { Bell, Trophy, Plus, ChevronLeft, Loader2, PlayCircle, LayoutList, Crown, User, Megaphone } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
   const [contests, setContests] = useState([]);
-  // 👈 ۱. استیت جدید برای ذخیره‌سازی بنرهای تبلیغاتی دریافتی از سرور
   const [banners, setBanners] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('active'); 
@@ -17,7 +16,13 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    // جلوگیری از ورود ادمین به دشبورد کاربری
+    //اگر کاربر اکسس توکن نداشت، فوراً ریدایرکت شود به لاگین
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      router.push('/login');
+      return; // توقف اجرای بقیه کدها
+    }
+    
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
     if (isAdmin) {
       router.push('/admin/dashboard');
@@ -26,10 +31,9 @@ export default function DashboardPage() {
 
     const fetchDashboardData = async () => {
       try {
-        // 👈 ۲. دریافت همزمان لیست مسابقات و بنرهای تبلیغاتی ادمین
         const [contestsRes, bannersRes] = await Promise.all([
           api.get('/contests'),
-          api.get('/banners') // 📝 مطمئن شو بک‌ند این اندپوینت را برای لیست بنرها دارد
+          api.get('/banners') 
         ]);
         
         setContests(contestsRes.data || []);
@@ -43,23 +47,6 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, []);
 
-  // تابع هوشمند برای پاک‌سازی و رندر تمیز متن جوایز ترکیبی یا JSON
-  const renderCleanAward = (rawText: string) => {
-    if (!rawText) return 'بدون جایزه';
-    try {
-      const parsed = JSON.parse(rawText);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item: any) => item.title || item.text || '').filter(Boolean).join(' - ');
-      }
-      if (typeof parsed === 'object') {
-        return parsed.title || parsed.text || '';
-      }
-    } catch (e) {
-      return rawText;
-    }
-    return rawText;
-  };
-
   // فیلتر کردن لیست پایینی دشبورد کاربری
   const filteredContests = contests.filter((c: any) => {
     const status = c.status?.toLowerCase().trim();
@@ -69,20 +56,17 @@ export default function DashboardPage() {
     return status === filter;
   });
 
-  // 👈 ۳. فیلتر کردن بنرهای فعال تبلیغاتی برای اسلایدر بالا
+  // فیلتر کردن بنرهای فعال تبلیغاتی برای اسلایدر بالا
   const activeBanners = banners.filter((b: any) => {
     const status = b.status?.toLowerCase().trim();
     return status === 'active' || status === 'فعال و در حال نمایش' || status === 'active_display';
   });
 
-  // تابع مدیریت کلیک روی بنر (هدایت به لینک داخلی یا خارجی)
   const handleBannerClick = (linkUrl: string) => {
     if (!linkUrl) return;
     if (linkUrl.startsWith('http')) {
-      // اگر لینک خارجی بود یا آدرس کامل داشت (مثل سایت یا مسابقه خاص)
       window.open(linkUrl, '_blank');
     } else {
-      // اگر آدرس نسبی داخلی پروژه بود
       router.push(linkUrl);
     }
   };
@@ -154,7 +138,7 @@ export default function DashboardPage() {
 
       <main className="p-6 space-y-8">
         
-        {/* 👈 ۴. اصلاح اسلایدر بالا: رندر داینامیک بنرهای تبلیغاتی ادمین */}
+        {/* اسلایدر بنرهای تبلیغاتی */}
         <section className="relative">
           <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4">
             {activeBanners.length > 0 ? (
@@ -163,7 +147,6 @@ export default function DashboardPage() {
                   key={banner.id}
                   className="min-w-[90%] snap-center bg-[#1a2e44] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-lg flex flex-col justify-between min-h-[180px]"
                 >
-                  {/* رندر تصویر بنر ساخته شده در پنل ادمین */}
                   {banner.image_url && (
                     <>
                       <img 
@@ -179,7 +162,6 @@ export default function DashboardPage() {
                     <span className="text-[9px] font-black px-2.5 py-1 rounded-full bg-[#c5a059] text-[#1a2e44] uppercase tracking-widest inline-flex items-center gap-1">
                       <Megaphone size={10} /> اطلاعیه ویژه
                     </span>
-                    {/* نمایش عنوان بنر (مثال: فروشگاه امتداد امام) */}
                     <h2 className="text-xl font-black mb-1 line-clamp-2 leading-snug">{banner.title}</h2>
                   </div>
 
@@ -198,7 +180,6 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              // بنر دیفالت در صورت عدم وجود بنر فعال در دیتابیس
               <div className="w-full bg-[#1a2e44] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-sm">
                 <div className="relative z-10">
                   <h2 className="text-2xl font-bold mb-2">به امتداد امام خوش آمدید</h2>
@@ -212,7 +193,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* بخش تب‌ها و لیست مسابقات (بدون تغییر باقی می‌ماند) */}
+        {/* بخش تب‌ها و لیست مسابقات */}
         <section>
           <div className="flex bg-white p-1.5 rounded-full shadow-sm border border-gray-100 mb-6">
             {['active', 'upcoming', 'finished'].map((tab) => (
@@ -237,20 +218,20 @@ export default function DashboardPage() {
               <div 
                 key={contest.id}
                 onClick={() => router.push(`/contests/${contest.id}`)}
-                className="bg-white p-4 rounded-3xl border border-gray-100 flex items-center gap-4 shadow-sm active:scale-95 transition cursor-pointer group"
+                className="bg-white p-4 rounded-3xl border border-gray-100 flex items-center gap-4 shadow-sm active:scale-95 transition cursor-pointer group animate-in fade-in duration-200"
               >
                 <div className="w-16 h-16 bg-[#faf9f6] rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100">
                   {contest.image_url ? <img src={contest.image_url.startsWith('/') ? `http://127.0.0.1:8000${contest.image_url}` : contest.image_url} className="w-full h-full object-cover" /> : <Trophy className="m-auto mt-5 text-[#c5a059]" size={24} />}
                 </div>
+                
+                {/* 👈 بخش اصلاح‌شده: جایگزینی آیدی و جوایز با توضیحات داینامیک مسابقه */}
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-[#1a2e44] text-base mb-1 truncate">{contest.title}</h4>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-[#f0ece1] text-[#c5a059] text-[10px] px-2 py-0.5 rounded-md font-bold shrink-0 whitespace-nowrap">آیدی: {contest.id}</span>
-                    <span className="text-[11px] text-gray-500 block break-words line-clamp-2 leading-normal mt-0.5">
-                      {renderCleanAward(contest.award)}
-                    </span>
-                  </div>
+                  <h4 className="font-bold text-[#1a2e44] text-base mb-0.5 truncate">{contest.title}</h4>
+                  <p className="text-[11px] text-gray-400 font-medium line-clamp-2 leading-relaxed text-justify">
+                    {contest.description || 'توضیحات و مشخصاتی برای این مسابقه از طرف مدیر ثبت نشده است.'}
+                  </p>
                 </div>
+
                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 group-hover:bg-[#1a2e44] group-hover:text-white transition-colors text-gray-400">
                   <PlayCircle size={20} />
                 </div>

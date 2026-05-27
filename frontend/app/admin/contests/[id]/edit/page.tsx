@@ -1,8 +1,8 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api';
-import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle, Plus, Trash2, FileMinus } from 'lucide-react'; 
+import api from '../../../../../lib/api';
+import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle, Plus, Trash2, Loader2 } from 'lucide-react'; 
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -10,25 +10,26 @@ import TimePicker from "react-multi-date-picker/plugins/time_picker";
 const DatePickerComponent = DatePicker as any;
 const TimePickerPlugin = TimePicker as any;
 
-export default function CreateContestPage() {
+export default function EditContestPage({ params }: { params: { id: string } }) {
   const toEnglishDigits = (str: string) => {
     return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
               .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
   };
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
   
-  // رفرنس همزمان برای تشخیص دکمه کلیک شده (انتشار یا پیش‌نویس)
-  const submitStatusRef = useRef<'upcoming' | 'draft'>('upcoming');
-
-  // ۱. استیت اختصاصی برای مدیریت جوایز چندگانه رتبه‌بندی
+  // ۱. استیت جوایز رتبه‌بندی
   const [awards, setAwards] = useState<{ rank: number; title: string }[]>([
     { rank: 1, title: '' }
   ]);
 
-  // ۲. استیت فرم
+  // ۲. استیت جامع فرم ویرایش
   const [formData, setFormData] = useState<any>({
     title: '',
     description: '',
+    status: 'draft', 
     image_url: '',
     file_url: '',
     start_time: null, 
@@ -38,7 +39,48 @@ export default function CreateContestPage() {
     video_url: ''
   });
 
-  // توابع مدیریت پویای لیست جوایز
+  // ۳. دریافت اطلاعات مسابقه قدیمی از سرور و پر کردن فیلدها
+  useEffect(() => {
+    const fetchContestData = async () => {
+      try {
+        const response = await api.get(`/contests/${params.id}`);
+        const data = response.data;
+        
+        setFormData({
+          title: data.title || '',
+          description: data.description || '',
+          status: data.status || 'draft',
+          image_url: data.image_url || '',
+          file_url: data.file_url || '',
+          start_time: data.start_time ? new Date(data.start_time) : null,
+          time_limit: data.time_limit || 10,
+          question_limit: data.question_limit || 15,
+          certificate_type: data.certificate_type || 'none',
+          video_url: data.video_url || ''
+        });
+
+        // پارس کردن اطلاعات جوایز از فرمت JSON
+        if (data.award) {
+          try {
+            const parsedAwards = JSON.parse(data.award);
+            if (Array.isArray(parsedAwards) && parsedAwards.length > 0) {
+              setAwards(parsedAwards);
+            }
+          } catch (e) {
+            setAwards([{ rank: 1, title: data.award }]);
+          }
+        }
+      } catch (error) {
+        console.error("خطا در دریافت اطلاعات مسابقه جهت ویرایش", error);
+        alert("خطا در بارگذاری اطلاعات مسابقه");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchContestData();
+  }, [params.id]);
+
+  // توابع پویای لیست جوایز
   const handleAwardChange = (index: number, field: 'rank' | 'title', value: string) => {
     const updated = [...awards];
     if (field === 'rank') {
@@ -58,25 +100,23 @@ export default function CreateContestPage() {
     setAwards(awards.filter((_, i) => i !== index));
   };
 
+  // ارسال اطلاعات ویرایش شده به سرور با متد PUT/PATCH
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     
     const now = new Date();
     const startTime = formData.start_time ? new Date(formData.start_time) : now;
-
     const durationInMinutes = parseInt(formData.time_limit.toString(), 10) || 10;
     const endTime = new Date(startTime.getTime() + durationInMinutes * 60 * 1000);
 
     const validAwards = awards.filter(a => a.title.trim() !== "");
 
-    // 👈 استفاده از رفرنس کلیک شده برای اعمال وضعیت نهایی مسابقه
-    const finalStatus = submitStatusRef.current;
-
     const finalData = {
       title: formData.title,
       description: formData.description || "",
       award: JSON.stringify(validAwards), 
-      status: finalStatus, // 📝 ارسال مقدار 'upcoming' یا 'draft' به سرور
+      status: formData.status,
       image_url: formData.image_url || "",
       file_url: formData.file_url || "",
       video_url: formData.video_url || "",
@@ -88,16 +128,15 @@ export default function CreateContestPage() {
     };
 
     try {
-      await api.post('/contests', finalData);
-      if (finalStatus === 'draft') {
-        alert("مسابقه با موفقیت به عنوان پیش‌نویس ذخیره شد.");
-      } else {
-        alert("مسابقه با موفقیت ساخته و منتشر شد!");
-      }
-      router.push('/admin/dashboard'); 
+      // استفاده از متد PUT یا PATCH برای به‌روزرسانی مسابقه بر اساس ساختار بک‌ند شما
+      await api.patch(`/admin/contests/${params.id}`, finalData);
+      alert("تغییرات مسابقه با موفقیت ذخیره شد!");
+      router.push(`/contests/${params.id}`); // بازگشت به صفحه لندینگ همان مسابقه
     } catch (error: any) {
       const serverError = error.response?.data?.detail?.[0]?.msg || error.response?.data?.detail || "مشکل فنی در سرور";
-      alert("خطا: " + serverError);
+      alert("خطا در به‌روزرسانی: " + serverError);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -106,32 +145,42 @@ export default function CreateContestPage() {
     if (!file) return;
     const uploadData = new FormData();
     uploadData.append('file', file);
+    
+    setUploading(fieldName);
     try {
       const response = await api.post('/upload', uploadData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setFormData((prev: any) => ({ ...prev, [fieldName]: response.data.url }));
-      alert("فایل با موفقیت آپلود شد");
+      alert("فایل جدید با موفقیت جایگزین و آپلود شد");
     } catch (error) {
       alert("خطا در آپلود فایل");
+    } finally {
+      setUploading(null);
     }
   };
+
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-[#faf9f6]">
+      <Loader2 className="animate-spin text-[#1a2e44]" size={40} />
+    </div>
+  );
 
   return (
     <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
       
-      {/* هدر پهن دسکتاپ */}
+      {/* هدر */}
       <header className="p-8 flex items-center gap-4 sticky top-0 bg-[#faf9f6]/90 backdrop-blur-md z-20">
         <button onClick={() => router.back()} className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition text-gray-500 hover:text-[#1a2e44]">
           <ArrowRight size={20} />
         </button>
         <div>
-          <h1 className="font-black text-2xl text-[#1a2e44]">تعریف مسابقه جدید</h1>
-          <p className="text-gray-400 text-xs font-bold mt-1">ایجاد رقابت جدید، تنظیم زمان‌بندی و جوایز رتبه‌بندی</p>
+          <h1 className="font-black text-2xl text-[#1a2e44]">ویرایش و مدیریت مسابقه</h1>
+          <p className="text-gray-400 text-xs font-bold mt-1">تغییر عنوان، قوانین، وضعیت انتشار، زمان‌بندی و سیستم جوایز</p>
         </div>
       </header>
 
-      {/* تقسیم فضا به صورت گرید: بخش محتوا (۲ ستون) و بخش تنظیمات/آپلودها (۱ ستون) */}
+      {/* بوم گرید دو ستونه مدیریت */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
         
         {/* ستون راست: اطلاعات متنی و اصلی مسابقه */}
@@ -140,19 +189,19 @@ export default function CreateContestPage() {
             
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
-              <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" placeholder="مثلاً: مسابقه هوش مصنوعی" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
+              <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" placeholder="عنوان مسابقه را وارد کنید..." value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">توضیحات جامع</label>
-              <textarea rows={4} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">توضیحات جامع و قوانین</label>
+              <textarea rows={5} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
             </div>
 
             {/* بخش جوایز رتبه‌بندی */}
             <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100 space-y-3">
               <div className="flex items-center gap-1.5 mb-1 text-gray-500">
                 <Trophy size={16} className="text-[#c5a059]" />
-                <label className="block text-[10px] font-black uppercase tracking-widest">تعیین جوایز بر اساس رتبه‌بندی</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest">تغییر جوایز بر اساس رتبه‌بندی</label>
               </div>
               
               {awards.map((award, index) => (
@@ -189,13 +238,24 @@ export default function CreateContestPage() {
           </div>
         </div>
 
-        {/* ستون چپ: ابزارها، زمان‌بندی، ویدیو و فایل‌های پیوست */}
+        {/* ستون چپ: ابزارها، وضعیت کنترل، زمان‌بندی و فایل‌ها */}
         <div className="lg:col-span-1 space-y-6">
           
-          {/* باکس پیکربندی مسابقه */}
+          {/* باکس وضعیت و پیکربندی */}
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
             
-            {/* تغییر مقادیر و عناوین گواهی‌ها به عالی، خیلی خوب و خوب */}
+            {/* 👈 اضافه شدن کنترل کامل وضعیت مسابقه در ادیت پنل برای مدیریت ادمین */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">وضعیت انتشار مسابقه</label>
+              <select className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none cursor-pointer" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                <option value="draft">پیش‌نویس (مخفی از کاربر)</option>
+                <option value="upcoming">به زودی (شمارش معکوس)</option>
+                <option value="active">در حال برگزاری (شروع لایو)</option>
+                <option value="finished">پایان یافته (بستن پاسخنامه‌ها)</option>
+              </select>
+            </div>
+
+            {/* سیستم گواهی‌های ارتقا یافته با رتبه‌بندی جدید کیفی */}
             <div>
               <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
               <div className="relative">
@@ -223,9 +283,8 @@ export default function CreateContestPage() {
               </div>
             </div>
             
-            {/* نمایش همیشگی تقویم برای تنظیم زمان شروع مسابقه پیش‌نویس یا عمومی */}
-            <div className="transition-all duration-300 animate-in fade-in slide-in-from-top-2">
-              <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
+            <div>
+              <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان آغاز رقابت</label>
               <div className="relative">
                 <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
                 <DatePickerComponent
@@ -235,13 +294,13 @@ export default function CreateContestPage() {
                   onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
                   containerClassName="w-full"
                   inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
-                  placeholder="انتخاب تاریخ و ساعت"
+                  placeholder="انتخاب تاریخ و ساعت شروع"
                 />
               </div>
             </div>
           </div>
 
-          {/* باکس بارگذاری و ویدیو */}
+          {/* باکس مدیا و آپلود مجدد */}
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
@@ -252,34 +311,31 @@ export default function CreateContestPage() {
             </div>
 
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><ImageIcon size={14} /> تصویر بنر</label>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                <ImageIcon size={14} /> تصویر بنر مسابقه {uploading === 'image_url' && '⏳'}
+              </label>
               <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl outline-none text-xs text-gray-500 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#1a2e44] file:text-white cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />
+              {formData.image_url && <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ فایل تصویر روی سرور ذخیره است.</p>}
             </div>
 
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> جزوه (PDF)</label>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                <FileText size={14} /> فایل پیوست جزوه (PDF) {uploading === 'file_url' && '⏳'}
+              </label>
               <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl outline-none text-xs text-gray-500 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#c5a059] file:text-[#1a2e44] cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
+              {formData.file_url && <a href={formData.file_url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 font-bold underline mt-1 block">مشاهده فایل PDF جاری</a>}
             </div>
           </div>
 
-          {/* 👈 دکمه‌های دوگانه عملیاتی برای انتشار نهایی یا ذخیره پیش‌نویس */}
-          <div className="space-y-3">
-            <button 
-              type="submit" 
-              onClick={() => submitStatusRef.current = 'upcoming'}
-              className="w-full bg-[#1a2e44] text-white p-4 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-[#2a405a] transition-all shadow-xl shadow-blue-900/10 active:scale-95"
-            >
-              <Save size={20} className="text-[#c5a059]" /> ذخیره و انتشار مسابقه
-            </button>
-
-            <button 
-              type="submit" 
-              onClick={() => submitStatusRef.current = 'draft'}
-              className="w-full bg-white text-[#1a2e44] p-4 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-gray-50 transition-all border border-gray-200 active:scale-95"
-            >
-              <FileMinus size={20} className="text-gray-400" /> ذخیره به عنوان پیش‌نویس
-            </button>
-          </div>
+          {/* دکمه ثبت تغییرات ثانویه */}
+          <button 
+            type="submit" 
+            disabled={submitting || uploading !== null}
+            className="w-full bg-[#1a2e44] text-white p-4 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-[#2a405a] transition-all shadow-xl shadow-blue-900/10 active:scale-95 disabled:opacity-50"
+          >
+            {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} className="text-[#c5a059]" />}
+            ذخیره تغییرات نهایی مسابقه
+          </button>
 
         </div>
 

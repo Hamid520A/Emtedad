@@ -320,7 +320,7 @@ export default function ProfilePage() {
 
         {/* Bottom Nav */}
         <nav className="fixed bottom-6 left-6 right-6 max-w-[calc(28rem-3rem)] mx-auto bg-[#1a2e44] rounded-3xl shadow-xl p-2 flex justify-between items-center z-30">
-          <button onClick={() => router.push('/dashboard')} className="flex-1 text-gray-400 hover:text-white transition flex flex-col items-center gap-1 p-2">
+          <button onClick={() => router.push('/')} className="flex-1 text-gray-400 hover:text-white transition flex flex-col items-center gap-1 p-2">
             <Trophy size={20} />
             <span className="text-[10px]">خانه</span>
           </button>

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../../../lib/api';
-import { ArrowRight, HelpCircle, Edit3, Save, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, HelpCircle, Edit3, Save, X, Loader2, CheckCircle2, Plus } from 'lucide-react';
 
 export default function AdminContestQuestionsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -75,6 +75,13 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
           className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]"
         >
           <ArrowRight size={20} />
+        </button>
+        <button 
+          onClick={() => router.push(`/admin/add-question?contest_id=${params.id}`)}
+          className="bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl font-black flex items-center gap-2 shadow-md hover:bg-[#2a405a] transition-all active:scale-95 text-xs"
+        >
+          <Plus size={16} className="text-[#c5a059]" />
+          <span>افزودن سوال جدید</span>
         </button>
         <div>
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">

@@ -1,12 +1,10 @@
 import bcrypt
-from jose import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from . import schemas, crud, models, database
+from . import schemas, models, database
 from sqlalchemy.orm import Session
-
 
 # تنظیمات توکن (تغییر ندهید)
 SECRET_KEY = "YOUR_SECRET_KEY" 
@@ -29,11 +27,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=1440) # ۲۴ ساعت
+    # 🌟 جایگزینی متد منسوخ شده utcnow با استاندارد پایتون جدید
+    expire = datetime.now(timezone.utc) + timedelta(minutes=1440) # ۲۴ ساعت
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(db: Session = Depends(database.get_db), token: str = Depends(oauth2_scheme)):
+    # 🌟 ترفند اصلی: ایمپورت لایو crud در اینجا لوپ چرخه‌ای را کلاً نابود می‌کند
+    from . import crud
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="اعتبارنامه نامعتبر است",
@@ -41,7 +43,7 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        phone: str = payload.get("sub") # یا هر فیلدی که موقع توکن ساختن گذاشتی
+        phone: str = payload.get("sub") 
         if phone is None:
             raise credentials_exception
         token_data = schemas.TokenData(phone=phone)
@@ -52,3 +54,14 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
     if user is None:
         raise credentials_exception
     return user
+
+def require_admin(current_user: models.User = Depends(get_current_user)):
+    """
+    میدل‌ور اختصاصی برای قفل کردن اندپوینت‌ها به روی کاربران عادی
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="دسترسی غیرمجاز: این بخش مخصوص مدیران سیستم است."
+        )
+    return current_user

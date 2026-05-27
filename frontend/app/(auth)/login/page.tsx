@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { Lock, Phone, ArrowRight, Trophy } from 'lucide-react';
@@ -8,6 +8,20 @@ export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ phone: '', password: '' });
   const [loading, setLoading] = useState(false);
+
+  // لایه محافظتی معکوس: جلوگیری از دسترسی مجدد کاربران لاگین‌شده به صفحه ورود
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    const isAdmin = localStorage.getItem('isAdmin') === 'true';
+
+    if (token) {
+      if (isAdmin) {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/login');
+      }
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,18 +34,23 @@ export default function LoginPage() {
       });
 
       if (response.data.access_token) {
-        // ۱. ذخیره توکن اصلی در مرورگر
-        localStorage.setItem('token', response.data.access_token);
+        // ۱. ذخیره توکن اصلی (Access Token) با کلید هماهنگ با Interceptor
+        localStorage.setItem('accessToken', response.data.access_token);
         
-        // ۲. ذخیره وضعیت نقش کاربر (ادمین بودن یا نبودن)
+        // ۲. ذخیره ریفرش توکن (Refresh Token) برای تمدید خودکار پشت صحنه
+        if (response.data.refresh_token) {
+          localStorage.setItem('refreshToken', response.data.refresh_token);
+        }
+        
+        // ۳. ذخیره وضعیت نقش کاربر (ادمین بودن یا نبودن)
         const isAdmin = response.data.is_admin === true;
         localStorage.setItem('isAdmin', isAdmin.toString());
         
-        // ۳. هدایت هوشمند بر اساس نقش تفکیک‌شده
+        // ۴. هدایت هوشمند بر اساس نقش تفکیک‌شده
         if (isAdmin) {
           router.push('/admin/dashboard');
         } else {
-          router.push('/dashboard');
+          router.push('/');
         }
       }
     } catch (error: any) {
@@ -64,6 +83,7 @@ export default function LoginPage() {
                 type="text" required dir="ltr"
                 className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                 placeholder="09123456789"
+                value={formData.phone}
                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
               />
             </div>
@@ -77,6 +97,7 @@ export default function LoginPage() {
                 type="password" required dir="ltr"
                 className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                 placeholder="••••••••"
+                value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
               />
             </div>

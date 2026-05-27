@@ -3,12 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, Users, ChevronDown, Search } from 'lucide-react';
-// مسیر فایل iranCities را متناسب با محل قرارگیری آن در پروژه‌ات تنظیم کن
 import { iranProvinces, iranCities } from '../../../lib/utils/iranCities'; 
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
-
+const DatePickerComponent = DatePicker as any;
 // کامپوننت لیست کشویی با قابلیت جستجو
 export const SearchableDropdown = ({ 
   options, 
@@ -112,11 +111,40 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
-  // وقتی استان تغییر می‌کند، شهرهای مربوط به آن لود می‌شوند
+  // تبدیل داینامیک اعداد فارسی/عربی به انگلیسی برای ولیدیشن بدون خطا
+  const toEnglishDigits = (str: string) => {
+    return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
+              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
+  };
+
+  // 👈 ۱. الگوریتم رسمی و ریاضی اعتبارسنجی کد ملی ایران
+  const isValidNationalId = (id: string): boolean => {
+    const cleanId = toEnglishDigits(id).trim();
+    if (!/^\d{10}$/.test(cleanId)) return false;
+    
+    // کدهای ملی با ارقام کاملاً تکراری مثل 1111111111 فیک هستند
+    if (/^(\d)\1{9}$/.test(cleanId)) return false;
+
+    const check = parseInt(cleanId[9]);
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += parseInt(cleanId[i]) * (10 - i);
+    }
+    const remainder = sum % 11;
+    const control = remainder < 2 ? remainder : 11 - remainder;
+    return control === check;
+  };
+
+  // 👈 ۲. سیستم کنترل ساختار شماره موبایل ایران
+  const isValidPhoneNumber = (phone: string): boolean => {
+    const cleanPhone = toEnglishDigits(phone).trim();
+    // باید حتماً ۱۱ رقم بوده و با ۰۹ شروع شود
+    return /^09\d{9}$/.test(cleanPhone);
+  };
+
   useEffect(() => {
     if (formData.province) {
       setAvailableCities(iranCities[formData.province] || []);
-      // اگر استان تغییر کرد، شهر قبلی پاک شود
       setFormData(prev => ({ ...prev, city: '' })); 
     } else {
       setAvailableCities([]);
@@ -128,6 +156,21 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // تبدیل فیلدهای عددی به فرمت استاندارد پیش از تست
+    const finalPhone = toEnglishDigits(formData.phone).trim();
+    const finalNationalId = toEnglishDigits(formData.national_id).trim();
+
+    // 👈 اعمال لایه‌های امنیتی و اعتبارسنجی کدهای فیک
+    if (!isValidPhoneNumber(finalPhone)) {
+      alert("⚠️ شماره موبایل وارد شده معتبر نیست! باید ۱۱ رقم داشته و با ۰۹ آغاز شود.");
+      return;
+    }
+
+    if (!isValidNationalId(finalNationalId)) {
+      alert("⚠️ کد ملی وارد شده معتبر نیست!");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       alert("⚠️ رمز عبور و تکرار آن با هم مطابقت ندارند!");
       return;
@@ -143,8 +186,8 @@ export default function RegisterPage() {
       await api.post('/register', {
         first_name: formData.first_name,
         last_name: formData.last_name,
-        phone: formData.phone,
-        national_id: formData.national_id,
+        phone: finalPhone,
+        national_id: finalNationalId,
         province: formData.province,
         city: formData.city,
         gender: formData.gender,
@@ -191,6 +234,7 @@ export default function RegisterPage() {
                   type="text" required
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
                   placeholder="علی"
+                  value={formData.first_name}
                   onChange={(e) => setFormData({...formData, first_name: e.target.value})}
                 />
               </div>
@@ -203,6 +247,7 @@ export default function RegisterPage() {
                   type="text" required
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
                   placeholder="احمدی"
+                  value={formData.last_name}
                   onChange={(e) => setFormData({...formData, last_name: e.target.value})}
                 />
               </div>
@@ -216,9 +261,10 @@ export default function RegisterPage() {
               <div className="relative">
                 <CreditCard className="absolute right-4 top-4 text-gray-400" size={18} />
                 <input 
-                  type="text" required dir="ltr"
+                  type="text" required dir="ltr" maxLength={10}
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="0012345678"
+                  value={formData.national_id}
                   onChange={(e) => setFormData({...formData, national_id: e.target.value})}
                 />
               </div>
@@ -228,16 +274,17 @@ export default function RegisterPage() {
               <div className="relative">
                 <Phone className="absolute right-4 top-4 text-gray-400" size={18} />
                 <input 
-                  type="text" required dir="ltr"
+                  type="text" required dir="ltr" maxLength={11}
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="0912..."
+                  value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
                 />
               </div>
             </div>
           </div>
 
-          {/* استان و شهرستان با Dropdown جدید */}
+          {/* استان و شهرستان */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">استان</label>
@@ -270,6 +317,7 @@ export default function RegisterPage() {
                 <Users className="absolute right-4 top-4 text-gray-400" size={18} />
                 <select 
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm appearance-none"
+                  value={formData.gender}
                   onChange={(e) => setFormData({...formData, gender: e.target.value})}
                 >
                   <option value="male">مرد</option>
@@ -281,13 +329,12 @@ export default function RegisterPage() {
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
               <div className="relative">
                 <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-                <DatePicker
+                <DatePickerComponent
                   calendar={persian}
                   locale={persian_fa}
                   calendarPosition="bottom-right"
                   value={formData.birth_date}
                   onChange={(date: any) => {
-                    // ذخیره تاریخ به صورت رشته YYYY/MM/DD در استیت
                     setFormData({ ...formData, birth_date: date?.format?.() || "" });
                   }}
                   containerClassName="w-full"
@@ -308,6 +355,7 @@ export default function RegisterPage() {
                   type="password" required dir="ltr"
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="••••••••"
+                  value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                 />
               </div>
@@ -320,6 +368,7 @@ export default function RegisterPage() {
                   type="password" required dir="ltr"
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="••••••••"
+                  value={formData.confirmPassword}
                   onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
                 />
               </div>

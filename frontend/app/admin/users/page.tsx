@@ -2,8 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-// 👈 آیکون Edit2 اضافه شد برای فعال‌سازی حالت ویرایش اطلاعات
-import { Users, ArrowRight, Search, Trophy, X, MapPin, Calendar, Smartphone, FileText, Edit2, Save } from 'lucide-react'; 
+import { 
+  Users, ArrowRight, Search, Trophy, X, MapPin, Calendar, 
+  Smartphone, FileText, Edit2, Save, Download, ArrowUpDown, ShieldCheck, UserCheck 
+} from 'lucide-react'; 
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -14,12 +16,16 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState(''); 
   const [loading, setLoading] = useState(true);
 
-  // استیت‌های مدیریت مدال و دیتای کاربر
+  // 👈 استیت‌های جدید برای مدیریت سیستم مرتب‌سازی (Sorting)
+  const [sortField, setSortField] = useState<string>('name'); // فیلد پیش‌فرض مرتب‌سازی بر اساس نام
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); // صعودی (الف تا ی / کمترین به بیشترین)
+
+  // استیت‌های مربوط به مدال و دیتای کاربر
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   
-  // 👈 استیت‌های جدید برای هندل کردن وضعیت ویرایش
+  // استیت‌های مربوط به ویرایش
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
   const [saveLoading, setSaveLoading] = useState(false);
@@ -49,10 +55,12 @@ export default function AdminUsersPage() {
     fetchInitialData();
   }, []);
 
+  // 👈 ارتقای موتور فیلترینگ برای پشتیبانی همزمان از فیلتر، جستجو و مرتب‌سازی دقیق حروف و اعداد
   useEffect(() => {
     const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
     
-    const filtered = usersList.filter((user: any) => {
+    // ۱. فیلتر کردن بر اساس سرچ و مسابقه انتخاب شده
+    let result = usersList.filter((user: any) => {
       const matchesContest = selectedContest === '' || 
         (user.all_contests ? user.all_contests.includes(selectedContest) : user.last_contest === selectedContest);
 
@@ -73,18 +81,91 @@ export default function AdminUsersPage() {
       return matchesSearch && matchesContest;
     });
 
-    setFilteredUsers(filtered);
-  }, [searchQuery, selectedContest, usersList]);
+    // ۲. اعمال منطق مرتب‌سازی پویا بر اساس حروف الفبا و ارقام عددی صعودی/نزولی
+    if (sortField) {
+      result.sort((a: any, b: any) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+
+        // مهار مقادیر خالی یا نال برای جلوگیری از کرش
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+
+        // در صورتی که فیلد متنی یا رشته فارسی باشد از localeCompare استفاده می‌کنیم
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          return sortOrder === 'asc' 
+            ? valA.localeCompare(valB, 'fa') 
+            : valB.localeCompare(valA, 'fa');
+        }
+
+        // در صورتی که عددی باشد
+        return sortOrder === 'asc' ? valA - valB : valB - valA;
+      });
+    }
+
+    setFilteredUsers(result);
+  }, [searchQuery, selectedContest, usersList, sortField, sortOrder]);
+
+  // 👈 تابع کمکی برای سوئیچ یا فعال‌سازی وضعیت مرتب‌سازی ستون‌ها
+  const handleSortRequest = (field: string) => {
+    if (sortField === field) {
+      // اگر روی همان ستون مجدد کلیک شد، جهت آن برعکس شود (صعودی به نزولی و برعکس)
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // اگر روی ستون جدید کلیک شد، روی فیلد جدید و به صورت صعودی تنظیم شود
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // 👈 موتور هوشمند تولید خروجی استاندارد اکسل/CSV هماهنگ با آخرین فیلترهای اعمال شده توسط ادمین
+  const exportToCSV = () => {
+    if (filteredUsers.length === 0) {
+      alert("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
+      return;
+    }
+
+    const headers = ["نام و نام خانوادگی", "شماره تماس", "کد ملی", "استان", "شهرستان", "جنسیت", "نقش", "آخرین رقابت", "میانگین نمره"];
+    
+    const rows = filteredUsers.map((user: any) => [
+      user.name || '',
+      user.phone || '',
+      user.national_id || '',
+      user.province || '',
+      user.city || '---',
+      user.gender === 'male' || user.gender === 'مرد' ? 'مرد' : 'زن',
+      user.is_admin ? 'مدیر سیستم' : 'کاربر عادی',
+      user.last_contest || 'شرکت نکرده',
+      user.average_score || '---'
+    ]);
+
+    // چسباندن کاراکتر ویژه برای جلوگیری از خرابی حروف فارسی در اکسل (\uFEFF)
+    let csvContent = "\uFEFF";
+    csvContent += headers.join(",") + "\n";
+    rows.forEach((row) => {
+      // مهار فیلدها با دابل کوتیشن جهت حفظ یکپارچگی ساختار کاماها
+      const cleanRow = row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",");
+      csvContent += cleanRow + "\n";
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `گزارش_شرکت_کنندگان_امتداد_امام.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleUserClick = async (userId: number) => {
     setModalLoading(true);
     setModalOpen(true);
-    setIsEditing(false); // ریست کردن حالت ویرایش برای کاربر جدید
+    setIsEditing(false); 
     try {
       const response = await api.get(`/admin/users/${userId}/detail`);
       setSelectedUser(response.data);
       
-      // 👈 پر کردن مقادیر اولیه فرم ویرایش
       setEditFormData({
         first_name: response.data.first_name || '',
         last_name: response.data.last_name || '',
@@ -103,7 +184,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  // 👈 تابع ذخیره تغییرات و ارسال دیتای اصلاح شده به بک‌ند
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveLoading(true);
@@ -112,7 +192,6 @@ export default function AdminUsersPage() {
       alert("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
       setIsEditing(false);
       
-      // آپدیت لایو جزئیات داخل مدال
       setSelectedUser({
         ...selectedUser,
         first_name: editFormData.first_name,
@@ -125,7 +204,6 @@ export default function AdminUsersPage() {
         birth_date: editFormData.birth_date
       });
       
-      // بارگذاری مجدد لیست کاربران برای سینک شدن جدول اصلی دسکتاپ
       fetchInitialData();
     } catch (error) {
       alert("خطا در ذخیره‌سازی تغییرات پرونده");
@@ -147,14 +225,23 @@ export default function AdminUsersPage() {
           </button>
           <div>
             <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
-              <Users className="text-[#c5a059]" />  مدیریت و اطلاعات شرکت‌کنندگان
+              <Users className="text-[#c5a059]" /> مدیریت و اطلاعات شرکت‌کنندگان
             </h1>
             <p className="text-gray-400 text-sm font-bold mt-1">مشاهده مشخصات فردی، کدملی و وضعیت آخرین آزمون کاربران</p>
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-56">
+          {/* 👈 دکمه دانلود گزارش اکسل/CSV منطبق بر فیلتر */}
+          <button 
+            onClick={exportToCSV}
+            className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-700/10 hover:bg-emerald-700 transition-all active:scale-95 shrink-0"
+            title="دانلود فایل خروجی از لیست فیلتر شده فعلی"
+          >
+            <Download size={16} /> خروجی Excel / CSV
+          </button>
+
+          <div className="relative w-full sm:w-48">
             <select
               value={selectedContest}
               onChange={(e) => setSelectedContest(e.target.value)}
@@ -167,7 +254,7 @@ export default function AdminUsersPage() {
             </select>
           </div>
 
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-64">
             <input
               type="text"
               placeholder="جستجوی نام، شماره تماس، کد ملی..."
@@ -186,12 +273,25 @@ export default function AdminUsersPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
-                <tr className="border-b border-gray-100 text-gray-400 text-xs font-black uppercase">
-                  <th className="pb-4 font-black">نام و نام خانوادگی</th>
-                  <th className="pb-4 font-black">شماره تماس</th>
-                  <th className="pb-4 font-black">کد ملی</th>
-                  <th className="pb-4 font-black">استان</th>
-                  <th className="pb-4 font-black">جنسیت</th>
+                <tr className="border-b border-gray-100 text-gray-400 text-xs font-black uppercase select-none">
+                  {/* 👈 هدرهای جدول برای کلیک و مرتب‌سازی مجهز به آیکون ArrowUpDown شدند */}
+                  <th onClick={() => handleSortRequest('name')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors items-center gap-1">
+                    نام و نام خانوادگی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
+                  </th>
+                  <th onClick={() => handleSortRequest('phone')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
+                    شماره تماس <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
+                  </th>
+                  <th onClick={() => handleSortRequest('national_id')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
+                    کد ملی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
+                  </th>
+                  <th onClick={() => handleSortRequest('province')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
+                    استان <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
+                  </th>
+                  <th onClick={() => handleSortRequest('gender')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
+                    جنسیت <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
+                  </th>
+                  {/* 👈 اضافه شدن ستون نقش کاربری */}
+                  <th className="pb-4 font-black">نقش سیستم</th>
                   <th className="pb-4 font-black">آخرین رقابت</th>
                   <th className="pb-4 font-black text-center">میانگین نمره</th>
                 </tr>
@@ -199,11 +299,11 @@ export default function AdminUsersPage() {
               <tbody className="divide-y divide-gray-50 text-sm">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-gray-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
+                    <td colSpan={8} className="text-center py-8 text-gray-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-gray-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
+                    <td colSpan={8} className="text-center py-8 text-gray-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
                   </tr>
                 ) : (
                   filteredUsers.map((user: any) => (
@@ -219,10 +319,27 @@ export default function AdminUsersPage() {
                       <td className="py-4 font-bold text-gray-600">{user.province}</td>
                       <td className="py-4">
                         <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'مرد' || user.gender === 'male' ? 'bg-blue-50 text-blue-600' : user.gender === 'زن' || user.gender === 'female' ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
-                          {user.gender === 'male' ? 'مرد' : user.gender === 'female' ? 'زن' : user.gender}
+                          {user.gender === 'male' || user.gender === 'مرد' ? 'مرد' : 'زن'}
                         </span>
                       </td>
-                      <td className="py-4 text-gray-600 font-bold">{user.last_contest}</td>
+                      {/* رندر ستون تفکیک نقش با منطق اصلاح‌شده و ضد ضرب خطاهای تایپ بک‌ند */}
+                      <td className="py-4">
+                        {(() => {
+                          // بررسی هوشمند تمام حالت‌های ممکن (boolean، عدد 1 یا رشته "true")
+                          const checkIsAdmin = user.is_admin === true || user.is_admin === 1 || String(user.is_admin).toLowerCase() === 'true';
+                          
+                          return (
+                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-md flex items-center gap-1 w-max ${checkIsAdmin ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-slate-50 text-slate-600'}`}>
+                              {checkIsAdmin ? (
+                                <><ShieldCheck size={12} /> مدیر سیستم</>
+                              ) : (
+                                <><UserCheck size={12} /> کاربر عادی</>
+                              )}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="py-4 text-gray-600 font-bold">{user.last_contest || 'شرکت نکرده'}</td>
                       <td className="py-4 text-center">
                         <span className={`font-black text-sm ${user.average_score !== '---' ? 'text-[#c5a059]' : 'text-gray-300'}`}>
                           {user.average_score}
@@ -257,9 +374,9 @@ export default function AdminUsersPage() {
               </div>
               
               <div className="flex items-center gap-2">
-                {/* 👈 دکمه سوئیچ به حالت ویرایش */}
                 {!modalLoading && selectedUser && !isEditing && (
                   <button 
+                    type="button"
                     onClick={() => setIsEditing(true)}
                     className="p-2 px-3 bg-[#faf9f6] text-[#c5a059] hover:bg-[#c5a059]/10 rounded-xl transition-all flex items-center gap-1 text-xs font-black"
                   >
@@ -267,6 +384,7 @@ export default function AdminUsersPage() {
                   </button>
                 )}
                 <button 
+                  type="button"
                   onClick={() => { setModalOpen(false); setSelectedUser(null); setIsEditing(false); }}
                   className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all"
                 >
@@ -287,7 +405,6 @@ export default function AdminUsersPage() {
                   {/* لایه فرم ویرایش / نمایش اطلاعات مشخصات فردی */}
                   <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100">
                     {isEditing ? (
-                      /* 👈 چیدمان فیلدهای ورودی در حالت فعال بودن ویرایش */
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-[10px] font-black text-gray-400 mb-1">نام</label>
@@ -326,7 +443,6 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
                     ) : (
-                      /* نمایش عادی تکست‌ها در زمان غیرفعال بودن حالت ویرایش */
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="flex items-center gap-2.5 text-xs">
                           <Smartphone size={16} className="text-gray-400" />
@@ -346,7 +462,7 @@ export default function AdminUsersPage() {
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
                           <Users size={16} className="text-gray-400" />
-                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">جنسیت</span><span className="font-black text-gray-700">{selectedUser.gender === 'male' || selectedUser.gender === 'مرد' ? 'مرد' : selectedUser.gender === 'female' || selectedUser.gender === 'زن' ? 'زن' : selectedUser.gender}</span></div>
+                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">جنسیت</span><span className="font-black text-gray-700">{selectedUser.gender === 'male' || selectedUser.gender === 'مرد' ? 'مرد' : 'زن'}</span></div>
                         </div>
                       </div>
                     )}
@@ -375,7 +491,7 @@ export default function AdminUsersPage() {
                   {/* بخش دوم: لیست کامل مسابقاتی که شرکت کرده */}
                   <div className="space-y-3">
                     <h4 className="font-black text-xs text-[#1a2e44] flex items-center gap-1.5 border-b border-gray-100 pb-2">
-                      <Trophy size={14} className="text-[#c5a059]" />  تاریخچه و کارنامه‌های آزمون
+                      <Trophy size={14} className="text-[#c5a059]" /> تاریخچه و کارنامه‌های آزمون
                     </h4>
                     
                     {selectedUser.history?.length === 0 ? (
