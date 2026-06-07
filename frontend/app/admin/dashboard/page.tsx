@@ -102,6 +102,14 @@ export default function AdminDashboard() {
         });
       } catch (error) {
         console.error("Admin Dashboard Error:", error);
+
+        // 🌟 شکستن چرخه: اگر توکن منقضی شده بود، کلیدها را پاک کن و بعد ریدایرکت کن
+        if (error.response?.status === 401) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('isAdmin');
+          router.push('/login');
+        }
       }
     };
     fetchAdminData();

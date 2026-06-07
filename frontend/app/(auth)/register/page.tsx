@@ -2,13 +2,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
-import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, Users, ChevronDown, Search } from 'lucide-react';
-import { iranProvinces, iranCities } from '../../../lib/utils/iranCities'; 
+import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, ChevronDown, Search } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
+
 const DatePickerComponent = DatePicker as any;
-// کامپوننت لیست کشویی با قابلیت جستجو
+
+// 🌟 کامپوننت لیست کشویی ارتقا یافته جهت پشتیبانی از شناسه عددی (id) و عنوان (title)
 export const SearchableDropdown = ({ 
   options, 
   value, 
@@ -17,9 +18,9 @@ export const SearchableDropdown = ({
   icon: Icon,
   disabled = false
 }: { 
-  options: string[], 
-  value: string, 
-  onChange: (val: string) => void, 
+  options: { id: number; title: string }[], 
+  value: number | string, 
+  onChange: (id: number, title: string) => void, 
   placeholder: string,
   icon: any,
   disabled?: boolean
@@ -29,8 +30,11 @@ export const SearchableDropdown = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const filteredOptions = options.filter(option => 
-    option.includes(searchTerm)
+    option.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // پیدا کردن عنوان نمایشی بر اساس آی‌دی انتخاب شده فعلی
+  const selectedDisplay = options.find(o => o.id === Number(value))?.title || '';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -50,7 +54,7 @@ export const SearchableDropdown = ({
       >
         <Icon className="absolute right-4 top-4 text-gray-400" size={18} />
         <span className={`text-sm font-bold ${value ? 'text-[#1a2e44]' : 'text-gray-400'}`}>
-          {value || placeholder}
+          {selectedDisplay || placeholder}
         </span>
         <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
@@ -71,17 +75,17 @@ export const SearchableDropdown = ({
           </div>
           <div className="max-h-48 overflow-y-auto no-scrollbar">
             {filteredOptions.length > 0 ? (
-              filteredOptions.map((option, idx) => (
+              filteredOptions.map((option) => (
                 <div 
-                  key={idx}
-                  className={`p-3 text-sm font-bold cursor-pointer hover:bg-gray-50 transition-colors ${value === option ? 'bg-blue-50 text-blue-600' : 'text-[#1a2e44]'}`}
+                  key={option.id}
+                  className={`p-3 text-sm font-bold cursor-pointer hover:bg-gray-50 transition-colors ${Number(value) === option.id ? 'bg-blue-50 text-blue-600' : 'text-[#1a2e44]'}`}
                   onClick={() => {
-                    onChange(option);
+                    onChange(option.id, option.title);
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
                 >
-                  {option}
+                  {option.title}
                 </div>
               ))
             ) : (
@@ -96,33 +100,34 @@ export const SearchableDropdown = ({
 
 export default function RegisterPage() {
   const router = useRouter();
+  
+  // استیت فرم منطبق بر فیلدهای دقیق مدل هویتی جدید پایتون
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     phone: '',
     national_id: '',
-    province: '',
-    city: '',
-    gender: 'male',
+    province_id: '', // ذخیره شناسه استان انتخابی
+    city_id: '',     // ذخیره شناسه نهایی شهر انتخابی برای دیتابیس
     birth_date: '',
     password: '',
     confirmPassword: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
 
-  // تبدیل داینامیک اعداد فارسی/عربی به انگلیسی برای ولیدیشن بدون خطا
+  const [loading, setLoading] = useState(false);
+  const [provinces, setProvinces] = useState<{ id: number; title: string }[]>([]);
+  const [availableCities, setAvailableCities] = useState<{ id: number; title: string }[]>([]);
+
+// تبدیل داینامیک و استاندارد اعداد فارسی/عربی به انگلیسی (اصلاح شده)
   const toEnglishDigits = (str: string) => {
-    return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
-              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
+    return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728))
+              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584));
   };
 
-  // 👈 ۱. الگوریتم رسمی و ریاضی اعتبارسنجی کد ملی ایران
+  // الگوریتم رسمی و ریاضی اعتبارسنجی کد ملی ایران
   const isValidNationalId = (id: string): boolean => {
     const cleanId = toEnglishDigits(id).trim();
     if (!/^\d{10}$/.test(cleanId)) return false;
-    
-    // کدهای ملی با ارقام کاملاً تکراری مثل 1111111111 فیک هستند
     if (/^(\d)\1{9}$/.test(cleanId)) return false;
 
     const check = parseInt(cleanId[9]);
@@ -135,32 +140,47 @@ export default function RegisterPage() {
     return control === check;
   };
 
-  // 👈 ۲. سیستم کنترل ساختار شماره موبایل ایران
+  // سیستم کنترل ساختار شماره موبایل ایران
   const isValidPhoneNumber = (phone: string): boolean => {
     const cleanPhone = toEnglishDigits(phone).trim();
-    // باید حتماً ۱۱ رقم بوده و با ۰۹ شروع شود
     return /^09\d{9}$/.test(cleanPhone);
   };
 
   useEffect(() => {
-    if (formData.province) {
-      setAvailableCities(iranCities[formData.province] || []);
-      setFormData(prev => ({ ...prev, city: '' })); 
+    const fetchProvinces = async () => {
+      try {
+        const response = await api.get('/cities?parents_only=true');
+        setProvinces(response.data || []);
+      } catch (error) {
+        console.error("خطا در فراخوانی اطلاعات لوکیشن‌ها از دیتابیس سرور", error);
+      }
+    };
+    fetchProvinces();
+  }, []);
+
+  useEffect(() => {
+    if (formData.province_id) {
+      const fetchCities = async () => {
+        try {
+          const response = await api.get(`/cities?parent_id=${formData.province_id}`);
+          setAvailableCities(response.data || []);
+          setFormData(prev => ({ ...prev, city_id: '' })); 
+        } catch (error) {
+          console.error("خطا در بارگذاری زیرمجموعه شهرهای استان", error);
+        }
+      };
+      fetchCities();
     } else {
       setAvailableCities([]);
     }
-  }, [formData.province]);
-
-  const provinceNames = iranProvinces.map(p => p.name);
+  }, [formData.province_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // تبدیل فیلدهای عددی به فرمت استاندارد پیش از تست
-    const finalPhone = toEnglishDigits(formData.phone).trim();
-    const finalNationalId = toEnglishDigits(formData.national_id).trim();
+    const finalPhone = toEnglishDigits(formData.phone || '').trim();
+    const finalNationalId = toEnglishDigits(formData.national_id || '').trim();
 
-    // 👈 اعمال لایه‌های امنیتی و اعتبارسنجی کدهای فیک
     if (!isValidPhoneNumber(finalPhone)) {
       alert("⚠️ شماره موبایل وارد شده معتبر نیست! باید ۱۱ رقم داشته و با ۰۹ آغاز شود.");
       return;
@@ -176,24 +196,26 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!formData.province || !formData.city) {
-       alert("⚠️ لطفاً استان و شهرستان را انتخاب کنید.");
+    if (!formData.city_id) {
+       alert("⚠️ لطفاً شهر محل سکونت خود را انتخاب کنید.");
        return;
     }
-
+    let formattedBirthDate = formData.birth_date 
+      ? toEnglishDigits(formData.birth_date).replace(/\//g, '-') 
+      : null;
     setLoading(true);
     try {
+      // ارسال داده‌ها چفت شده با ساختار مدل جدید دیتابیس
       await api.post('/register', {
         first_name: formData.first_name,
         last_name: formData.last_name,
-        phone: finalPhone,
+        phone_number: finalPhone,     
         national_id: finalNationalId,
-        province: formData.province,
-        city: formData.city,
-        gender: formData.gender,
-        birth_date: formData.birth_date,
+        city_id: Number(formData.city_id), 
+        birth_date: formattedBirthDate,
         password: formData.password
       });
+      
       alert("ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.");
       router.push('/login');
     } catch (error: any) {
@@ -201,8 +223,12 @@ export default function RegisterPage() {
       const detail = error.response?.data?.detail;
       let errorMsg = "مشکل ارتباط با سرور. اطلاعات را بررسی کنید.";
       
-      if (detail === "شماره قبلاً ثبت شده") errorMsg = "این شماره موبایل قبلاً در سیستم ثبت شده است.";
-      if (detail === "کد ملی قبلاً ثبت شده") errorMsg = "این کد ملی قبلاً در سیستم ثبت شده است.";
+      if (detail === "شماره قبلاً ثبت شده" || String(detail).includes("phone_number")) {
+        errorMsg = "این شماره موبایل قبلاً در سیستم ثبت شده است.";
+      }
+      if (detail === "کد ملی قبلاً ثبت شده" || String(detail).includes("national_id")) {
+        errorMsg = "این کد ملی قبلاً در سیستم ثبت شده است.";
+      }
       
       alert("خطا در ثبت‌نام: " + errorMsg);
     } finally {
@@ -284,14 +310,14 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* استان و شهرستان */}
+          {/* استان و شهرستان فیکس شده با ساختار رابطه‌ای دیتابیس */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">استان</label>
               <SearchableDropdown 
-                options={provinceNames}
-                value={formData.province}
-                onChange={(val) => setFormData({...formData, province: val})}
+                options={provinces}
+                value={formData.province_id}
+                onChange={(id) => setFormData({...formData, province_id: String(id)})}
                 placeholder="انتخاب استان"
                 icon={MapPin}
               />
@@ -300,48 +326,32 @@ export default function RegisterPage() {
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شهرستان</label>
               <SearchableDropdown 
                 options={availableCities}
-                value={formData.city}
-                onChange={(val) => setFormData({...formData, city: val})}
-                placeholder={formData.province ? "انتخاب شهر" : "ابتدا استان را انتخاب کنید"}
+                value={formData.city_id}
+                onChange={(id) => setFormData({...formData, city_id: String(id)})}
+                placeholder={formData.province_id ? "انتخاب شهر" : "ابتدا استان را انتخاب کنید"}
                 icon={MapPin}
-                disabled={!formData.province || availableCities.length === 0}
+                disabled={!formData.province_id || availableCities.length === 0}
               />
             </div>
           </div>
 
-          {/* جنسیت و تاریخ تولد */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">جنسیت</label>
-              <div className="relative">
-                <Users className="absolute right-4 top-4 text-gray-400" size={18} />
-                <select 
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm appearance-none"
-                  value={formData.gender}
-                  onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                >
-                  <option value="male">مرد</option>
-                  <option value="female">زن</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
-              <div className="relative">
-                <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-                <DatePickerComponent
-                  calendar={persian}
-                  locale={persian_fa}
-                  calendarPosition="bottom-right"
-                  value={formData.birth_date}
-                  onChange={(date: any) => {
-                    setFormData({ ...formData, birth_date: date?.format?.() || "" });
-                  }}
-                  containerClassName="w-full"
-                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
-                  placeholder="1380/01/01"
-                />
-              </div>
+          {/* تاریخ تولد (فیلد جنسیت کاملاً بر اساس نقشه جدید حذف شد) */}
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
+            <div className="relative">
+              <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+              <DatePickerComponent
+                calendar={persian}
+                locale={persian_fa}
+                calendarPosition="bottom-right"
+                value={formData.birth_date}
+                onChange={(date: any) => {
+                  setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" });
+                }}
+                containerClassName="w-full"
+                inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                placeholder="1380/01/01"
+              />
             </div>
           </div>
 

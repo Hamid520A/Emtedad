@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ phone: '', password: '' });
   const [loading, setLoading] = useState(false);
 
-  // لایه محافظتی معکوس: جلوگیری از دسترسی مجدد کاربران لاگین‌شده به صفحه ورود
+  // لایه محافظتی معکوس: هدایت درست کاربران لاگین‌شده به مسیرهای خودشان برای جلوگیری از لوپ
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
@@ -18,45 +18,46 @@ export default function LoginPage() {
       if (isAdmin) {
         router.push('/admin/dashboard');
       } else {
-        router.push('/login');
+        // 🌟 اصلاح اصلی: کاربران معمولی پس از احراز هویت به روت اصلی (دشبورد) هدایت می‌شوند
+        router.push('/');
       }
     }
   }, [router]);
 
+  // تابع استاندارد تبدیل اعداد فارسی/عربی به انگلیسی
+  const toEnglishDigits = (str: string) => {
+    if (!str) return '';
+    return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728))
+              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ۱. نرمالایز کردن دیتای ورودی لاگین به اعداد انگلیسی
+    const finalPhone = toEnglishDigits(formData.phone || '').trim();
+    const finalPassword = toEnglishDigits(formData.password || '').trim();
+
     setLoading(true);
     try {
-      // ارسال اطلاعات به بک‌ند
+      // ۲. هماهنگی کامل کلید ارسالی با فیلد دیتابیس جدید (phone_number)
       const response = await api.post('/login', {
-        phone: formData.phone,
-        password: formData.password
+        phone_number: finalPhone, 
+        password: finalPassword
       });
 
-      if (response.data.access_token) {
-        // ۱. ذخیره توکن اصلی (Access Token) با کلید هماهنگ با Interceptor
-        localStorage.setItem('accessToken', response.data.access_token);
-        
-        // ۲. ذخیره ریفرش توکن (Refresh Token) برای تمدید خودکار پشت صحنه
-        if (response.data.refresh_token) {
-          localStorage.setItem('refreshToken', response.data.refresh_token);
-        }
-        
-        // ۳. ذخیره وضعیت نقش کاربر (ادمین بودن یا نبودن)
-        const isAdmin = response.data.is_admin === true;
-        localStorage.setItem('isAdmin', isAdmin.toString());
-        
-        // ۴. هدایت هوشمند بر اساس نقش تفکیک‌شده
-        if (isAdmin) {
-          router.push('/admin/dashboard');
-        } else {
-          router.push('/');
-        }
-      }
+      // ۳. ذخیره‌سازی توکن jwt و وضعیت ادمین در حافظه مرورگر هماهنگ با دشبورد
+      const { access_token, is_admin } = response.data;
+      localStorage.setItem('accessToken', access_token);
+      localStorage.setItem('isAdmin', String(is_admin));
+      
+      alert("ورود با موفقیت انجام شد! 🎉");
+      router.push('/');
     } catch (error: any) {
-      console.error("Login Error:", error.response?.data);
-      alert("شماره موبایل یا رمز عبور اشتباه است.");
+      console.error("جزئیات خطا:", error.response?.data);
+      alert("خطا در ورود: شماره موبایل یا رمز عبور اشتباه است.");
     } finally {
+      // تحت هر شرایطی لودینگ متوقف می‌شود تا دکمه قفل نکند
       setLoading(false);
     }
   };

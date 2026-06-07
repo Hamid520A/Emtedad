@@ -21,19 +21,35 @@ export default function ProfilePage() {
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
     const fetchCompleteProfile = async () => {
+      let myProfile: any = null;
+
       try {
         const res = await api.get('/users/me/profile');
-        const myProfile = res.data;
+        myProfile = res.data;
         setProfile(myProfile);
+        
+        setLoading(false); 
 
-        // ۱. فراخوانی کانتکت‌ها برای ایتا
+      } catch (error) {
+        console.error("Error fetching text profile:", error);
+        setLoading(false);
+        return;
+      }
+
+      try {
         const contactRes = await api.post('/proxy-upload', {
           method: "contacts.importContacts",
           param: {
             contacts: [{
               "_": "inputPhoneContact",
-              "phone": myProfile.phone,
+              "phone": myProfile.phone_number,
               "first_name": myProfile.first_name
             }]
           }
@@ -45,7 +61,7 @@ export default function ProfilePage() {
           const eitaaUser = eitaaUsers[0];
           
           if (eitaaUser.photo && eitaaUser.photo.photo_small) {
-            console.log("Photo found! Fetching bytes...");
+            console.log("Photo found! Fetching bytes in background...");
             
             const photoLocation = {
               photo_id: eitaaUser.photo.photo_id,
@@ -61,14 +77,10 @@ export default function ProfilePage() {
             if (imgData) {
               setProfileImg(imgData);
             }
-          } else {
-            console.log("This user has no profile photo on Eitaa.");
           }
         }
-      } catch (error) {
-        console.error("Error in profile flow:", error);
-      } finally {
-        setLoading(false);
+      } catch (eitaaError) {
+        console.warn("Eitaa proxy is unresponsive, skipping avatar load safely.", eitaaError);
       }
     };
 
