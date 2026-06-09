@@ -1,34 +1,41 @@
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ShieldCheck, Lock, Loader2 } from 'lucide-react';
-import api from '../../../lib/api'; // فعال‌سازی اتصال به API
+import api from '../../../lib/api';
+import { ArrowRight, Save, Lock, Loader2, ShieldAlert } from 'lucide-react';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [passwords, setPasswords] = useState({ old: '', new: '', confirm: '' });
+  
+  const [formData, setFormData] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwords.new !== passwords.confirm) {
-      alert('رمز عبور جدید با تکرار آن مطابقت ندارد!');
+    
+    // اعتبارسنجی اولیه در فرانت‌ند
+    if (formData.new_password !== formData.confirm_password) {
+      alert('❌ تکرار رمز عبور جدید با خود رمز عبور همخوانی ندارد!');
       return;
     }
-    
+
     setSaving(true);
     try {
-      // ارسال درخواست واقعی به اندپوینت بک‌ند برای تغییر رمز عبور ادمین
-      await api.post('/users/change-password', { 
-        old_password: passwords.old, 
-        new_password: passwords.new 
+      // 🌟 شلیک درخواست به اندپوینت جدید بک‌ند با پی‌لود دقیق
+      await api.post('/users/change-password', {
+        old_password: formData.old_password,
+        new_password: formData.new_password
       });
       
-      alert('رمز عبور مدیر با موفقیت تغییر کرد.');
-      router.push('/admin/dashboard'); // هدایت مجدد به دشبورد مدیریت
+      alert('رمز عبور شما با موفقیت تغییر یافت! 🎉');
+      router.push('/profile');
     } catch (error: any) {
-      const serverError = error.response?.data?.detail || 'خطا در تغییر رمز عبور. رمز فعلی را بررسی کنید.';
-      alert(serverError);
+      const msg = error.response?.data?.detail || 'خطا در تغییر رمز عبور. لطفاً مجدداً تلاش کنید.';
+      alert(`❌ ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -36,49 +43,80 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] font-sans text-[#1a2e44]" dir="rtl">
+      {/* Header */}
       <header className="p-6 flex items-center gap-3 bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-10">
-        {/* دکمه بازگشت هوشمند به دشبورد مدیریت */}
-        <button onClick={() => router.push('/admin/dashboard')} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
+        <button onClick={() => router.back()} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
           <ArrowRight size={20} />
         </button>
-        <span className="font-black text-xl">تغییر رمز عبور مدیر</span>
+        <span className="font-black text-xl">تغییر رمز عبور</span>
       </header>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-5">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="p-6 space-y-5 pb-12">
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
           
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">رمز عبور فعلی</label>
             <div className="relative">
               <Lock className="absolute right-4 top-4 text-gray-400" size={18} />
-              <input type="password" dir="ltr" placeholder="••••••••" value={passwords.old} onChange={e => setPasswords({...passwords, old: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm text-left" required />
+              <input 
+                type="password" 
+                required
+                placeholder="••••••••"
+                value={formData.old_password} 
+                onChange={e => setFormData({...formData, old_password: e.target.value})} 
+                className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
+              />
             </div>
           </div>
 
-          <div className="h-px bg-gray-50 my-2"></div>
-
-          <div>
-            <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">رمز عبور جدید</label>
+          <div className="border-t border-gray-50 my-2 pt-2">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">رمز عبور جدید</label>
             <div className="relative">
-              <Lock className="absolute right-4 top-4 text-[#c5a059]" size={18} />
-              <input type="password" dir="ltr" placeholder="••••••••" value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm text-left" required />
+              <Lock className="absolute right-4 top-4 text-gray-400" size={18} />
+              <input 
+                type="password" 
+                required
+                placeholder="••••••••"
+                value={formData.new_password} 
+                onChange={e => setFormData({...formData, new_password: e.target.value})} 
+                className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
+              />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">تکرار رمز عبور جدید</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تکرار رمز عبور جدید</label>
             <div className="relative">
-              <ShieldCheck className="absolute right-4 top-4 text-[#c5a059]" size={18} />
-              <input type="password" dir="ltr" placeholder="••••••••" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm text-left" required />
+              <ShieldAlert className="absolute right-4 top-4 text-gray-400" size={18} />
+              <input 
+                type="password" 
+                required
+                placeholder="••••••••"
+                value={formData.confirm_password} 
+                onChange={e => setFormData({...formData, confirm_password: e.target.value})} 
+                className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
+              />
             </div>
           </div>
 
         </div>
 
-        <button type="submit" disabled={saving} className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-2 hover:bg-[#2a405a] active:scale-95 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70">
-          {saving ? <Loader2 size={20} className="animate-spin" /> : <ShieldCheck size={20} className="text-[#c5a059]" />}
-          {saving ? 'در حال ثبت...' : 'بروزرسانی رمز عبور'}
-        </button>
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <button 
+            type="submit" 
+            disabled={saving} 
+            className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-2 hover:bg-[#2a405a] active:scale-95 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70"
+          >
+            {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} className="text-[#c5a059]" />}
+            {saving ? 'در حال ثبت...' : 'تغییر رمز عبور'}
+          </button>
+          
+          <button type="button" onClick={() => router.back()} className="w-full bg-white text-gray-500 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 hover:bg-gray-50 transition-all">
+            انصراف و بازگشت
+          </button>
+        </div>
       </form>
     </div>
   );

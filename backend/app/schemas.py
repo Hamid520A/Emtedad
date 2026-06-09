@@ -135,18 +135,55 @@ class ContestBase(BaseModel):
     image_url: Optional[str] = None
     video_url: Optional[str] = None
     max_time: Optional[time] = None
-    start_time: Optional[date] = None
-    end_time: Optional[date] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
     status: str = "upcoming"
     is_active: int = 1
+    question_limit: Optional[int] = None
 
 class ContestCreate(ContestBase):
-    pass
+    title: str
+    description: Optional[str] = None
+    status: str = "upcoming"
+    image_url: Optional[str] = None
+    file_url: Optional[str] = None
+    video_url: Optional[str] = None
+    time_limit: int
+    question_limit: int
+    certificate_type: str = "none"
+    award: Optional[str] = None  # دریافت آرایه جوایز به صورت stringified JSON
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
 
 class Contest(ContestBase):
     id: int
     questions: List[Question] = []
     attachments: List[Attachment] = []
+    class Config:
+        from_attributes = True
+
+class AwardDetailOut(BaseModel):
+    rank: int
+    title: str
+    class Config:
+        from_attributes = True
+
+# 🌟 اسکیمای اصلی برای پاسخ اندپوینت جزئیات مسابقه
+class ContestDetailOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
+    status: str
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    question_limit: Optional[int] = None
+    time_limit: int                         # 👈 زمان آزمون به دقیقه
+    file_url: Optional[str] = None          # 👈 آدرس فایل جزوه
+    awards: List[AwardDetailOut] = []       # 👈 لیست جوایز تفکیک شده
+    certificate_type: str                   # 👈 نوع گواهی مسابقه
+
     class Config:
         from_attributes = True
 
@@ -178,3 +215,11 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     phone_number: Optional[str] = None
+
+
+
+class BannerCreate(BaseModel):
+    title: str
+    link_url: Optional[str] = None
+    image_url: str
+    status: str = "active"

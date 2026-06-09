@@ -115,7 +115,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
     if (!window.confirm(`آیا از ${actionText} مطمئن هستید؟`)) return;
 
     try {
-      await api.patch(`/admin/contests/${contest.id}/status`, { status: newStatus });
+      await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
       setContest({ ...contest, status: newStatus });
       if (newStatus === 'active') {
         setTimeLeft(null);
@@ -469,26 +469,23 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {(() => {
-            try {
-              const parsedAwards = JSON.parse(contest.award);
-              if (Array.isArray(parsedAwards) && parsedAwards.length > 0) {
-                return (
-                  <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-2.5 text-right">
-                    <h4 className="font-black text-xs text-amber-800 flex items-center gap-1.5 mb-2"><Trophy size={14} className="text-[#c5a059]" /> لیست جوایز برندگان بر اساس رتبه:</h4>
-                    {parsedAwards.map((item: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center gap-2 text-xs bg-[#faf9f6] p-2.5 rounded-xl border border-gray-100">
-                        <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md text-[10px] shrink-0">رتبه {item.rank}</span>
-                        <span className="font-bold text-[#1a2e44] text-left break-words min-w-0">{item.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              }
-            } catch (e) {
-              return contest.award && <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 text-xs font-bold text-gray-600 break-words">🎁 جایزه مسابقه: {contest.award}</div>;
-            }
-          })()}
+          {contest.awards && Array.isArray(contest.awards) && contest.awards.length > 0 && (
+            <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-2.5 text-right animate-in fade-in duration-300">
+              <h4 className="font-black text-xs text-amber-800 flex items-center gap-1.5 mb-2">
+                <Trophy size={14} className="text-[#c5a059]" /> لیست جوایز برندگان بر اساس رتبه:
+              </h4>
+              {contest.awards.map((item: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center gap-2 text-xs bg-[#faf9f6] p-2.5 rounded-xl border border-gray-100">
+                  <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md text-[10px] shrink-0">
+                    رتبه {toPersianDigits(item.rank)}
+                  </span>
+                  <span className="font-bold text-[#1a2e44] text-right break-words min-w-0 flex-1">
+                    {item.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {contest.certificate_type && contest.certificate_type !== 'none' && (
             <div className="p-4 bg-emerald-50/60 rounded-xl sm:rounded-[2rem] border border-emerald-100 flex items-center gap-3 shadow-sm">

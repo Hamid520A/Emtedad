@@ -10,6 +10,7 @@ import { iranProvinces, iranCities } from '../../../lib/utils/iranCities';
 // فرض بر این است که SearchableDropdown در همان پوشه یا مسیر مشخصی در دسترس است
 import { SearchableDropdown } from '../../(auth)/register/page';
 
+const DatePickerComponent = DatePicker as any;
 export default function EditProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -33,15 +34,18 @@ export default function EditProfilePage() {
       setFormData({
         first_name: data.first_name || '',
         last_name: data.last_name || '',
-        phone: data.phone || '',
+        // 🌟 اصلاح شد: خواندن کلیدهای واقعی ارسالی از بک‌ند جدید
+        phone: data.phone_number || data.phone || '', 
         national_id: data.national_id || '',
         birth_date: data.birth_date || '',
-        province: data.province || '',
-        city: data.city || ''
+        province: data.province_title || data.province || '', 
+        city: data.city_title || data.city || '' 
       });
-      // بارگذاری لیست شهرها بر اساس استان دریافتی از سرور
-      if (data.province) {
-        setAvailableCities(iranCities[data.province] || []);
+      
+      // بارگذاری لیست شهرها بر اساس استان دریافتی
+      const currentProvince = data.province_title || data.province;
+      if (currentProvince) {
+        setAvailableCities(iranCities[currentProvince] || []);
       }
       setLoading(false);
     }).catch(() => router.push('/login'));
@@ -129,7 +133,7 @@ export default function EditProfilePage() {
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
             <div className="relative">
               <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-              <DatePicker
+              <DatePickerComponent
                 calendar={persian}
                 locale={persian_fa}
                 value={formData.birth_date}
@@ -141,13 +145,15 @@ export default function EditProfilePage() {
             </div>
           </div>
 
+          {/* 🌟 نسخه نهایی و بدون ارور تایپ‌اسکریپت دراپ‌داون‌ها */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">استان</label>
               <SearchableDropdown 
-                options={iranProvinces.map(p => p.name)}
+                // 🌟 اصلاح شد: تزریق idx به عنوان id برای جلب رضایت تایپ‌اسکریپت
+                options={iranProvinces.map((p, idx) => ({ id: idx, title: p.name }))}
                 value={formData.province}
-                onChange={handleProvinceChange}
+                onChange={(val: any) => handleProvinceChange(val?.title || val)}
                 placeholder="انتخاب استان"
                 icon={MapPin}
               />
@@ -155,9 +161,10 @@ export default function EditProfilePage() {
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شهرستان</label>
               <SearchableDropdown 
-                options={availableCities}
+                // 🌟 اصلاح شد: اضافه شدن id داینامیک برای شهرهای لیست موجود
+                options={availableCities.map((c, idx) => ({ id: idx, title: c }))}
                 value={formData.city}
-                onChange={(val) => setFormData({...formData, city: val})}
+                onChange={(val: any) => setFormData({...formData, city: val?.title || val})}
                 placeholder="انتخاب شهر"
                 icon={MapPin}
                 disabled={!formData.province}

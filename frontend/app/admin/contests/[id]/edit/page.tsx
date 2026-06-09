@@ -46,6 +46,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
         const response = await api.get(`/contests/${params.id}`);
         const data = response.data;
         
+        // پر کردن فیلدهای اصلی فرم با اطلاعات دریافت شده از سرور
         setFormData({
           title: data.title || '',
           description: data.description || '',
@@ -59,17 +60,13 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
           video_url: data.video_url || ''
         });
 
-        // پارس کردن اطلاعات جوایز از فرمت JSON
-        if (data.award) {
-          try {
-            const parsedAwards = JSON.parse(data.award);
-            if (Array.isArray(parsedAwards) && parsedAwards.length > 0) {
-              setAwards(parsedAwards);
-            }
-          } catch (e) {
-            setAwards([{ rank: 1, title: data.award }]);
-          }
+        // تنظیم دیتای جوایز ارسالی از سمت اسکیما هوشمند بک‌ند
+        if (data.awards && Array.isArray(data.awards) && data.awards.length > 0) {
+          setAwards(data.awards);
+        } else {
+          setAwards([{ rank: 1, title: '' }]);
         }
+
       } catch (error) {
         console.error("خطا در دریافت اطلاعات مسابقه جهت ویرایش", error);
         alert("خطا در بارگذاری اطلاعات مسابقه");
@@ -100,7 +97,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
     setAwards(awards.filter((_, i) => i !== index));
   };
 
-  // ارسال اطلاعات ویرایش شده به سرور با متد PUT/PATCH
+  // ارسال اطلاعات ویرایش شده به سرور
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -128,10 +125,9 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
     };
 
     try {
-      // استفاده از متد PUT یا PATCH برای به‌روزرسانی مسابقه بر اساس ساختار بک‌ند شما
       await api.patch(`/admin/contests/${params.id}`, finalData);
-      alert("تغییرات مسابقه با موفقیت ذخیره شد!");
-      router.push(`/contests/${params.id}`); // بازگشت به صفحه لندینگ همان مسابقه
+      alert("تغییرات مسابقه با موفقیت ذخیره شد! 🎉");
+      router.push('/admin/dashboard'); 
     } catch (error: any) {
       const serverError = error.response?.data?.detail?.[0]?.msg || error.response?.data?.detail || "مشکل فنی در سرور";
       alert("خطا در به‌روزرسانی: " + serverError);
@@ -180,7 +176,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
         </div>
       </header>
 
-      {/* بوم گرید دو ستونه مدیریت */}
+      {/* فرم مدیریت */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
         
         {/* ستون راست: اطلاعات متنی و اصلی مسابقه */}
@@ -210,7 +206,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
                     <input 
                       type="number" min="1" required
                       className="w-full p-3 bg-white border border-gray-200 rounded-xl text-center text-xs font-black text-[#1a2e44] outline-none focus:ring-2 focus:ring-[#c5a059]" 
-                      placeholder="رتبه" value={award.rank}
+                      placeholder="رتبه" value={award.rank || ''}
                       onChange={(e) => handleAwardChange(index, 'rank', e.target.value)}
                     />
                   </div>
@@ -218,7 +214,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
                     <input 
                       type="text" required
                       className="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-2 focus:ring-[#c5a059]" 
-                      placeholder={`جایزه رتبه ${award.rank}...`} value={award.title}
+                      placeholder={`جایزه رتبه ${award.rank}...`} value={award.title || ''}
                       onChange={(e) => handleAwardChange(index, 'title', e.target.value)}
                     />
                   </div>
@@ -244,7 +240,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
           {/* باکس وضعیت و پیکربندی */}
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
             
-            {/* 👈 اضافه شدن کنترل کامل وضعیت مسابقه در ادیت پنل برای مدیریت ادمین */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">وضعیت انتشار مسابقه</label>
               <select className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none cursor-pointer" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
@@ -255,7 +250,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
               </select>
             </div>
 
-            {/* سیستم گواهی‌های ارتقا یافته با رتبه‌بندی جدید کیفی */}
             <div>
               <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
               <div className="relative">
@@ -315,6 +309,13 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
                 <ImageIcon size={14} /> تصویر بنر مسابقه {uploading === 'image_url' && '⏳'}
               </label>
               <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl outline-none text-xs text-gray-500 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#1a2e44] file:text-white cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />
+              
+              {/* پیش‌نمایش کاملاً استاندارد و زنده بنر مسابقه بدون خطای سه نقطه */}
+              {formData.image_url && (
+                <div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 shadow-sm max-h-40 bg-gray-50 flex items-center justify-center p-2">
+                  <img src={formData.image_url} alt="Banner Preview" className="max-w-full max-h-32 object-contain rounded-lg" />
+                </div>
+              )}
               {formData.image_url && <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ فایل تصویر روی سرور ذخیره است.</p>}
             </div>
 

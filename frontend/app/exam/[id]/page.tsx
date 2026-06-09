@@ -5,11 +5,8 @@ import api from '../../../lib/api';
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-// 👈 اصلاح منطق تحلیل نمره بر اساس ساختار ۳ سطر جدید: عالی، خیلی خوب و خوب
 const getAnalysis = (score: number, totalQuestions: number = 3) => {
   const s = parseFloat(score.toString());
-  
-  // حد نصاب ۵۰ درصدی برای دریافت پایین‌ترین سطح گواهی (خوب)
   const minRequired = Math.ceil(totalQuestions * 0.5);
   
   if (s >= 85) {
@@ -101,7 +98,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     }
   }, [timeLeft]);
 
-  // 👈 فعال‌سازی انیمیشن جشن برای تمام نمرات بالای ۵۰ (کسب‌کنندگان انواع گواهی)
   useEffect(() => {
     if (isSubmitted && result && result.score >= 50) {
       const duration = 3 * 1000;
@@ -136,27 +132,26 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   const handleSubmitExam = async () => {
     if (submitting) return;
     setSubmitting(true);
-    let correctCount = 0;
-    questions.forEach(q => {
-      if (answers[q.id] === q.correct_option) correctCount++;
-    });
     
-    const finalScore = questions.length > 0 ? (correctCount / questions.length) * 100 : 0;
     const timeTaken = totalTime - timeLeft;
 
     try {
-      await api.post('/submissions', {
+      // 🌟 سپردن فرآیند محاسبه نمره به اندپوینت امن بک‌ند برای جلوگیری از تقلب فرانت‌ند
+      const response = await api.post('/submissions', {
         contest_id: parseInt(contestId),
-        score: Math.round(finalScore),
         time_taken: timeTaken,
         answers_map: answers
       });
 
+      // خواندن نمره‌ی واقعی محاسبه شده توسط پایتون از پاسخ سرور
+      const serverScore = response.data.score ?? 0;
+      const serverCorrectCount = response.data.correct_count ?? 0;
+
       setResult({
-        score: Math.round(finalScore),
-        correctCount: correctCount,
+        score: Math.round(serverScore),
+        correctCount: serverCorrectCount,
         timeTaken: timeTaken,
-        analysis: getAnalysis(finalScore, questions.length)
+        analysis: getAnalysis(serverScore, questions.length)
       });
       setIsSubmitted(true);
     } catch (error) {
@@ -166,11 +161,16 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const toPersianDigits = (str: string | number) => {
+    const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
+  };
+
   if (loading || submitting) {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] flex flex-col items-center justify-center gap-4 font-sans">
         <Loader2 className="w-10 h-10 text-[#1a2e44] animate-spin" />
-        <p className="text-gray-500 font-bold">{submitting ? "در حال پردازش..." : "در حال آماده‌سازی آزمون..."}</p>
+        <p className="text-gray-500 font-bold">{submitting ? "در حال پردازش و ثبت پاسخنامه..." : "در حال آماده‌سازی آزمون..."}</p>
       </div>
     );
   }
@@ -198,11 +198,11 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-50 p-5 rounded-3xl text-center border border-gray-100">
               <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">پاسخ‌های صحیح</span>
-              <span className="text-3xl font-black text-[#1a2e44]">{result.correctCount} <span className="text-xs text-gray-400">از {questions.length}</span></span>
+              <span className="text-3xl font-black text-[#1a2e44]">{toPersianDigits(result.correctCount)} <span className="text-xs text-gray-400">از {toPersianDigits(questions.length)}</span></span>
             </div>
             <div className="bg-gray-50 p-5 rounded-3xl text-center border border-gray-100">
               <span className="block text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-widest">درصد نهایی</span>
-              <span className="text-3xl font-black text-[#c5a059]">{result.score}%</span>
+              <span className="text-3xl font-black text-[#c5a059]">{toPersianDigits(result.score)}%</span>
             </div>
           </div>
           <div className={`p-4 rounded-2xl text-center ${result.analysis.bg} ${result.analysis.color}`}>
@@ -211,35 +211,13 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className="w-full flex flex-col gap-2.5 mb-6">
-          <a 
-            href="https://eitaa.com/emtedadeemam" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="w-full text-center bg-orange-50 hover:bg-orange-100 text-orange-700 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-orange-100"
-          >
-            📢 عضویت در کانال امتداد
-          </a>
-          
-          <a 
-            href="https://emtedad.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="w-full text-center bg-amber-50 hover:bg-amber-100 text-amber-800 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-amber-100"
-          >
-            🌐 ورود به وب‌سایت امتداد امام
-          </a>
+          <a href="https://eitaa.com/emtedadeemam" target="_blank" rel="noopener noreferrer" className="w-full text-center bg-orange-50 hover:bg-orange-100 text-orange-700 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-orange-100">📢 عضویت در کانال امتداد</a>
+          <a href="https://emtedad.com" target="_blank" rel="noopener noreferrer" className="w-full text-center bg-amber-50 hover:bg-amber-100 text-amber-800 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-amber-100">🌐 ورود به وب‌سایت امتداد امام</a>
         </div>
 
         <div className="w-full space-y-3">
-          <button onClick={() => router.push('/')} className="w-full bg-[#1a2e44] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
-            <Home size={20} /> بازگشت به داشبورد
-          </button>
-          <button 
-            onClick={() => { setShowReview(true); setCurrentQIndex(0); }} 
-            className="w-full bg-white text-[#1a2e44] py-4 rounded-3xl font-bold flex items-center justify-center gap-2 border border-gray-200 transition active:scale-95"
-          >
-            <Eye size={20} /> مرور مجدد سوالات
-          </button>
+          <button onClick={() => router.push('/')} className="w-full bg-[#1a2e44] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"><Home size={20} /> بازگشت به داشبورد</button>
+          <button onClick={() => { setShowReview(true); setCurrentQIndex(0); }} className="w-full bg-white text-[#1a2e44] py-4 rounded-3xl font-bold flex items-center justify-center gap-2 border border-gray-200 transition active:scale-95"><Eye size={20} /> مرور مجدد سوالات</button>
         </div>
       </div>
     );
@@ -252,7 +230,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
       <header className="bg-white p-5 shadow-sm flex justify-between items-center sticky top-0 z-10 rounded-b-3xl">
         <div className="flex flex-col">
           <span className="text-[10px] text-gray-500 font-bold mb-1 uppercase tracking-widest">
-            {showReview ? 'حالت مشاهده گزینه‌ها' : `سوال ${currentQIndex + 1} / ${questions.length}`}
+            {showReview ? 'حالت مشاهده گزینه‌ها' : `سوال ${toPersianDigits(currentQIndex + 1)} / ${toPersianDigits(questions.length)}`}
           </span>
           <div className="w-28 h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-[#1a2e44] transition-all duration-500" style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }}></div>
@@ -268,7 +246,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
               <span dir="ltr">{formatTime(timeLeft)}</span>
             </div>
             <span className="text-[9px] font-bold text-gray-400 mt-1">
-              زمان پیشنهادی هر سوال: {getRecommendedTime()} ثانیه
+              زمان پیشنهادی هر سوال: {toPersianDigits(getRecommendedTime())} ثانیه
             </span>
           </div>
         )}
@@ -276,7 +254,8 @@ export default function ExamPage({ params }: { params: { id: string } }) {
 
       <main className="flex-1 p-6 overflow-y-auto">
         <div className="mb-8 text-right">
-          <h2 className="font-black text-xl text-[#1a2e44] leading-relaxed mb-4">{question.text}</h2>
+          {/* 🌟 اصلاح شد: خواندن فیلد title به جای text */}
+          <h2 className="font-black text-xl text-[#1a2e44] leading-relaxed mb-4">{question.title}</h2>
           {question.description && (
             <div className="flex items-start gap-3 text-sm text-gray-600 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
               <AlertCircle className="w-5 h-5 text-[#c5a059] flex-shrink-0" />
@@ -286,6 +265,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className="space-y-4">
+          {/* 🌟 اصلاح شد: خواندن فیلد title گزینه‌ها از دیتای شافل شده‌ی دیتابیس */}
           {question.shuffled_options && question.shuffled_options.map((option: any, index: number) => {
             const isSelected = answers[question.id] === option.id;
             return (
@@ -299,7 +279,8 @@ export default function ExamPage({ params }: { params: { id: string } }) {
                   : 'border-gray-200 bg-white hover:border-[#c5a059]'
                 }`}
               >
-                <span className="font-bold">{option.text}</span>
+                {/* 🌟 فیلد خوانش متن گزینه به title تغییر یافت */}
+                <span className="font-bold">{option.title}</span>
                 <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${isSelected ? (showReview ? 'border-blue-500' : 'border-white') : 'border-gray-300'}`}>
                   {isSelected && <div className={`w-3 h-3 ${showReview ? 'bg-blue-500' : 'bg-[#c5a059]'} rounded-full`}></div>}
                 </div>

@@ -4,7 +4,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional, Dict, Any
 from . import crud, schemas, models, auth, database
@@ -327,15 +327,15 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
 @app.get("/contests", response_model=List[schemas.Contest])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)):
     contests = db.query(models.Contest).all()
-    today = date.today()
+    now = datetime.now()
     
     modified = False
     for contest in contests:
-        if contest.status == 'active' and contest.end_time and contest.end_time < today:
+        if contest.status == 'active' and contest.end_time and contest.end_time < now:
             contest.status = 'finished'
             modified = True
-        elif contest.status == 'upcoming' and contest.start_time and contest.start_time <= today:
-            if not contest.end_time or contest.end_time >= today:
+        elif contest.status == 'upcoming' and contest.start_time and contest.start_time <= now:
+            if not contest.end_time or contest.end_time >= now:
                 contest.status = 'active'
                 modified = True
             else:
@@ -349,12 +349,52 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
         return db.query(models.Contest).filter(models.Contest.status == status).all()
     return contests
 
-@app.get("/contests/{contest_id}", response_model=schemas.Contest)
+@app.get("/contests/{contest_id}", response_model=schemas.ContestDetailOut)
 def get_contest_detail(contest_id: int, db: Session = Depends(database.get_db)):
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
-    return contest
+    
+    time_limit_minutes = 10
+    if contest.max_time:
+        time_limit_minutes = contest.max_time.hour * 60 + contest.max_time.minute
+        
+    attachments = db.query(models.Attachment).filter(models.Attachment.contest_id == contest_id).all()
+    file_url = ""
+    for attach in attachments:
+        if attach.file_type == "pdf":
+            file_url = attach.file_url
+            break
+            
+    # 🌟 واکشی و مپ کردن هوشمند داده‌ها از طریق join جدول واسط به جدول اصلی awards
+    db_awards = db.query(models.AwardContest).filter(models.AwardContest.contest_id == contest_id).all()
+    awards_data = []
+    for ac in db_awards:
+        if ac.award: # دسترسی به ریلیشن جدول awards برای خواندن title
+            awards_data.append({"rank": ac.number, "title": ac.award.title})
+        
+    certificate_type = "none"
+    if contest.certificates:
+        cert = contest.certificates[0]
+        if "عالی" in cert.title: certificate_type = "excellent"
+        elif "خیلی خوب" in cert.title: certificate_type = "very_good"
+        elif "خوب" in cert.title: certificate_type = "good"
+        
+    return {
+        "id": contest.id,
+        "title": contest.title,
+        "description": contest.description,
+        "image_url": contest.image_url,
+        "video_url": contest.video_url,
+        "status": contest.status,
+        "start_time": contest.start_time,
+        "end_time": contest.end_time,
+        "question_limit": contest.question_limit,
+        "time_limit": time_limit_minutes,
+        "file_url": file_url,
+        "awards": awards_data,
+        "certificate_type": certificate_type
+    }
 
 @app.get("/contests/{contest_id}/questions", response_model=List[schemas.RandomizedQuestion])
 def get_questions_list(contest_id: int, db: Session = Depends(database.get_db)):
@@ -362,16 +402,20 @@ def get_questions_list(contest_id: int, db: Session = Depends(database.get_db)):
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
         
-    all_questions = db.query(models.Question).filter(models.Question.contest_id == contest_id, models.Question.is_active == 1).all()
+    # 🌟 شاه‌کلید حل مشکل دوم: اضافه شدن فیلتر حذف نرم برای مخفی‌سازی سوالات پاک شده
+    all_questions = db.query(models.Question).filter(
+        models.Question.contest_id == contest_id, 
+        models.Question.is_active == 1,
+        models.Question.deleted_at == None # سوالاتی که حذف نرم شده‌اند لود نمی‌شوند
+    ).all()
     
-    # چیدن حداکثر ۱۵ سوال به صورت تصادفی
     selected_questions = random.sample(all_questions, min(len(all_questions), 15))
     processed_questions = []
     
     for q in selected_questions:
-        # واکشی گزینه‌ها از جدول مستقل جدید answers
-        options = [{"id": ans.id, "title": ans.title} for ans in q.answers]
-        random.shuffle(options) # مخلوط کردن گزینه‌ها برای جلوگیری از تقلب
+        # گزینه‌های حذف نشده سوال
+        options = [{"id": ans.id, "title": ans.title} for ans in q.answers if ans.deleted_at == None]
+        random.shuffle(options)
         
         processed_questions.append({
             "id": q.id,
@@ -383,39 +427,123 @@ def get_questions_list(contest_id: int, db: Session = Depends(database.get_db)):
 
 @app.post("/contests", response_model=schemas.Contest)
 def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(database.get_db)):
-    db_contest = models.Contest(**contest.model_dump())
+    minutes = contest.time_limit or 10
+    max_time_obj = time(hour=minutes // 60, minute=minutes % 60)
+
+    db_contest = models.Contest(
+        title=contest.title,
+        description=contest.description,
+        image_url=contest.image_url,
+        video_url=contest.video_url,
+        max_time=max_time_obj,
+        start_time=contest.start_time,
+        end_time=contest.end_time,
+        status=contest.status,
+        question_limit=contest.question_limit
+    )
     db.add(db_contest)
+    db.commit()
+    db.refresh(db_contest)
+
+    # 🌟 مدیریت رابطه‌ای جوایز بر اساس جدول مستقل Awards و ستون number
+    if contest.award:
+        try:
+            awards_list = json.loads(contest.award)
+            for aw in awards_list:
+                rank_num = int(aw.get('rank', 1))
+                award_title = aw.get('title', '').strip()
+                if not award_title: continue
+                
+                # الف) چک کردن یا ساختن عنوان جایزه در جدول اصلی awards
+                db_award = db.query(models.Award).filter(models.Award.title == award_title).first()
+                if not db_award:
+                    db_award = models.Award(title=award_title)
+                    db.add(db_award)
+                    db.commit()
+                    db.refresh(db_award)
+                
+                # ب) چفت کردن جایزه به مسابقه در جدول واسط با ستون اختصاصی number
+                db_award_contest = models.AwardContest(
+                    contest_id=db_contest.id,
+                    award_id=db_award.id,
+                    number=rank_num
+                )
+                db.add(db_award_contest)
+        except Exception as e:
+            print(f"⚠️ خطا در ساخت اولیه جوایز: {e}")
+
+    if contest.file_url:
+        db_attachment = models.Attachment(contest_id=db_contest.id, file_name="جزوه راهنمای دوره", file_url=contest.file_url, file_type="pdf", file_size=0)
+        db.add(db_attachment)
+
+    if contest.certificate_type and contest.certificate_type != 'none':
+        type_labels = {"excellent": "عالی", "very_good": "خیلی خوب", "good": "خوب"}
+        label = type_labels.get(contest.certificate_type, "عمومی")
+        db_certificate = models.Certificate(contest_id=db_contest.id, title=f"گواهی {label} - دوره {contest.title}", content="بدین‌وسیله گواهی می‌شود...", is_active=1)
+        db.add(db_certificate)
+
     db.commit()
     db.refresh(db_contest)
     return db_contest
 
 @app.post("/contests/{contest_id}/questions", response_model=schemas.Question)
-def add_question_to_contest(contest_id: int, question: schemas.QuestionCreate, db: Session = Depends(database.get_db)):
+def add_question_to_contest(
+    contest_id: int, 
+    payload: dict, # 🌟 ورودی منعطف برای هضم فرمت فرانت‌ند و شکستن قفل ۴۲۲
+    db: Session = Depends(database.get_db)
+):
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
         
-    # ۱. ایجاد و ثبت صورت سوال
+    # ۱. استخراج عنوان و توضیحات سوال از دکشنری
+    question_title = payload.get("title", payload.get("text", "")).strip()
+    if not question_title:
+        raise HTTPException(status_code=400, detail="متن صورت سوال نمی‌تواند خالی باشد")
+        
+    question_desc = payload.get("description", "")
+    
+    # ۲. ایجاد و ثبت صورت سوال
     db_question = models.Question(
-        title=question.title,
-        description=question.description,
+        title=question_title,
+        description=question_desc,
         contest_id=contest_id
     )
     db.add(db_question)
     db.commit()
     db.refresh(db_question)
     
-    # ۲. ایجاد و چسباندن گزینه‌ها به سوال بر اساس ریلیشن جدید
-    for ans in question.answers:
-        db_answer = models.Answer(
-            question_id=db_question.id,
-            title=ans.title,
-            is_correct=ans.is_correct
-        )
-        db.add(db_answer)
+    # ۳. پردازش و چسباندن گزینه‌ها بر اساس دیتای دریافتی
+    if "answers" in payload and isinstance(payload["answers"], list):
+        for ans in payload["answers"]:
+            db_answer = models.Answer(
+                question_id=db_question.id,
+                title=ans.get("title", ""),
+                is_correct=int(ans.get("is_correct", 0))
+            )
+            db.add(db_answer)
+    else:
+        # هندل کردن فرمت گزینه‌های تخت فرانت‌ند (۱ تا ۴)
+        correct_opt = int(payload.get("correct_option", 1))
+        options_list = [
+            payload.get("option_1"),
+            payload.get("option_2"),
+            payload.get("option_3"),
+            payload.get("option_4")
+        ]
+        for idx, opt_text in enumerate(options_list):
+            if opt_text is not None:
+                db_ans = models.Answer(
+                    question_id=db_question.id,
+                    title=str(opt_text).strip(),
+                    is_correct=1 if (idx + 1) == correct_opt else 0
+                )
+                db.add(db_ans)
     
     db.commit()
-    db.refresh(db_question)
+    db.refresh(db_question) # 🌟 لود شدن خودکار تمام گزینه‌های جدید در شیء اصلی
+    
+    # ۴. 🌟 بازگرداندن مدل استاندارد دیتابیس که کاملاً توسط response_model معتبرسازی می‌شود
     return db_question
 
 @app.post("/upload")
@@ -446,37 +574,71 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
         })
     return results
 
-@app.get("/users/me/profile")
-def get_user_profile(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    all_subscriptions = db.query(models.Subscription).filter(models.Subscription.user_id == current_user.id).all()
-    
-    unique_history = {}
-    for sub in all_subscriptions:
-        contest_id = sub.contest_id
-        if contest_id not in unique_history or sub.score > unique_history[contest_id]['score']:
-            unique_history[contest_id] = {
-                "contest_id": contest_id,
-                "contest_title": sub.contest.title if sub.contest else "مسابقه حذف شده",
-                "score": sub.score,
-                "time_taken": 0,
-                "date": sub.id,
-                "status": sub.contest.status if sub.contest else "unknown"
-            }
-            
-    history = list(unique_history.values())
-    total_score = sum(item['score'] for item in history)
+@app.put("/users/me")
+def update_my_profile(
+    payload: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد")
         
+    # ۱. آپدیت فیلدهای متنی ساده
+    user.first_name = payload.get("first_name", user.first_name)
+    user.last_name = payload.get("last_name", user.last_name)
+    user.birth_date = payload.get("birth_date", user.birth_date)
+    
+    # ۲. 🌟 تبدیل نام متنی شهر فرانت‌ند به city_id معتبر در دیتابیس
+    city_name = payload.get("city")
+    if city_name:
+        db_city = db.query(models.City).filter(models.City.title == city_name).first()
+        if db_city:
+            user.city_id = db_city.id
+            
+    db.commit()
+    return {"message": "اطلاعات پروفایل با موفقیت به‌روزرسانی شد"}
+
+@app.get("/users/me/profile")
+def get_my_complete_profile(
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # ۱. بارگذاری کاربر به همراه اطلاعات کامل شهر و استان والد
+    user_data = db.query(models.User)\
+                  .filter(models.User.id == current_user.id)\
+                  .options(joinedload(models.User.city).joinedload(models.City.parent))\
+                  .first()
+                  
+    # ۲. استخراج هوشمند نام شهر و استان از جدول رابطه‌ای
+    city_title = user_data.city.title if user_data.city else "---"
+    province_title = user_data.city.parent.title if (user_data.city and user_data.city.parent) else "---"
+    
+    # ۳. واکشی تاریخچه مسابقات کاربر از جدول subscriptions
+    history_records = []
+    subs = db.query(models.Subscription).filter(models.Subscription.user_id == current_user.id).all()
+    for s in subs:
+        if s.contest:
+            total_seconds = 0
+            if s.time_left:
+                total_seconds = (s.time_left.hour * 3600) + (s.time_left.minute * 60) + s.time_left.second
+                
+            history_records.append({
+                "contest_title": s.contest.title,
+                "score": f"{s.score}%",
+                "time_taken": total_seconds,
+                "status": s.contest.status
+            })
+
     return {
-        "id": current_user.id,
-        "first_name": current_user.first_name,
-        "last_name": current_user.last_name,
-        "phone_number": current_user.phone_number,
-        "national_id": current_user.national_id,
-        "city_id": current_user.city_id,
-        "birth_date": str(current_user.birth_date) if current_user.birth_date else "", 
-        "total_score": total_score,
-        "contests_count": len(history),
-        "history": history
+        "first_name": user_data.first_name,
+        "last_name": user_data.last_name,
+        "phone_number": user_data.phone_number,
+        "national_id": user_data.national_id,
+        "birth_date": str(user_data.birth_date) if user_data.birth_date else "---",
+        "city_title": city_title,
+        "province_title": province_title,
+        "history": history_records
     }
 
 @app.options("/users/me/contests/{contest_id}/certificate/download")
@@ -539,6 +701,34 @@ def download_my_certificate(
         print(f"❌ خطای سراسری اندپوینت: {global_err}")
         return JSONResponse(status_code=500, content={"detail": f"خطای سرور: {str(global_err)}"}, headers=cors_headers)
        
+@app.post("/users/change-password")
+def change_my_password(
+    payload: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    old_password = payload.get("old_password")
+    new_password = payload.get("new_password")
+    
+    if not old_password or not new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="وارد کردن رمز عبور فعلی و رمز عبور جدید الزامی است"
+        )
+        
+    # 🌟 اصلاح شد: استفاده از current_user.password به جای hashed_password قدیمی
+    if not auth.verify_password(old_password, current_user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="رمز عبور فعلی وارد شده اشتباه است"
+        )
+        
+    # 🌟 اصلاح شد: سِت کردن و هش کردن پسورد جدید روی ستون password
+    current_user.password = auth.get_password_hash(new_password)
+    
+    db.commit()
+    return {"message": "رمز عبور شما با موفقیت تغییر یافت 🎉"}
+
 # =====================================================================
 # بخش سوم فایل main.py: مدیریت ثبت آزمون، لیدربرد سراسری و ابزارهای ادمین
 # =====================================================================
@@ -599,35 +789,47 @@ def submit_exam(subscription: schemas.SubscriptionCreate, db: Session = Depends(
  
 @app.get("/leaderboard/global")
 def get_global_leaderboard(db: Session = Depends(database.get_db)):
-    # 🌟 معجزه JOIN: تمام اطلاعات کاربران و مجموع نمراتشان را در ۱ ثانیه و فقط با ۱ کوئری استخراج می‌کند
-    from sqlalchemy.sql import func
+    users = db.query(models.User).filter(models.User.deleted_at == None).all()
+    leaderboard_data = []
     
-    leaderboard_query = db.query(
-        models.User.id,
-        models.User.first_name,
-        models.User.last_name,
-        models.User.national_id,
-        func.sum(models.Subscription.score).label("total_score")
-    ).join(models.Subscription, models.User.id == models.Subscription.user_id)\
-     .group_by(models.User.id)\
-     .order_by(func.sum(models.Subscription.score).desc())\
-     .all()
-
-    results = []
-    for index, row in enumerate(leaderboard_query):
-        national_id = row.national_id or "****"
-        last_four = national_id[-4:] if len(national_id) >= 4 else national_id
+    for u in users:
+        # واکشی تمام مسابقات حذف نشده‌ای که این کاربر شرکت کرده است
+        subs = db.query(models.Subscription).filter(
+            models.Subscription.user_id == u.id,
+            models.Subscription.deleted_at == None
+        ).all()
         
-        results.append({
-            "rank": index + 1,
-            "id": row.id,
-            "name": f"{row.first_name or ''} {row.last_name or ''}".strip(),
-            "total_score": row.total_score or 0,
-            "total_time": 0,
-            "last_four_id": last_four
+        if not subs:
+            continue
+            
+        # مجموع امتیازات کاربر در تمام مسابقات
+        total_score = sum(s.score for s in subs if s.score is not None)
+        
+        # 🌟 شاه‌کلید دوم: تبدیل مجدد فرمت Time دیتابیس به ثانیه برای محاسبه مجموع زمان کل
+        total_seconds = 0
+        for s in subs:
+            if s.time_left:
+                total_seconds += (s.time_left.hour * 3600) + (s.time_left.minute * 60) + s.time_left.second
+        
+        # استخراج ایمن ۴ رقم آخر کد ملی
+        last_four = u.national_id[-4:] if u.national_id and len(u.national_id) >= 4 else "****"
+        
+        leaderboard_data.append({
+            "id": u.id,
+            "name": f"{u.first_name} {u.last_name or ''}".strip(),
+            "last_four_id": last_four,
+            "total_score": total_score,
+            "total_time": total_seconds
         })
         
-    return results[:10]
+    # سورتبندی حرفه‌ای لیدربرد: ابتدا بیشترین امتیاز کل، سپس کمترین زمان مصرفی (سرعت بالاتر)
+    leaderboard_data.sort(key=lambda x: (-x["total_score"], x["total_time"]))
+    
+    # تزریق داینامیک رتبه‌ها بر اساس چیدمان سورتبندی شده
+    for idx, item in enumerate(leaderboard_data):
+        item["rank"] = idx + 1
+        
+    return leaderboard_data[:10] # خروجی ۱۰ نفر برتر تالار افتخارات
 
 @app.patch("/contests/{contest_id}/status")
 def update_contest_status(contest_id: str, status_update: StatusUpdate, db: Session = Depends(database.get_db)):
@@ -640,15 +842,61 @@ def update_contest_status(contest_id: str, status_update: StatusUpdate, db: Sess
     db.refresh(contest)
     return {"message": "وضعیت با موفقیت تغییر کرد", "new_status": contest.status}
 
-@app.delete("/contests/{contest_id}")
-def delete_contest(contest_id: str, db: Session = Depends(database.get_db)):
-    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+@app.delete("/admin/contests/{contest_id}") # اضافه کردن /admin برای هماهنگی با فرانت‌ند
+def delete_contest(
+    contest_id: int, # تغییر از str به int برای هماهنگی با دیتابیس
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin) # تامین امنیت روت
+):
+    # ۱. پیدا کردن مسابقه‌ای که قبلاً حذف نرم نشده باشد
+    contest = db.query(models.Contest).filter(
+        models.Contest.id == contest_id, 
+        models.Contest.deleted_at == None
+    ).first()
+    
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
     
-    db.delete(contest)
+    current_time = func.now()
+    
+    # ۲. 🌟 اعمال حذف نرم روی خود مسابقه
+    contest.deleted_at = current_time
+    
+    # ۳. 🌟 حذف نرم آبشاری: پر کردن فیلد حذف برای تمام سوالات و گزینه‌های این مسابقه
+    if contest.questions:
+        for q in contest.questions:
+            q.deleted_at = current_time
+            for ans in q.answers:
+                ans.deleted_at = current_time
+                
     db.commit()
-    return {"message": "مسابقه با موفقیت حذف شد"}
+    return {"message": "مسابقه و تمام سوالات متصل به آن با موفقیت (به صورت نرم) حذف شدند"}
+
+@app.delete("/admin/questions/{question_id}")
+def delete_question(
+    question_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_admin: models.User = Depends(require_admin)
+):
+    # فقط سوالاتی رو پیدا کن که قبلاً حذف نرم نشدن (deleted_at اونها None هست)
+    db_question = db.query(models.Question).filter(
+        models.Question.id == question_id, 
+        models.Question.deleted_at == None
+    ).first()
+    
+    if not db_question:
+        raise HTTPException(status_code=404, detail="سوال یافت نشد")
+    
+    # 🌟 شاه‌کلید: پر کردن فیلد زمان حذف به جای پاک کردن رکورد
+    current_time = func.now()
+    db_question.deleted_at = current_time
+    
+    # حذف نرم خودکارِ تمام گزینه‌های متصل به این سوال
+    for ans in db_question.answers:
+        ans.deleted_at = current_time
+        
+    db.commit()
+    return {"message": "سوال با موفقیت (به صورت نرم) حذف شد"}
 
 @app.get("/users/me/subscriptions/{contest_id}")
 def get_user_subscription(contest_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -1142,7 +1390,7 @@ def generate_user_certificate_image(
     return StreamingResponse(canvas, media_type="image/png", headers=response_headers)
 
 @app.post("/admin/banners")
-def create_banner(banner_data: BannerCreate, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+def create_banner(banner_data: schemas.BannerCreate, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     db_banner = models.Banner(
         title=banner_data.title,
         link_url=banner_data.link_url,
@@ -1166,12 +1414,66 @@ def update_contest(contest_id: int, contest_data: dict, db: Session = Depends(da
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
     
     for key, value in contest_data.items():
-        if hasattr(db_contest, key):
+        if key == "time_limit":
+            minutes = int(value or 10)
+            db_contest.max_time = time(hour=minutes // 60, minute=minutes % 60)
+        elif hasattr(db_contest, key):
             setattr(db_contest, key, value)
+    
+    # 🌟 مدیریت به‌روزرسانی و پاکسازی امن جدول واسط جوایز موقع ویرایش مسابقه
+    if "award" in contest_data and contest_data["award"]:
+        try:
+            # حذف اتصالات قدیمی این مسابقه از جدول واسط award_contests
+            db.query(models.AwardContest).filter(models.AwardContest.contest_id == contest_id).delete()
             
+            awards_list = json.loads(contest_data["award"])
+            for aw in awards_list:
+                rank_num = int(aw.get('rank', 1))
+                award_title = aw.get('title', '').strip()
+                if not award_title: continue
+                
+                db_award = db.query(models.Award).filter(models.Award.title == award_title).first()
+                if not db_award:
+                    db_award = models.Award(title=award_title)
+                    db.add(db_award)
+                    db.commit()
+                    db.refresh(db_award)
+                
+                db_award_contest = models.AwardContest(
+                    contest_id=contest_id,
+                    award_id=db_award.id,
+                    number=rank_num
+                )
+                db.add(db_award_contest)
+        except Exception as e:
+            print(f"⚠️ خطا در به‌روزرسانی ساختار جوایز: {e}")
+
+    if "file_url" in contest_data and contest_data["file_url"]:
+        db.query(models.Attachment).filter(models.Attachment.contest_id == contest_id, models.Attachment.file_type == "pdf").delete()
+        db_attachment = models.Attachment(contest_id=contest_id, file_name="جزوه راهنمای دوره", file_url=contest_data["file_url"], file_type="pdf", file_size=0)
+        db.add(db_attachment)
+
     db.commit()
     db.refresh(db_contest)
     return {"message": "مسابقه با موفقیت به‌روزرسانی شد"}
+
+@app.get("/admin/contests/{contest_id}/questions", response_model=List[schemas.Question])
+def get_admin_questions_list(
+    contest_id: int, 
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin) # امنیت روت برای ادمین
+):
+    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+    if not contest:
+        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+        
+    # واکشی ۱۰۰٪ تمام سوالات (بدون محدودیت ۱۵ تایی) همراه با لود تضمینی گزینه‌ها و وضعیت پاسخ صحیح
+    questions = db.query(models.Question)\
+                  .filter(models.Question.contest_id == contest_id, models.Question.deleted_at == None)\
+                  .options(joinedload(models.Question.answers))\
+                  .all()
+                  
+    return questions
 
 @app.get("/admin/contests/{contest_id}/analytics")
 def get_contest_analytics(
@@ -1254,3 +1556,65 @@ def refresh_access_token(payload: dict):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="ریفرش توکن منقضی یا نامعتبر شده است. لطفاً دوباره لاگین کنید"
         )
+    
+@app.post("/submissions")
+def submit_exam_results(
+    payload: dict, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user) # 🌟 نام تابع احراز هویت کاربران عادی خودت را ست کن
+):
+    contest_id = payload.get("contest_id")
+    time_taken = payload.get("time_taken", 0)
+    answers_map = payload.get("answers_map", {}) # دکشنری ارسالی فرانت‌ند به فرمت {question_id: option_id}
+    
+    # ۱. واکشی سوالات حذف نشده‌ی این مسابقه برای محاسبه امن نمره در سرور
+    questions = db.query(models.Question).filter(
+        models.Question.contest_id == contest_id,
+        models.Question.deleted_at == None
+    ).all()
+    
+    if not questions:
+        raise HTTPException(status_code=400, detail="این مسابقه سوالی ندارد")
+        
+    # ۲. مقایسه انتخاب‌های کاربر با گزینه‌های صحیح دیتابیس
+    correct_count = 0
+    for q in questions:
+        user_option_id = answers_map.get(str(q.id)) or answers_map.get(q.id)
+        # پیدا کردن گزینه‌ای که کلید صحیح است
+        correct_option = next((ans for ans in q.answers if ans.is_correct == 1), None)
+        
+        if correct_option and user_option_id == correct_option.id:
+            correct_count += 1
+            
+    score_percentage = (correct_count / len(questions)) * 100
+    
+    # 🌟 شاه‌کلید اول: تبدیل ثانیه‌های فرانت‌ند به شیء استاندارد Time دیتابیس
+    t_seconds = int(payload.get("time_taken", 0))
+    time_obj = time(hour=(t_seconds // 3600) % 24, minute=(t_seconds % 3600) // 60, second=t_seconds % 60)
+    
+    sub = db.query(models.Subscription).filter(
+        models.Subscription.user_id == current_user.id,
+        models.Subscription.contest_id == contest_id
+    ).first()
+    
+    if not sub:
+        sub = models.Subscription(
+            user_id=current_user.id,
+            contest_id=contest_id,
+            score=round(score_percentage),
+            time_left=time_obj, # 🌟 ذخیره زمان مصرفی در ستون مربوطه
+            is_left=1
+        )
+        db.add(sub)
+    else:
+        sub.score = round(score_percentage)
+        sub.time_left = time_obj # 🌟 آپدیت زمان مصرفی در هنگام ویرایش
+        sub.is_left = 1
+        
+    db.commit()
+    
+    return {
+        "score": round(score_percentage),
+        "correct_count": correct_count,
+        "total_questions": len(questions)
+    }

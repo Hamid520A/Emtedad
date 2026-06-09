@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../../../lib/api';
-import { ArrowRight, HelpCircle, Edit3, Save, X, Loader2, CheckCircle2, Plus } from 'lucide-react';
+// 🌟 اضافه شدن آیکون Trash2 به ایمپورت‌ها
+import { ArrowRight, HelpCircle, Edit3, Save, X, Loader2, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 
 export default function AdminContestQuestionsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -15,11 +16,11 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
   const [editingQuestion, setEditingQuestion] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // دریافت سوالات مسابقه
+  // دریافت سوالات مسابقه از بک‌ند
   const fetchQuestions = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/contests/${contestId}/questions`);
+      const res = await api.get(`/admin/contests/${contestId}/questions`);
       setQuestions(res.data);
     } catch (error) {
       console.error("Error fetching questions:", error);
@@ -47,7 +48,7 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
         correct_option: parseInt(editingQuestion.correct_option, 10)
       });
 
-      alert("سوال با موفقیت ویرایش شد!");
+      alert("سوال با موفقیت ویرایش شد! 🎉");
       setEditingQuestion(null);
       fetchQuestions(); // به‌روزرسانی لیست سوالات در صفحه
     } catch (error: any) {
@@ -55,6 +56,21 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
       alert(msg);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // 🌟 تابع اختصاصی برای حذف نرم سوال از دیتابیس
+  const handleDeleteQuestion = async (questionId: number) => {
+    if (!window.confirm("آیا از حذف کامل این سوال و گزینه‌های آن اطمینان دارید؟")) return;
+    
+    try {
+      await api.delete(`/admin/questions/${questionId}`);
+      alert("سوال با موفقیت حذف شد! 🗑️");
+      fetchQuestions(); // بروزرسانی آنی صفحه و غیب شدن سوال حذف شده
+    } catch (error: any) {
+      console.error("Error deleting question:", error);
+      const errorMsg = error.response?.data?.detail || "خطا در حذف سوال. مجدداً تلاش کنید.";
+      alert(errorMsg);
     }
   };
 
@@ -103,51 +119,69 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
               <div className="flex justify-between items-start gap-4 mb-4">
                 <div>
                   <span className="text-[10px] bg-[#1a2e44] text-white px-2.5 py-1 rounded-full font-black">سوال {index + 1}</span>
-                  <h3 className="font-black text-base text-[#1a2e44] mt-3 leading-relaxed">{q.text}</h3>
+                  <h3 className="font-black text-base text-[#1a2e44] mt-3 leading-relaxed">{q.title}</h3>
                   {q.description && <p className="text-xs text-gray-400 mt-1 font-medium bg-gray-50 p-2.5 rounded-xl">{q.description}</p>}
                 </div>
                 
-                <button 
-                  onClick={() => setEditingQuestion({
-                    ...q,
-                    // پیدا کردن گزینه‌ها از ساختار شافل شده یا پیش‌فرض برای پر کردن فرم
-                    option_1: q.shuffled_options?.find((o: any) => o.id === 1)?.text || "",
-                    option_2: q.shuffled_options?.find((o: any) => o.id === 2)?.text || "",
-                    option_3: q.shuffled_options?.find((o: any) => o.id === 3)?.text || "",
-                    option_4: q.shuffled_options?.find((o: any) => o.id === 4)?.text || "",
-                  })}
-                  className="p-2.5 bg-amber-50 text-amber-700 rounded-xl hover:scale-105 transition-all flex items-center gap-1 text-xs font-black"
-                >
-                  <Edit3 size={16} /> ویرایش سوال
-                </button>
+                {/* 🌟 دایو دکمه‌های عملیاتی ادمین (ویرایش + حذف) */}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const dbAnswers = q.answers || [];
+                      const correctIdx = dbAnswers.findIndex((a: any) => a.is_correct === 1);
+                      
+                      setEditingQuestion({
+                        id: q.id,
+                        text: q.title, 
+                        description: q.description || "",
+                        option_1: dbAnswers[0]?.title || "",
+                        option_2: dbAnswers[1]?.title || "",
+                        option_3: dbAnswers[2]?.title || "",
+                        option_4: dbAnswers[3]?.title || "",
+                        correct_option: correctIdx !== -1 ? correctIdx + 1 : 1
+                      });
+                    }}
+                    className="p-2.5 bg-amber-50 text-amber-700 rounded-xl hover:scale-105 transition-all flex items-center gap-1 text-xs font-black"
+                  >
+                    <Edit3 size={16} /> ویرایش سوال
+                  </button>
+
+                  {/* 🌟 دکمه‌ی جدید حذف نرم سوال */}
+                  <button 
+                    type="button"
+                    onClick={() => handleDeleteQuestion(q.id)}
+                    className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 hover:scale-105 transition-all flex items-center justify-center shadow-sm border border-red-100"
+                    title="حذف سوال"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
 
               {/* نمایش گزینه‌ها */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                {[1, 2, 3, 4].map((optNum) => {
-                  // پیدا کردن متن گزینه اصلی از دیتای شافل شده
-                  const optText = q.shuffled_options?.find((o: any) => o.id === optNum)?.text || `گزینه ${optNum}`;
-                  const isCorrect = q.correct_option === optNum;
-                  
-                  return (
+                {q.answers && q.answers.length > 0 ? (
+                  q.answers.map((ans: any, idx: number) => (
                     <div 
-                      key={optNum} 
+                      key={ans.id || idx} 
                       className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center justify-between ${
-                        isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-gray-50/50 border-gray-100 text-gray-600'
+                        ans.is_correct === 1 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-gray-50/50 border-gray-100 text-gray-600'
                       }`}
                     >
-                      <span>{optText}</span>
-                      {isCorrect && <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />}
+                      <span>{ans.title}</span>
+                      {ans.is_correct === 1 && <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />}
                     </div>
-                  );
-                })}
+                  ))
+                ) : (
+                  <p className="text-xs text-red-400 font-bold">هیچ گزینه‌ای برای این سوال ثبت نشده است!</p>
+                )}
               </div>
             </div>
           ))
         )}
       </main>
 
-      {/* 📥 مودال پاپ‌آپ ویرایش سوال */}
+      {/* مودال پاپ‌آپ ویرایش سوال */}
       {editingQuestion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">

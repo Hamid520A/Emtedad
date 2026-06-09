@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../lib/api';
 import { getProfilePicture } from '../../lib/get-profile-api'; 
 import { 
-  User, Trophy, Medal, History, ArrowRight, 
+  User, Trophy, History, ArrowRight, 
   LogOut, Loader2, Star, Settings, ShieldCheck, 
   HelpCircle, ChevronLeft, Crown, Award, Download, X
 } from 'lucide-react';
@@ -16,8 +16,6 @@ export default function ProfilePage() {
   const [profileImg, setProfileImg] = useState<string | null>(null);
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [myCertificates, setMyCertificates] = useState<any[]>([]);
-  
-  // مدیریت وضعیت انیمیشن لودینگ دانلود هر گواهی
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -34,9 +32,7 @@ export default function ProfilePage() {
         const res = await api.get('/users/me/profile');
         myProfile = res.data;
         setProfile(myProfile);
-        
         setLoading(false); 
-
       } catch (error) {
         console.error("Error fetching text profile:", error);
         setLoading(false);
@@ -49,7 +45,7 @@ export default function ProfilePage() {
           param: {
             contacts: [{
               "_": "inputPhoneContact",
-              "phone": myProfile.phone_number,
+              "phone": myProfile.phone_number || myProfile.phone,
               "first_name": myProfile.first_name
             }]
           }
@@ -61,8 +57,6 @@ export default function ProfilePage() {
           const eitaaUser = eitaaUsers[0];
           
           if (eitaaUser.photo && eitaaUser.photo.photo_small) {
-            console.log("Photo found! Fetching bytes in background...");
-            
             const photoLocation = {
               photo_id: eitaaUser.photo.photo_id,
               local_id: eitaaUser.photo.photo_small.local_id,
@@ -102,7 +96,6 @@ export default function ProfilePage() {
     setCertModalOpen(true);
   };
 
-  // تابع دانلود امن گواهی مجهز به توکن احراز هویت و شبیه‌ساز دانلود لایو
   const handleDownloadCertificate = async (contestId: number, contestTitle: string) => {
     setDownloadingId(contestId);
     try {
@@ -123,21 +116,7 @@ export default function ProfilePage() {
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error("Error downloading certificate:", error);
-      
-      if (error.response && error.response.data) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const result = JSON.parse(reader.result as string);
-            alert(`❌ خطا: ${result.detail || "مشکلی در سرور رخ داده است"}`);
-          } catch {
-            alert("خطا در دریافت پاسخ سرور");
-          }
-        };
-        reader.readAsText(error.response.data);
-      } else {
-        alert("خطا در دانلود گواهی. لطفا مجدداً تلاش کنید.");
-      }
+      alert("خطا در دانلود گواهی. لطفا مجدداً تلاش کنید.");
     } finally {
       setDownloadingId(null);
     }
@@ -176,14 +155,10 @@ export default function ProfilePage() {
         <main className="p-6 flex-1 space-y-8 pb-24">
           
           {/* User Info Card */}
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-6">
             <div className="w-24 h-24 bg-[#faf9f6] rounded-full mx-auto flex items-center justify-center border-4 border-white shadow-lg overflow-hidden relative group">
               {profileImg ? (
-                <img 
-                  src={profileImg} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                />
+                <img src={profileImg} alt="Profile" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
               ) : (
                 <div className="bg-gray-100 w-full h-full flex items-center justify-center text-[#c5a059]">
                    <User size={48} />
@@ -193,58 +168,48 @@ export default function ProfilePage() {
             
             <div>
               <h2 className="text-2xl font-black">{profile.first_name} {profile.last_name}</h2>
-              <p className="text-gray-400 font-medium" dir="ltr">{profile.phone}</p>
+              {/* 🌟 اصلاح شد: هماهنگی با کلید فیلد تلفن دیتابیس */}
+              <p className="text-gray-400 font-medium" dir="ltr">{profile.phone_number || profile.phone}</p>
             </div>
 
-            {/* اطلاعات تکمیلی */}
-            <div className="grid grid-cols-2 gap-4 text-center">
+            {/* اطلاعات تکمیلی موقعیت ادمین/کاربر */}
+            <div className="grid grid-cols-2 gap-4 text-center bg-gray-50/50 p-4 rounded-3xl border border-gray-100 shadow-inner">
               <div>
-                <p className="text-xs text-gray-400">کد ملی</p>
-                <p className="font-bold text-[#1a2e44] mt-1">
-                  {profile?.national_id || profile?.nationalId || "---"}
+                <p className="text-[10px] text-gray-400 font-bold uppercase">کد ملی</p>
+                <p className="font-black text-xs text-[#1a2e44] mt-1">
+                  {profile.national_id || "---"}
                 </p>
               </div>
               
               <div>
-                <p className="text-xs text-gray-400">تاریخ تولد</p>
-                <p className="font-bold text-[#1a2e44] mt-1">
-                  {profile?.birth_date || profile?.birthDate || "---"}
+                <p className="text-[10px] text-gray-400 font-bold uppercase">تاریخ تولد</p>
+                <p className="font-black text-xs text-[#1a2e44] mt-1">
+                  {profile.birth_date || "---"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-400">استان</p>
-                <p className="font-bold text-[#1a2e44] mt-1">
-                  {profile?.province || "---"}
+                <p className="text-[10px] text-gray-400 font-bold uppercase">استان</p>
+                <p className="font-black text-xs text-[#1a2e44] mt-1">
+                  {profile.province_title || profile.province || "---"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-400">شهرستان</p>
-                <p className="font-bold text-[#1a2e44] mt-1">
-                  {profile?.county || profile?.city || "---"}
+                <p className="text-[10px] text-gray-400 font-bold uppercase">شهرستان</p>
+                <p className="font-black text-xs text-[#1a2e44] mt-1">
+                  {profile.city_title || profile.city || "---"}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="bg-[#1a2e44] p-4 rounded-[2rem] text-white shadow-lg">
-                <Trophy className="mx-auto text-[#c5a059] mb-1" size={24} />
-                <span className="block text-[10px] opacity-60 font-bold uppercase tracking-widest">امتیاز کل</span>
-                <span className="text-2xl font-black">{profile.total_score}</span>
-              </div>
-              <div className="bg-white p-4 rounded-[2rem] border border-gray-100 shadow-sm">
-                <Medal className="mx-auto text-[#c5a059] mb-1" size={24} />
-                <span className="block text-[10px] text-gray-400 font-bold uppercase tracking-widest">آزمون‌ها</span>
-                <span className="text-2xl font-black">{profile.contests_count}</span>
-              </div>
-            </div>
+            {/* 🌟 باکس‌های امتیاز کل و تعداد مسابقات طبق درخواست شما به طور کامل از این بخش حذف شدند */}
           </div>
 
           {/* بخش تنظیمات حساب */}
           <section className="space-y-4">
-            <h3 className="font-black text-lg px-2 flex items-center gap-2">
-              <Settings size={20} className="text-[#c5a059]" />
+            <h3 className="font-black text-base px-2 flex items-center gap-2">
+              <Settings size={18} className="text-[#c5a059]" />
               تنظیمات حساب
             </h3>
             <div className="grid grid-cols-1 gap-3">
@@ -258,11 +223,7 @@ export default function ProfilePage() {
                 <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
               </button>
 
-              {/* 👈 اصلاح شد: کلمه‌ی تستی "جدید" از این ساختار به طور کامل حذف گردید */}
-              <button 
-                onClick={openCertificateModal} 
-                className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group"
-              >
+              <button onClick={openCertificateModal} className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-amber-50 text-[#c5a059] rounded-2xl group-hover:scale-105 transition-transform">
                     <Award size={22} />
@@ -296,8 +257,8 @@ export default function ProfilePage() {
 
           {/* History Section */}
           <section className="space-y-4">
-            <h3 className="font-black text-lg px-2 flex items-center gap-2">
-              <History size={20} className="text-[#c5a059]" />
+            <h3 className="font-black text-base px-2 flex items-center gap-2">
+              <History size={18} className="text-[#c5a059]" />
               تاریخچه افتخارات
             </h3>
 
@@ -349,7 +310,7 @@ export default function ProfilePage() {
         </nav>
       </div>
 
-      {/* مُدال نمایش و دانلود تصاویر گواهی‌های معتبر کاربر */}
+      {/* مُدال نمایش و دانلود تصاویر گواهی‌ها */}
       {certModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl border border-gray-100 p-6 flex flex-col text-right">
