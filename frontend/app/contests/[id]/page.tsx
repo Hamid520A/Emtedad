@@ -132,7 +132,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
     if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
 
     try {
-      await api.delete(`/contests/${contest.id}`);
+      await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
       router.push('/'); 
     } catch (error) {
@@ -180,6 +180,19 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   const myResult = leaderboardMatch || historyMatch;
   const hasParticipated = !!myResult;
   const topThree = leaderboard.slice(0, 3);
+
+  // 🌟 محاسبه داینامیک رتبه‌ آنلاین کاربر از آرایه لیدربرد برای حل مشکل نمایش -#
+  const getLiveRank = () => {
+    if (leaderboardMatch?.rank) return leaderboardMatch.rank;
+    if (!currentUserId || !leaderboard.length) return '-';
+    
+    // جستجو بر اساس هر دو فیلد احتمالی فرانت و بک‌ند
+    const indexInLeaderboard = leaderboard.findIndex(
+      (u) => String(u.user_id || u.id) === String(currentUserId)
+    );
+    
+    return indexInLeaderboard !== -1 ? indexInLeaderboard + 1 : '-';
+  };
 
   return (
     <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] font-sans pb-24 relative" dir="rtl">
@@ -242,13 +255,13 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                   <button onClick={() => changeContestStatus('finished')} className="w-full sm:w-auto bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a]"><Power size={15} className="text-[#c5a059]" /> اتمام نهایی مسابقه</button>
                 )}
                 {contest.status === 'draft' && (
-                  <button onClick={() => changeContestStatus('upcoming')} className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد</button>
+                  <button onClick={() => changeContestStatus('upcoming')} className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#emerald-700]">▶️ فعال‌سازی و انتشار مجدد</button>
                 )}
               </div>
             </div>
           )}
 
-          {/* 👈 🌟 نمودارهای آنالیز متصل به دیتای واقعی با رنگ‌بندی هماهنگ با تم برند پروژه */}
+          {/* نمودارهای آنالیز متصل به دیتای واقعی با رنگ‌بندی هماهنگ با تم برند پروژه */}
           {isAdminUser && analyticsData && (
             <div className="space-y-6 animate-in fade-in duration-300">
               
@@ -262,7 +275,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                   <ResponsiveContainer width="100%" height={250}>
                     <AreaChart data={analyticsData.time_distribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
-                        {/* ایجاد گرادینت از رنگ طلایی اصلی به شفاف برای افکت زیر نمودار */}
                         <linearGradient id="colorTimeTheme" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#c5a059" stopOpacity={0.25}/>
                           <stop offset="95%" stopColor="#c5a059" stopOpacity={0}/>
@@ -272,43 +284,54 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                       <XAxis dataKey="name" stroke="#9ca3af" tickLine={false} />
                       <YAxis stroke="#9ca3af" tickLine={false} />
                       <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right', fontSize: '11px', fontFamily: 'sans-serif' }} />
-                      {/* خط اصلی به رنگ سرمه‌ای و سایه طلایی هماهنگ با هویت بصری سایت */}
                       <Area type="monotone" dataKey="users" name="تعداد شرکت‌کننده" stroke="#1a2e44" strokeWidth={3} fillOpacity={1} fill="url(#colorTimeTheme)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* چارت دوم: تحلیل صحت پاسخ‌های سوالات به تفکیک */}
-              <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-50 pb-3">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 size={18} className="text-[#c5a059]" />
-                    <h3 className="font-black text-sm text-[#1a2e44]">گزارش پاسخ‌های صحیح و اشتباه به تفکیک سوالات</h3>
-                  </div>
-                  <span className="text-[10px] bg-[#faf9f6] text-[#c5a059] px-2.5 py-1 rounded-md font-black border border-gray-100 animate-pulse">
-                    💡 برای مشاهده صورت سوال روی ستون آن کلیک کنید
-                  </span>
-                </div>
-                
-                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart 
-                      data={analyticsData.questions_stats} 
-                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
-                      onClick={handleChartQuestionClick}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Legend verticalAlign="top" height={36} iconType="circle" />
-                      {/* رنگ سبز زمردی و قرمز زرشکی ملایم لوکس هماهنگ با تم سایت */}
-                      <Bar dataKey="correct" name="پاسخ صحیح" fill="#0f766e" radius={[4, 4, 0, 0]} barSize={9} />
-                      <Bar dataKey="incorrect" name="پاسخ اشتباه" fill="#be123c" radius={[4, 4, 0, 0]} barSize={9} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+              {/* 🌟 نسخه اصلاح شده و ضد باگ نمودار میله‌ای سوالات در فرانت‌ند */}
+              <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart 
+                    data={analyticsData.questions_stats} 
+                    margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+                    <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
+                    <YAxis stroke="#9ca3af" tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
+                    <Legend verticalAlign="top" height={36} iconType="circle" />
+                    
+                    {/* 🌟 انتقال onClick به تک‌تک بارها برای باز شدن قطعی پاپ‌آپ سوالات */}
+                    <Bar 
+                      dataKey="correct" 
+                      name="پاسخ صحیح" 
+                      fill="#0f766e" 
+                      radius={[4, 4, 0, 0]} 
+                      barSize={9} 
+                      onClick={(item) => {
+                        if(item && item.payload) {
+                          setSelectedQuestion(item.payload);
+                          setQuestionModalOpen(true);
+                        }
+                      }}
+                    />
+                    <Bar 
+                      dataKey="incorrect" 
+                      name="پاسخ اشتباه" 
+                      fill="#be123c" 
+                      radius={[4, 4, 0, 0]} 
+                      barSize={9} 
+                      onClick={(item) => {
+                        if(item && item.payload) {
+                          setSelectedQuestion(item.payload);
+                          setQuestionModalOpen(true);
+                        }
+                      }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
 
             </div>
@@ -368,22 +391,39 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               {hasParticipated ? (
                 <div className="bg-green-50/50 p-4 sm:p-5 rounded-2xl border border-green-100 text-center">
                   <CheckCircle size={32} className="text-green-500 mx-auto mb-2" />
-                  <h3 className="font-black text-[#1a2e44] text-sm sm:text-base mb-0.5">{profile?.name} {profile?.family}</h3>
+                  <h3 className="font-black text-[#1a2e44] text-sm sm:text-base mb-0.5">{profile?.first_name} {profile?.last_name}</h3>
                   <p className="text-green-700 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
                   <div className="grid grid-cols-3 gap-1.5 sm:gap-3 max-w-md mx-auto">
                     <div className="bg-white p-2 sm:p-3 rounded-xl border border-green-100 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 font-bold mb-0.5">امتیاز</span>
-                      <span className="font-black text-sm sm:text-base text-[#1a2e44]">{myResult.score}%</span>
+                      {/* 🌟 اصلاح شد: پاکسازی نماد درصد اضافه برای برطرف کردن باگ %100% */}
+                      <span className="font-black text-sm sm:text-base text-[#1a2e44]">
+                        {toPersianDigits(myResult.score?.toString().replace('%', ''))}%
+                      </span>
                     </div>
                     <div className="bg-white p-2 sm:p-3 rounded-xl border border-green-100 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 font-bold mb-0.5">رتبه فعلی</span>
-                      <span className="font-black text-sm sm:text-base text-[#c5a059]">#{myResult.rank || '-'}</span>
+                      {/* 🌟 اصلاح شد: اتصال به تابع آنلاین getLiveRank جهت از بین بردن #- */}
+                      <span className="font-black text-sm sm:text-base text-[#c5a059]">
+                        #{toPersianDigits(getLiveRank())}
+                      </span>
                     </div>
                     <div className="bg-white p-2 sm:p-3 rounded-xl border border-green-100 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 font-bold mb-0.5">زمان مصرفی</span>
-                      <span className="font-black text-xs sm:text-base text-blue-600 truncate block">{myResult.time || myResult.time_taken || 0}ثانیه</span>
+                      <span className="font-black text-xs sm:text-base text-blue-600 truncate block">
+                        {toPersianDigits(myResult.time || myResult.time_taken || 0)} ثانیه
+                      </span>
                     </div>
                   </div>
+
+                  {/* 🌟 قابلیت جدید: افزودن دکمه مرور مجدد سوالات به صفحه لندینگ در حالت شرکت کرده */}
+                  <button 
+                    onClick={() => router.push(`/review-final/${contest.id}`)}
+                    className="w-full mt-4 bg-white hover:bg-gray-50 text-[#1a2e44] py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 shadow-sm"
+                  >
+                    <FileText size={15} className="text-[#c5a059]" />
+                    مشاهده پاسخنامه و مرور مجدد سوالات
+                  </button>
                 </div>
               ) : (
                 <button onClick={() => router.push(`/exam/${contest.id}`)} className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"><PlayCircle size={20} className="text-[#c5a059]" /> ورود به محیط رقابت و شروع آزمون</button>
@@ -396,11 +436,11 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
             <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-50">
                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14} /> تحلیل جایگاه و رقبای هم‌سطح نزدیک به شما</h4>
-                <span className="bg-[#c5a059]/10 text-[#c5a059] px-2.5 py-1 rounded-md text-[10px] font-black self-start sm:self-auto">رتبه نهایی شما: #{myResult.rank}</span>
+                <span className="bg-[#c5a059]/10 text-[#c5a059] px-2.5 py-1 rounded-md text-[10px] font-black self-start sm:self-auto">رتبه نهایی شما: #{toPersianDigits(getLiveRank())}</span>
               </div>
               <div className="space-y-2">
                 {(() => {
-                  const userIndex = leaderboard.findIndex(u => u.user_id === profile?.id);
+                  const userIndex = leaderboard.findIndex(u => u.user_id == profile?.id);
                   const start = userIndex === -1 ? 3 : Math.max(3, userIndex - 2);
                   const end = userIndex === -1 ? 8 : Math.min(leaderboard.length, userIndex + 3);
                   const surroundingUsers = leaderboard.slice(start, end);
@@ -411,13 +451,14 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                     return (
                       <div key={user.user_id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] border-[#1a2e44] shadow-md text-white' : 'bg-white border-gray-100 shadow-sm'}`}>
                         <div className="flex items-center gap-2.5">
-                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ${isMe ? 'bg-[#c5a059] text-[#1a2e44]' : 'bg-[#faf9f6] text-[#c5a059]'}`}>{user.rank}</span>
+                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ${isMe ? 'bg-[#c5a059] text-[#1a2e44]' : 'bg-[#faf9f6] text-[#c5a059]'}`}>{toPersianDigits(user.rank)}</span>
                           <div className="flex flex-col text-right">
                             <span className="font-bold text-xs">{user.name} {shortNationalId} {isMe && "(شما)"}</span>
                             <div className={`flex items-center gap-2 mt-0.5 text-[9px] font-bold ${isMe ? 'text-gray-300' : 'text-gray-400'}`}>
-                              <span>نمره: {user.score}%</span>
+                              <span>نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}%</span>
                               <span>•</span>
-                              <span>زمان: {user.time} ثانیه</span>
+                              {/* تغییر این خط به پوشش هر دو کلید */}
+                              <span>زمان: {toPersianDigits(user.time_taken || user.time || 0)} ثانیه</span>
                             </div>
                           </div>
                         </div>
@@ -440,10 +481,10 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                <h3 className="text-[#c5a059] text-xs font-black mb-4 flex items-center gap-1.5"><Clock size={16} /> شمارش معکوس تا آغاز مسابقه</h3>
                {timeLeft ? (
                  <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center" dir="ltr">
-                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{timeLeft.days}</span><span className="text-[9px] text-gray-400 font-bold">روز</span></div>
-                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{timeLeft.hours}</span><span className="text-[9px] text-gray-400 font-bold">ساعت</span></div>
-                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{timeLeft.minutes}</span><span className="text-[9px] text-gray-400 font-bold">دقیقه</span></div>
-                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{timeLeft.seconds}</span><span className="text-[9px] text-gray-400 font-bold">ثانیه</span></div>
+                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.days)}</span><span className="text-[9px] text-gray-400 font-bold">روز</span></div>
+                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.hours)}</span><span className="text-[9px] text-gray-400 font-bold">ساعت</span></div>
+                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.minutes)}</span><span className="text-[9px] text-gray-400 font-bold">دقیقه</span></div>
+                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(timeLeft.seconds)}</span><span className="text-[9px] text-gray-400 font-bold">ثانیه</span></div>
                  </div>
                ) : <span className="text-xs font-bold text-gray-300">در انتظار کلید شروع مسابقه توسط مدیر...</span>}
             </div>
@@ -454,15 +495,15 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-3 gap-1">
                 <div className="text-center border-l border-white/10 flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">رتبه نهایی</span>
-                  <span className="font-black text-sm sm:text-lg text-white">#{myResult.rank || '-'}</span>
+                  <span className="font-black text-sm sm:text-lg text-white">#{toPersianDigits(getLiveRank())}</span>
                 </div>
                 <div className="text-center border-l border-white/10 flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">نمره شما</span>
-                  <span className="font-black text-sm sm:text-lg text-white">{myResult.score}%</span>
+                  <span className="font-black text-sm sm:text-lg text-white">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
                 </div>
                 <div className="text-center flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">زمان مصرفی</span>
-                  <span className="font-black text-xs sm:text-lg text-white truncate block">{myResult.time || myResult.time_taken || 0}s</span>
+                  <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}s</span>
                 </div>
               </div>
               <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full bg-[#faf9f6] text-[#1a2e44] hover:bg-gray-100 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100"><FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات</button>
@@ -503,7 +544,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-1.5 text-gray-500 font-bold text-xs"><Users size={16} className="text-[#c5a059]" /> کل شرکت‌کنندگان:</div>
-                <span className="font-black text-base text-[#1a2e44]">{leaderboard.length} نفر</span>
+                <span className="font-black text-base text-[#1a2e44]">{toPersianDigits(leaderboard.length)} نفر</span>
               </div>
               <div className="bg-white rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-5 shadow-sm border border-gray-100">
                 <h3 className="font-black text-xs text-[#1a2e44] mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> سکوی افتخار و برندگان برتر</h3>
@@ -516,7 +557,10 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                           {user.rank === 1 ? <Crown size={18} className="text-yellow-500 shrink-0" /> : <Medal size={16} className="text-gray-400 shrink-0" />}
                           <div className="flex flex-col text-right">
                             <span className="font-bold text-xs text-[#1a2e44]">{user.name} {shortIdForTop}</span>
-                            <span className="text-[9px] text-gray-400 font-bold mt-0.5">نمره: {user.score}% | زمان: {user.time}s</span>
+                            {/* تغییر این خط به پوشش هر دو کلید */}
+                            <span className="text-[9px] text-gray-400 font-bold mt-0.5">
+                              نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}% | زمان: {toPersianDigits(user.time_taken || user.time || 0)}s
+                            </span>
                           </div>
                         </div>
                         {user.rank === 1 && <Trophy size={14} className="text-[#c5a059] opacity-40 shrink-0" />}
@@ -541,7 +585,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                   <HelpCircle size={20} />
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-[#1a2e44]">پرونده آماری سوال {selectedQuestion.question_index}</h3>
+                  <h3 className="font-black text-base text-[#1a2e44]">پرونده آماری سوال {toPersianDigits(selectedQuestion.question_index)}</h3>
                   <p className="text-[10px] text-gray-400 font-bold mt-0.5">بررسی متن صورت سوال و کلید گزینه‌ها</p>
                 </div>
               </div>
@@ -557,11 +601,11 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl">
                   <span className="block text-[10px] text-emerald-600 font-black mb-0.5">پاسخ‌های صحیح</span>
-                  <span className="font-mono font-black text-base text-emerald-700">{selectedQuestion.correct} نفر</span>
+                  <span className="font-mono font-black text-base text-emerald-700">{toPersianDigits(selectedQuestion.correct)} نفر</span>
                 </div>
                 <div className="bg-red-50 border border-red-100 p-3 rounded-2xl">
                   <span className="block text-[10px] text-red-600 font-black mb-0.5">پاسخ‌های اشتباه</span>
-                  <span className="font-mono font-black text-base text-red-700">{selectedQuestion.incorrect} نفر</span>
+                  <span className="font-mono font-black text-base text-red-700">{toPersianDigits(selectedQuestion.incorrect)} نفر</span>
                 </div>
               </div>
 
@@ -588,7 +632,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                       >
                         <span className="flex items-center gap-2">
                           <span className={`w-5 h-5 rounded-md text-[10px] font-black flex items-center justify-center ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-[#faf9f6] text-gray-400'}`}>
-                            {index + 1}
+                            {toPersianDigits(index + 1)}
                           </span>
                           <span>{opt}</span>
                         </span>

@@ -305,7 +305,7 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                     زمان مصرفی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
                   <th onClick={() => handleSortRequest('last_four_id')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
-                    کد شناسایی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
+                    کد ملی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
                   {contest?.certificate_type !== 'none' && <th className="pb-4 font-black">وضعیت گواهی</th>}
                   <th onClick={() => handleSortRequest('score')} className="pb-4 font-black text-center cursor-pointer hover:text-[#c5a059] transition-colors">

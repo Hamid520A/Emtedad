@@ -1,6 +1,8 @@
 # =====================================================================
 # بخش اول فایل main.py: ایمپورت‌ها، کانفیگ‌ها و موتورهای گرافیکی پروژه
 # =====================================================================
+import traceback
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, UploadFile, File
@@ -162,10 +164,26 @@ def draw_certificate_canvas(user, contest, subscription):
     rank_text = "عالی" if score_val >= 85 else "خیلی خوب" if score_val >= 70 else "خوب"
     user_full_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "شرکت‌کننده امتداد"
     
+    # 🌟 اصلاح هوشمند فیلد تاریخ تولد برای حل باگ برعکس شدن لایوت گرافیکی
+    if user.birth_date:
+        if hasattr(user.birth_date, "strftime"):
+            raw_date = user.birth_date.strftime("%Y/%m/%d")
+        else:
+            parts = str(user.birth_date).split("-")
+            raw_date = f"{parts[0]}/{parts[1]}/{parts[2]}" if len(parts) == 3 else str(user.birth_date)
+        
+        # استفاده از کاراکتر \u200e برای تثبیت جهت چپ به راست تاریخ در لایوت فارسی
+        birth_date_str = f"\u200e{to_persian_digits(raw_date)}\u200e"
+    else:
+        birth_date_str = "---"
+
     # دریافت متن قالب گواهی از فیلد جدید cert.content
     template = cert.content if cert else "بدین‌وسیله گواهی می‌شود {{name}} در مسابقه شرکت نموده است."
+    
+    # اعمال جایگزینی‌ها همراه با فارسی‌سازی کدملی
     full_text = template.replace("{{name}}", user_full_name)\
-                        .replace("{{national_id}}", user.national_id or "---")\
+                        .replace("{{national_id}}", to_persian_digits(user.national_id or "---"))\
+                        .replace("{{birth_date}}", birth_date_str)\
                         .replace("{{rank}}", rank_text)
 
     # ۲. ثبت راست‌چین شماره سریال و تاریخ کاملاً فارسی
@@ -326,7 +344,8 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
 
 @app.get("/contests", response_model=List[schemas.Contest])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)):
-    contests = db.query(models.Contest).all()
+    # 🌟 اصلاح شد: اضافه کردن فیلتر deleted_at == None برای مخفی‌سازی مسابقات حذف شده
+    contests = db.query(models.Contest).filter(models.Contest.deleted_at == None).all()
     now = datetime.now()
     
     modified = False
@@ -346,7 +365,12 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
         db.commit()
 
     if status:
-        return db.query(models.Contest).filter(models.Contest.status == status).all()
+        # 🌟 اصلاح شد: در حالت فیلتر بر اساس وضعیت (status) هم باید شرط حذف نرم برقرار باشد
+        return db.query(models.Contest).filter(
+            models.Contest.status == status,
+            models.Contest.deleted_at == None
+        ).all()
+        
     return contests
 
 @app.get("/contests/{contest_id}", response_model=schemas.ContestDetailOut)
@@ -555,24 +579,71 @@ async def upload_file(file: UploadFile = File(...)):
 
 @app.get("/contests/{contest_id}/leaderboard")
 def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
-    # اصلاح نام مدل به Subscription (بزرگ شدن S)
-    subscriptions = db.query(models.Subscription).filter(
-        models.Subscription.contest_id == contest_id
-    ).order_by(models.Subscription.score.desc()).all()
+    cors_headers = {
+        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    }
     
-    results = []
-    for index, sub in enumerate(subscriptions):
-        national_id = sub.user.national_id or "****"
-        last_four_digits = national_id[-4:] if len(national_id) >= 4 else national_id
-        results.append({
-            "rank": index + 1,
-            "user_id": sub.user_id,
-            "name": f"{sub.user.first_name} {sub.user.last_name or ''}".strip(),
-            "score": sub.score,
-            "time": 0, # فیلد تایم را در صورت نیاز با فیلد جدید مپ کنید
-            "last_four_id": last_four_digits
-        })
-    return results
+    try:
+        # دریافت لیست شرکت‌کنندگان
+        subscriptions = db.query(models.Subscription).filter(
+            models.Subscription.contest_id == contest_id,
+            models.Subscription.deleted_at == None
+        ).all()
+        
+        results = []
+        for index, sub in enumerate(subscriptions):
+            if not sub.user:
+                continue
+
+            # 🌟 اصلاح شد: استخراج مستقیم زمان مصرف شده از دیتابیس بدون تفریق معکوس
+            time_taken_seconds = 0
+            if sub.time_left:
+                try:
+                    if hasattr(sub.time_left, "hour"): 
+                        time_taken_seconds = (sub.time_left.hour * 3600) + (sub.time_left.minute * 60) + sub.time_left.second
+                    elif hasattr(sub.time_left, "total_seconds"): 
+                        time_left_seconds = int(sub.time_left.total_seconds())
+                    else: 
+                        time_taken_seconds = int(sub.time_left)
+                except Exception as t_err:
+                    print(f"⚠️ خطای جزیی تایمر: {t_err}")
+                    time_taken_seconds = 0
+
+            national_id = sub.user.national_id or "****"
+            last_four_digits = national_id[-4:] if len(national_id) >= 4 else national_id
+            score_val = sub.score if sub.score is not None else 0
+            
+            results.append({
+                "rank": index + 1,
+                "user_id": sub.user_id,
+                "name": f"{sub.user.first_name} {sub.user.last_name or ''}".strip(),
+                "score": score_val,
+                "time": time_taken_seconds,        
+                "time_taken": time_taken_seconds,  
+                "last_four_id": last_four_digits
+            })
+            
+        # مرتب‌سازی نهایی (نمره بیشتر اول، زمان کمتر اول)
+        results.sort(key=lambda x: (-x["score"], x["time_taken"]))
+        
+        for idx, item in enumerate(results):
+            item["rank"] = idx + 1
+            
+        return JSONResponse(status_code=200, content=results, headers=cors_headers)
+
+    except Exception as global_err:
+        print("\n❌❌❌ [خطای بحرانی اندپوینت لیدربرد] ❌❌❌")
+        traceback.print_exc()
+        print("--------------------------------------------------\n")
+        
+        return JSONResponse(
+            status_code=500, 
+            content={"detail": f"Internal Server Error: {str(global_err)}"}, 
+            headers=cors_headers
+        )
 
 @app.put("/users/me")
 def update_my_profile(
@@ -624,6 +695,7 @@ def get_my_complete_profile(
                 total_seconds = (s.time_left.hour * 3600) + (s.time_left.minute * 60) + s.time_left.second
                 
             history_records.append({
+                "contest_id": s.contest.id,
                 "contest_title": s.contest.title,
                 "score": f"{s.score}%",
                 "time_taken": total_seconds,
@@ -631,6 +703,7 @@ def get_my_complete_profile(
             })
 
     return {
+        "id": user_data.id,
         "first_name": user_data.first_name,
         "last_name": user_data.last_name,
         "phone_number": user_data.phone_number,
@@ -701,6 +774,77 @@ def download_my_certificate(
         print(f"❌ خطای سراسری اندپوینت: {global_err}")
         return JSONResponse(status_code=500, content={"detail": f"خطای سرور: {str(global_err)}"}, headers=cors_headers)
        
+@app.get("/users/me/submissions/{contest_id}")
+def get_user_submission_review(
+    contest_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    sub = db.query(models.Subscription).filter(
+        models.Subscription.user_id == current_user.id,
+        models.Subscription.contest_id == contest_id,
+        models.Subscription.deleted_at == None
+    ).first()
+    
+    if not sub:
+        raise HTTPException(status_code=404, detail="پاسخنامه‌ای برای این مسابقه یافت نشد")
+        
+    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+    
+    questions = db.query(models.Question).filter(
+        models.Question.contest_id == contest_id,
+        models.Question.is_active == 1,
+        models.Question.deleted_at == None
+    ).all()
+    
+    # استخراج dynamic_answers_map برای تامین دیتای همزمان کامپوننت آزمون فرانت‌ند
+    dynamic_answers_map = {}
+    for sq in sub.subscription_questions:
+        chosen_ans = db.query(models.SubscriptionAnswer).filter(
+            models.SubscriptionAnswer.subscription_question_id == sq.id,
+            models.SubscriptionAnswer.is_chosen == 1
+        ).first()
+        if chosen_ans:
+            dynamic_answers_map[str(sq.question_id)] = chosen_ans.answer_id
+    
+    questions_data = []
+    for q in questions:
+        options_list = []
+        correct_option_id = None
+        
+        for ans in q.answers:
+            if ans.deleted_at == None:
+                options_list.append({
+                    "id": ans.id,
+                    "title": ans.title
+                })
+                if ans.is_correct == 1:
+                    correct_option_id = ans.id
+                    
+        if contest and contest.status != "finished":
+            correct_option_id = None
+            
+        questions_data.append({
+            "id": q.id,
+            "title": q.title,
+            "description": q.description,
+            "shuffled_options": options_list,
+            "correct_option": correct_option_id
+        })
+        
+    total_seconds = 0
+    if sub.time_left:
+        total_seconds = (sub.time_left.hour * 3600) + (sub.time_left.minute * 60) + sub.time_left.second
+
+    return {
+        "contest_id": contest_id,
+        "contest_status": contest.status if contest else "active",
+        "score": sub.score,
+        "time_taken": total_seconds,
+        "questions": questions_data,
+        "answers_map": dynamic_answers_map # 🌟 هر دو نیازمندی فرانت‌ند یک‌جا ارسال می‌شود
+    }
+
 @app.post("/users/change-password")
 def change_my_password(
     payload: dict,
@@ -898,34 +1042,15 @@ def delete_question(
     db.commit()
     return {"message": "سوال با موفقیت (به صورت نرم) حذف شد"}
 
-@app.get("/users/me/subscriptions/{contest_id}")
-def get_user_subscription(contest_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    sub = db.query(models.Subscription).filter(
-        models.Subscription.user_id == current_user.id, 
-        models.Subscription.contest_id == contest_id
-    ).first()
-    
-    if not sub:
-        raise HTTPException(status_code=404, detail="نتیجه‌ای یافت نشد")
-        
-    # 🌟 بازسازی داینامیک دیتای answers_map از روی جداول رابطه‌ای جدید برای فرانت‌ند
-    dynamic_answers_map = {}
-    for sq in sub.subscription_questions:
-        chosen_ans = db.query(models.SubscriptionAnswer).filter(
-            models.SubscriptionAnswer.subscription_question_id == sq.id,
-            models.SubscriptionAnswer.is_chosen == 1
-        ).first()
-        if chosen_ans:
-            dynamic_answers_map[str(sq.question_id)] = chosen_ans.answer_id
-        
-    return {"answers_map": dynamic_answers_map}
-
 @app.get("/admin/stats")
 async def get_admin_stats(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     total_users = db.query(models.User).count()
-    total_contests = db.query(models.Contest).count()
-    active_contests = db.query(models.Contest).filter(models.Contest.status == "active").count()
-    
+    total_contests = db.query(models.Contest).filter(models.Contest.deleted_at == None).count()
+    active_contests = db.query(models.Contest).filter(
+        models.Contest.status == "active", 
+        models.Contest.deleted_at == None
+    ).count()
+
     # 🌟 واکشی هوشمند نام استان پیشتاز با جوین و سلف‌جوین در ساختار جدید درختی Cities
     from sqlalchemy.orm import aliased
     CityParent = aliased(models.City)
@@ -974,68 +1099,6 @@ async def get_admin_stats(db: Session = Depends(database.get_db), current_admin:
         "growth_percentage": growth_percentage,
         "chart_data": chart_data
     }
-
-@app.get("/admin/export-data")
-def get_export_data(
-    contest_id: Optional[int] = None, 
-    db: Session = Depends(database.get_db), 
-    current_admin: models.User = Depends(require_admin)
-):
-    # ۱. حالت اول: فیلتر بر اساس یک مسابقه خاص
-    if contest_id:
-        subscriptions = db.query(models.Subscription).filter(models.Subscription.contest_id == contest_id).all()
-        report = []
-        for sub in subscriptions:
-            u = sub.user
-            if not u:
-                continue
-                
-            prov_title = "---"
-            if u.city and u.city.parent_id:
-                parent_city = db.query(models.City).filter(models.City.id == u.city.parent_id).first()
-                if parent_city:
-                    prov_title = parent_city.title
-                    
-            report.append({
-                "نام": u.first_name or "---",
-                "نام خانوادگی": u.last_name or "---",
-                "شماره تماس": u.phone_number, # اصلاح نام فیلد موبایل
-                "کد ملی": u.national_id or "---",
-                "استان": prov_title, # استخراج داینامیک استان
-                "نام مسابقه": sub.contest.title if sub.contest else "---",
-                "نمره": f"{sub.score}%",
-                "زمان (ثانیه)": 0,
-                "تاریخ ثبت‌نام": u.created_at.strftime("%Y/%m/%d") if u.created_at else "---"
-            })
-        return report
-
-    # ۲. حالت دوم: خروجی گرفتن از تمام کاربران سیستم
-    users = db.query(models.User).all()
-    report = []
-    for u in users:
-        subscription = db.query(models.Subscription).filter(models.Subscription.user_id == u.id).first()
-        contest_title = "شرکت نکرده"
-        if subscription and subscription.contest:
-            contest_title = subscription.contest.title
-
-        prov_title = "---"
-        if u.city and u.city.parent_id:
-            parent_city = db.query(models.City).filter(models.City.id == u.city.parent_id).first()
-            if parent_city:
-                prov_title = parent_city.title
-
-        report.append({
-            "نام": u.first_name or "---",
-            "نام خانوادگی": u.last_name or "---",
-            "شماره تماس": u.phone_number, # اصلاح نام فیلد موبایل
-            "کد ملی": u.national_id or "---",
-            "استان": prov_title,
-            "نام مسابقه": contest_title,
-            "نمره": f"{subscription.score}%" if subscription else "0%",
-            "زمان (ثانیه)": 0,
-            "تاریخ ثبت‌نام": u.created_at.strftime("%Y/%m/%d") if u.created_at else "---"
-        })
-    return report
 
 # =====================================================================
 # بخش چهارم فایل main.py: ابزارهای پیشرفته مدیریت، خروجی اکسل و مپینگ گواهی‌ها
@@ -1476,55 +1539,117 @@ def get_admin_questions_list(
     return questions
 
 @app.get("/admin/contests/{contest_id}/analytics")
-def get_contest_analytics(
-    contest_id: int, 
-    db: Session = Depends(database.get_db), 
-    current_admin: models.User = Depends(require_admin)
-):
+def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db)):
+    cors_headers = {
+        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    }
+    
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
-        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
-
-    subscriptions = db.query(models.Subscription).filter(models.Subscription.contest_id == contest_id).all()
-    questions = db.query(models.Question).filter(models.Question.contest_id == contest_id).all()
-    
-    # ۱. محاسبه توزیع زمانی حضور شرکت‌کنندگان بر اساس دیتای لایو دیتابیس
-    time_dist = {
-        "زیر ۳ دقیقه": 0, "۳ تا ۶ دقیقه": 0, "۶ تا ۱۰ دقیقه": 0, "۱۰ تا ۱۵ دقیقه": 0, "بالای ۱۵ دقیقه": 0
-    }
-
-    # با توجه به حذف فیلد سنتی ثانیه، توزیع بر اساس زمان شروع یا فرضی پر می‌شود
-    time_dist["زیر ۳ دقیقه"] = len(subscriptions) 
-
-    time_distribution_payload = [
-        {"name": key, "users": value} for key, value in time_dist.items()
-    ]
-
-    # ۲. 🌟 آنالیز کاملاً نرمالایز شده و ریلیشنال پاسخ‌های صحیح و غلط بدون فیلد JSON قدیمی
-    questions_stats_payload = []
-    for index, q in enumerate(questions):
+        return JSONResponse(status_code=404, content={"detail": "مسابقه یافت نشد"}, headers=cors_headers)
         
-        # کوئری زدن روی جداول تفکیک شده جدید برای استخراج پاسخ‌های درست
-        correct_count = db.query(models.SubscriptionAnswer)\
-            .join(models.SubscriptionQuestions, models.SubscriptionAnswer.subscription_question_id == models.SubscriptionQuestions.id)\
-            .join(models.Answer, models.SubscriptionAnswer.answer_id == models.Answer.id)\
-            .filter(models.SubscriptionQuestions.question_id == q.id, models.Answer.is_correct == 1).count()
-            
-        incorrect_count = len(subscriptions) - correct_count
-
-        questions_stats_payload.append({
-            "question_index": index + 1,
-            "correct": correct_count,
-            "incorrect": max(0, incorrect_count),
-            "title": q.title, # هماهنگ با فیلد title جدید
-            "options": [ans.title for ans in q.answers], # لود داینامیک گزینه‌ها از دیتابیس
-            "correct_answer": 1 # مقدار فرضی برای سازگاری با چارت پاپ‌آپ فرانت‌ند
-        })
-
-    return {
-        "time_distribution": time_distribution_payload,
-        "questions_stats": questions_stats_payload
+    subscriptions = db.query(models.Subscription).filter(
+        models.Subscription.contest_id == contest_id,
+        models.Subscription.deleted_at == None
+    ).all()
+    
+    total_participants = len(subscriptions)
+    
+    # ۱. بخش توزیع زمانی (کاملاً سالم و فیکس)
+    time_dist = {
+        "زیر ۱ دقیقه": 0,
+        "۱ تا ۳ دقیقه": 0,
+        "۳ تا ۵ دقیقه": 0,
+        "بالای ۵ دقیقه": 0
     }
+    
+    contest_total_seconds = 600
+    if contest and contest.max_time:
+        contest_total_seconds = (contest.max_time.hour * 3600) + (contest.max_time.minute * 60) + contest.max_time.second
+    
+    for sub in subscriptions:
+        time_taken = 0
+        if sub.time_left:
+            try:
+                if hasattr(sub.time_left, "hour"):
+                    time_taken = (sub.time_left.hour * 3600) + (sub.time_left.minute * 60) + sub.time_left.second
+                else:
+                    time_taken = int(sub.time_left)
+            except:
+                time_taken = 0
+            
+        if time_taken < 60: time_dist["زیر ۱ دقیقه"] += 1
+        elif time_taken < 180: time_dist["۱ تا ۳ دقیقه"] += 1
+        elif time_taken < 300: time_dist["۳ تا ۵ دقیقه"] += 1
+        else: time_dist["بالای ۵ دقیقه"] += 1
+        
+    time_payload = [{"name": k, "users": v} for k, v in time_dist.items()]
+    
+    # ۲. 🌟 واکشی سوالات و گزینه‌ها با کوئری‌های مستقیم و مستقل دیتابیسی (حل مشکل غیب شدن میله‌ها و فعال‌سازی پاپ‌آپ)
+    questions_payload = []
+    questions = db.query(models.Question).filter(
+        models.Question.contest_id == contest_id, 
+        models.Question.deleted_at == None
+    ).order_by(models.Question.id.asc()).all()
+    
+    for idx, q in enumerate(questions):
+        # 🌟 واکشی مستقیم گزینه‌ها از دیتابیس بدون اتکا به ریلیشن تنبل q.answers
+        answers = db.query(models.Answer).filter(
+            models.Answer.question_id == q.id,
+            models.Answer.deleted_at == None
+        ).order_by(models.Answer.id.asc()).all()
+        
+        options_list = []
+        correct_answer_id = None
+        correct_index = 1
+        
+        for a_idx, ans in enumerate(answers):
+            options_list.append(ans.title)
+            if ans.is_correct == 1:
+                correct_answer_id = ans.id
+                correct_index = a_idx + 1 # ایندکس گزینه‌ی صحیح برای فرانت‌ند
+        
+        # 🌟 واکشی مستقیم و ایمن تمام پاسخ‌های انتخاب شده (is_chosen == 1) از دیتابیس
+        chosen_answers = db.query(models.SubscriptionAnswer).join(
+            models.SubscriptionQuestions, 
+            models.SubscriptionAnswer.subscription_question_id == models.SubscriptionQuestions.id
+        ).join(
+            models.Subscription,
+            models.SubscriptionQuestions.subscription_id == models.Subscription.id
+        ).filter(
+            models.Subscription.contest_id == contest_id,
+            models.Subscription.deleted_at == None,
+            models.SubscriptionQuestions.question_id == q.id,
+            models.SubscriptionQuestions.deleted_at == None,
+            models.SubscriptionAnswer.is_chosen == 1,
+            models.SubscriptionAnswer.deleted_at == None
+        ).all()
+        
+        correct_count = 0
+        for ca in chosen_answers:
+            if correct_answer_id and int(ca.answer_id) == int(correct_answer_id):
+                correct_count += 1
+        
+        # پاسخ‌های اشتباه = کل شرکت‌کنندگان منهای پاسخ‌های صحیح
+        incorrect_count = max(0, total_participants - correct_count)
+        
+        # فرستادن پکیج کامل دیتا به فرانت‌ند
+        questions_payload.append({
+            "question_index": idx + 1,
+            "title": q.title,
+            "correct": correct_count,
+            "incorrect": incorrect_count,
+            "options": options_list,          # 🌟 تزریق شد: گزینه‌ها دیگر هرگز خالی نمی‌شوند
+            "correct_answer": correct_index   # 🌟 تزریق شد: کلید صحیح برای روشن شدن در پاپ‌آپ
+        })
+        
+    return JSONResponse(status_code=200, content={
+        "time_distribution": time_payload,
+        "questions_stats": questions_payload
+    }, headers=cors_headers)
 
 @app.post("/auth/refresh")
 def refresh_access_token(payload: dict):
@@ -1561,7 +1686,7 @@ def refresh_access_token(payload: dict):
 def submit_exam_results(
     payload: dict, 
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_user) # 🌟 نام تابع احراز هویت کاربران عادی خودت را ست کن
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     contest_id = payload.get("contest_id")
     time_taken = payload.get("time_taken", 0)
@@ -1580,15 +1705,14 @@ def submit_exam_results(
     correct_count = 0
     for q in questions:
         user_option_id = answers_map.get(str(q.id)) or answers_map.get(q.id)
-        # پیدا کردن گزینه‌ای که کلید صحیح است
         correct_option = next((ans for ans in q.answers if ans.is_correct == 1), None)
         
-        if correct_option and user_option_id == correct_option.id:
+        if correct_option and user_option_id and int(user_option_id) == correct_option.id:
             correct_count += 1
             
-    score_percentage = (correct_count / len(questions)) * 100
+    score_percentage = (correct_count / len(questions)) * 100 if questions else 0
     
-    # 🌟 شاه‌کلید اول: تبدیل ثانیه‌های فرانت‌ند به شیء استاندارد Time دیتابیس
+    # تبدیل ثانیه‌های فرانت‌ند به شیء استاندارد Time دیتابیس
     t_seconds = int(payload.get("time_taken", 0))
     time_obj = time(hour=(t_seconds // 3600) % 24, minute=(t_seconds % 3600) // 60, second=t_seconds % 60)
     
@@ -1602,15 +1726,44 @@ def submit_exam_results(
             user_id=current_user.id,
             contest_id=contest_id,
             score=round(score_percentage),
-            time_left=time_obj, # 🌟 ذخیره زمان مصرفی در ستون مربوطه
+            time_left=time_obj, 
             is_left=1
         )
         db.add(sub)
+        db.commit()
+        db.refresh(sub)
     else:
         sub.score = round(score_percentage)
-        sub.time_left = time_obj # 🌟 آپدیت زمان مصرفی در هنگام ویرایش
+        sub.time_left = time_obj 
         sub.is_left = 1
+        db.commit()
+        db.refresh(sub)
         
+    # 🌟 شاه‌کلید فیکس: پاکسازی پاسخ‌های قدیمی همین کاربر (برای جلوگیری از رکوردهای تکراری در صورت ثبت مجدد)
+    existing_qs = db.query(models.SubscriptionQuestions).filter(models.SubscriptionQuestions.subscription_id == sub.id).all()
+    for eq in existing_qs:
+        db.query(models.SubscriptionAnswer).filter(models.SubscriptionAnswer.subscription_question_id == eq.id).delete()
+    db.query(models.SubscriptionQuestions).filter(models.SubscriptionQuestions.subscription_id == sub.id).delete()
+    db.commit()
+
+    # 🌟 شاه‌کلید فیکس: ذخیره تک‌تک پاسخ‌ها در جداول واسط برای دیتاماینینگ و آنالیز نمودار ادمین
+    for q_id, a_id in answers_map.items():
+        if a_id is not None:
+            db_sub_q = models.SubscriptionQuestions(
+                subscription_id=sub.id,
+                question_id=int(q_id)
+            )
+            db.add(db_sub_q)
+            db.commit()
+            db.refresh(db_sub_q)
+
+            db_sub_a = models.SubscriptionAnswer(
+                subscription_question_id=db_sub_q.id,
+                answer_id=int(a_id),
+                is_chosen=1
+            )
+            db.add(db_sub_a)
+            
     db.commit()
     
     return {
