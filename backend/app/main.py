@@ -373,11 +373,18 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
         
     return contests
 
-@app.get("/contests/{contest_id}", response_model=schemas.ContestDetailOut)
+@app.get("/contests/{contest_id}")
 def get_contest_detail(contest_id: int, db: Session = Depends(database.get_db)):
+    cors_headers = {
+        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    }
+    
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
-        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+        return JSONResponse(status_code=404, content={"detail": "مسابقه یافت نشد"}, headers=cors_headers)
     
     time_limit_minutes = 10
     if contest.max_time:
@@ -390,35 +397,51 @@ def get_contest_detail(contest_id: int, db: Session = Depends(database.get_db)):
             file_url = attach.file_url
             break
             
-    # 🌟 واکشی و مپ کردن هوشمند داده‌ها از طریق join جدول واسط به جدول اصلی awards
     db_awards = db.query(models.AwardContest).filter(models.AwardContest.contest_id == contest_id).all()
     awards_data = []
     for ac in db_awards:
-        if ac.award: # دسترسی به ریلیشن جدول awards برای خواندن title
+        if ac.award:
             awards_data.append({"rank": ac.number, "title": ac.award.title})
         
     certificate_type = "none"
+    cert_payload = None
+    
     if contest.certificates:
         cert = contest.certificates[0]
         if "عالی" in cert.title: certificate_type = "excellent"
         elif "خیلی خوب" in cert.title: certificate_type = "very_good"
         elif "خوب" in cert.title: certificate_type = "good"
         
-    return {
+        cert_payload = {
+            "content": cert.content or "",
+            "background_url": cert.background_url or "",
+            "logo_url": cert.logo_url or "",
+            "signers": [
+                {
+                    "name": cs.signer.name if cs.signer else "",
+                    "title": cs.signer.title if cs.signer else "",
+                    "sign_url": cs.signer.sign_url if cs.signer else ""
+                } for cs in cert.certificate_signers[:3]
+            ]
+        }
+        
+    # بازگرداندن داده‌ها به صورت کاملاً آزاد و هماهنگ با فرانت‌ند
+    return JSONResponse(status_code=200, headers=cors_headers, content={
         "id": contest.id,
         "title": contest.title,
         "description": contest.description,
         "image_url": contest.image_url,
         "video_url": contest.video_url,
         "status": contest.status,
-        "start_time": contest.start_time,
-        "end_time": contest.end_time,
+        "start_time": contest.start_time.isoformat() if contest.start_time else None,
+        "end_time": contest.end_time.isoformat() if contest.end_time else None,
         "question_limit": contest.question_limit,
         "time_limit": time_limit_minutes,
         "file_url": file_url,
         "awards": awards_data,
-        "certificate_type": certificate_type
-    }
+        "certificate_type": certificate_type,
+        "certificate_details": cert_payload
+    })
 
 @app.get("/contests/{contest_id}/questions", response_model=List[schemas.RandomizedQuestion])
 def get_questions_list(contest_id: int, db: Session = Depends(database.get_db)):
