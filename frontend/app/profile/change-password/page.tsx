@@ -16,6 +16,11 @@ export default function ChangePasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.new_password.length < 6) {
+    alert("⚠️ رمز عبور باید حداقل ۶ کاراکwتر باشد.");
+    return; // متوقف کردن ارسال فرم
+    }
     
     // اعتبارسنجی اولیه در فرانت‌ند
     if (formData.new_password !== formData.confirm_password) {

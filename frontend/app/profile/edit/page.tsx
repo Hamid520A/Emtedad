@@ -7,10 +7,10 @@ import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import { iranProvinces, iranCities } from '../../../lib/utils/iranCities';
-// فرض بر این است که SearchableDropdown در همان پوشه یا مسیر مشخصی در دسترس است
 import { SearchableDropdown } from '../../(auth)/register/page';
 
 const DatePickerComponent = DatePicker as any;
+
 export default function EditProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -31,19 +31,19 @@ export default function EditProfilePage() {
   useEffect(() => {
     api.get('/users/me/profile').then(res => {
       const data = res.data;
+      const currentProvince = data.province_title || data.province || '';
+      const currentCity = data.city_title || data.city || '';
+
       setFormData({
         first_name: data.first_name || '',
         last_name: data.last_name || '',
-        // 🌟 اصلاح شد: خواندن کلیدهای واقعی ارسالی از بک‌ند جدید
         phone: data.phone_number || data.phone || '', 
         national_id: data.national_id || '',
         birth_date: data.birth_date || '',
-        province: data.province_title || data.province || '', 
-        city: data.city_title || data.city || '' 
+        province: currentProvince, 
+        city: currentCity 
       });
       
-      // بارگذاری لیست شهرها بر اساس استان دریافتی
-      const currentProvince = data.province_title || data.province;
       if (currentProvince) {
         setAvailableCities(iranCities[currentProvince] || []);
       }
@@ -51,7 +51,6 @@ export default function EditProfilePage() {
     }).catch(() => router.push('/login'));
   }, [router]);
 
-  // مدیریت تغییر استان
   const handleProvinceChange = (provinceName: string) => {
     setFormData(prev => ({ ...prev, province: provinceName, city: '' }));
     setAvailableCities(iranCities[provinceName] || []);
@@ -61,7 +60,6 @@ export default function EditProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      // ارسال داده‌های ویرایش شده به بک‌ند
       await api.put('/users/me', {
         first_name: formData.first_name,
         last_name: formData.last_name,
@@ -69,7 +67,7 @@ export default function EditProfilePage() {
         province: formData.province,
         city: formData.city
       });
-      alert('اطلاعات با موفقیت به‌روزرسانی شد!');
+      alert('اطلاعات با موفقیت به‌روزرسانی شد! 🎉');
       router.push('/profile');
     } catch (error) {
       alert('خطا در ذخیره اطلاعات. لطفاً دوباره تلاش کنید.');
@@ -84,9 +82,15 @@ export default function EditProfilePage() {
     </div>
   );
 
+  const provinceOptions = iranProvinces.map((p, idx) => ({ id: idx, title: p.name }));
+  const cityOptions = availableCities.map((c, idx) => ({ id: idx, title: c }));
+
+  const selectedProvinceId = provinceOptions.find(p => p.title === formData.province)?.id ?? '';
+  const selectedCityId = cityOptions.find(c => c.title === formData.city)?.id ?? '';
+
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] font-sans text-[#1a2e44]" dir="rtl">
-      <header className="p-6 flex items-center gap-3 bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-10">
+      <header className="p-6 flex items-center gap-3 bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-10 rounded-b-3xl shadow-sm">
         <button onClick={() => router.back()} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
           <ArrowRight size={20} />
         </button>
@@ -145,14 +149,12 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          {/* 🌟 نسخه نهایی و بدون ارور تایپ‌اسکریپت دراپ‌داون‌ها */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">استان</label>
               <SearchableDropdown 
-                // 🌟 اصلاح شد: تزریق idx به عنوان id برای جلب رضایت تایپ‌اسکریپت
-                options={iranProvinces.map((p, idx) => ({ id: idx, title: p.name }))}
-                value={formData.province}
+                options={provinceOptions}
+                value={selectedProvinceId}
                 onChange={(val: any) => handleProvinceChange(val?.title || val)}
                 placeholder="انتخاب استان"
                 icon={MapPin}
@@ -161,9 +163,8 @@ export default function EditProfilePage() {
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شهرستان</label>
               <SearchableDropdown 
-                // 🌟 اصلاح شد: اضافه شدن id داینامیک برای شهرهای لیست موجود
-                options={availableCities.map((c, idx) => ({ id: idx, title: c }))}
-                value={formData.city}
+                options={cityOptions}
+                value={selectedCityId}
                 onChange={(val: any) => setFormData({...formData, city: val?.title || val})}
                 placeholder="انتخاب شهر"
                 icon={MapPin}

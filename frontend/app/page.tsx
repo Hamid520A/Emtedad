@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 
-import { Bell, Trophy, Plus, ChevronLeft, Loader2, PlayCircle, LayoutList, Crown, User, Megaphone } from 'lucide-react';
+import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -16,11 +16,11 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    //اگر کاربر اکسس توکن نداشت، فوراً ریدایرکت شود به لاگین
+    // اگر کاربر اکسس توکن نداشت، فوراً ریدایرکت شود به لاگین
     const token = localStorage.getItem('accessToken');
     if (!token) {
       router.push('/login');
-      return; // توقف اجرای بقیه کدها
+      return; 
     }
     
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
@@ -45,7 +45,7 @@ export default function DashboardPage() {
       }
     };
     fetchDashboardData();
-  }, []);
+  }, [router]);
 
   // فیلتر کردن لیست پایینی دشبورد کاربری
   const filteredContests = contests.filter((c: any) => {
@@ -72,21 +72,27 @@ export default function DashboardPage() {
   };
           
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans no-scrollbar" dir="rtl">
+    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] pb-12 font-sans no-scrollbar" dir="rtl">
       
       <style dangerouslySetInnerHTML={{__html: `
         ::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
-      {/* هدر */}
+      {/* هدر اصلاح‌شده بر اساس طرح جدید */}
       <header className="bg-[#faf9f6] p-6 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-[#1a2e44] rounded-full flex items-center justify-center text-[#c5a059] shadow-sm">
-            <Trophy size={24} />
-          </div>
+          {/* 🌟 دکمه جدید پروفایل که جایگزین آیکون مسابقات شد */}
+          <button 
+            onClick={() => router.push('/profile')}
+            className="w-12 h-12 bg-[#1a2e44] rounded-full flex items-center justify-center text-[#c5a059] shadow-sm hover:scale-105 active:scale-95 transition-all"
+            title="مشاهده پروفایل کاربری"
+          >
+            <User size={22} />
+          </button>
           <span className="font-black text-2xl text-[#1a2e44]">امتداد امام</span>
         </div>
+        
         <div className="flex gap-2">
           <div className="relative">
             <button 
@@ -224,7 +230,6 @@ export default function DashboardPage() {
                   {contest.image_url ? <img src={contest.image_url.startsWith('/') ? `http://127.0.0.1:8000${contest.image_url}` : contest.image_url} className="w-full h-full object-cover" /> : <Trophy className="m-auto mt-5 text-[#c5a059]" size={24} />}
                 </div>
                 
-                {/* 👈 بخش اصلاح‌شده: جایگزینی آیدی و جوایز با توضیحات داینامیک مسابقه */}
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-[#1a2e44] text-base mb-0.5 truncate">{contest.title}</h4>
                   <p className="text-[11px] text-gray-400 font-medium line-clamp-2 leading-relaxed text-justify">
@@ -241,22 +246,6 @@ export default function DashboardPage() {
         </section>
 
       </main>
-
-      {/* منوی پایینی */}
-      <nav className="fixed bottom-6 left-6 right-6 max-w-[calc(28rem-3rem)] mx-auto bg-[#1a2e44] rounded-3xl shadow-xl p-2 flex justify-between items-center z-30">
-        <button className="flex-1 text-[#c5a059] flex flex-col items-center gap-1 p-2 bg-white/10 rounded-2xl">
-          <Trophy size={20} />
-          <span className="text-[10px] font-bold">خانه</span>
-        </button>
-        <button onClick={() => router.push('/leaderboard')} className="flex-1 text-gray-400 hover:text-white transition flex flex-col items-center gap-1 p-2">
-          <Crown size={20} />
-          <span className="text-[10px]">برترین‌ها</span>
-        </button>
-        <button onClick={() => router.push('/profile')} className="flex-1 text-gray-400 hover:text-white transition flex flex-col items-center gap-1 p-2">
-          <User size={20} />
-          <span className="text-[10px]">پروفایل</span>
-        </button>
-      </nav>
     </div>
   );
 }

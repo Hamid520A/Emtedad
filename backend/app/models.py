@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float, Text, SmallInteger, Date, Time
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float, Text, SmallInteger, Date, Time, BigInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -26,6 +26,9 @@ class User(Base):
     national_id = Column(String(20), unique=True, index=True)
     city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)
     birth_date = Column(Date, nullable=True)
+    gender = Column(String(20), nullable=True)
+    eitaa_user_id = Column(BigInteger, unique=True, nullable=True, index=True)
+    eitaa_access_hash = Column(BigInteger, nullable=True)
     is_active = Column(SmallInteger, default=1)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
@@ -35,17 +38,36 @@ class User(Base):
     subscriptions = relationship("Subscription", back_populates="user")
     certificate_users = relationship("CertificateUser", back_populates="user")
     notification_users = relationship("NotificationUsers", back_populates="user")
+    banner_users = relationship("BannerUsers", back_populates="user")
+    
+    # ریلیشن ۱ به ۱ متصل به جدول ادمین‌ها
+    admin = relationship("Admin", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 class Admin(Base):
     __tablename__ = "admins"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
-    username = Column(String(255), unique=True, index=True)
-    password = Column(String(255), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
     is_active = Column(SmallInteger, default=1)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="admin")
+    logs = relationship("AdminLog", back_populates="admin")
+
+class AdminLog(Base):
+    __tablename__ = "admin_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("admins.id"), nullable=False)
+    action = Column(String(255), nullable=False)          
+    target_model = Column(String(50), nullable=True)     
+    target_id = Column(Integer, nullable=True)           
+    description = Column(Text, nullable=True) 
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    admin = relationship("Admin", back_populates="logs")
 
 class Contest(Base):
     __tablename__ = "contests"
@@ -286,3 +308,16 @@ class Banner(Base):
     link_url = Column(String(500), nullable=True)
     image_url = Column(String(500), nullable=False)
     status = Column(String(50), default="active")
+    banner_users = relationship("BannerUsers", back_populates="banner")
+
+class BannerUsers(Base):
+    __tablename__ = "banner_users"
+    id = Column(Integer, primary_key=True, index=True)
+    banner_id = Column(Integer, ForeignKey("banners.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    banner = relationship("Banner", back_populates="banner_users")
+    user = relationship("User", back_populates="banner_users")

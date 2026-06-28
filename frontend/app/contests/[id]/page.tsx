@@ -8,7 +8,6 @@ import {
   Crown, Trash2, Award, BarChart3, HelpCircle, X
 } from 'lucide-react';
 
-// ابزارهای اصلی Recharts برای رندر پویای گراف‌ها
 import { 
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
@@ -16,6 +15,7 @@ import {
 
 export default function ContestLandingPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const contestId = params.id;
   const [contest, setContest] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
@@ -24,12 +24,12 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
   
-  // استیت‌های لایه آنالیز دیتای واقعی و مدیریت مدال پاپ‌آپ سوالات
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
+  const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
 
-  // ۱. افکت دریافت اطلاعات جامع مسابقه، لیدربرد، پروفایل و آنالیز واقعی سرور
+  // ۱. افکت دریافت اطلاعات جامع با تکنیک ضد کش و محاسبه اختلاف زمان سرور
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const adminStatus = localStorage.getItem('isAdmin') === 'true';
@@ -39,20 +39,28 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
     
     const fetchData = async () => {
       try {
+        const cleanId = parseInt(contestId);
+        
         const [contestRes, lbRes, profileRes] = await Promise.all([
-          api.get(`/contests/${params.id}`),
-          api.get(`/contests/${params.id}/leaderboard`),
-          api.get('/users/me/profile')
+          api.get(`/contests/${cleanId}?t=${Date.now()}`),
+          api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`),
+          api.get(`/users/me/profile?t=${Date.now()}`)
         ]);
         
         setContest(contestRes.data);
         setLeaderboard(lbRes.data || []);
         setProfile(profileRes.data);
 
-        // دریافت دیتای واقعی نمودارها از اندپوینت اختصاصی ادمین در سرور پایتون
+        // 🌟 سنگر امنیت: محاسبه مستقل ثانیه‌های باقی‌مانده بر اساس ساعت واقعی سرور (نه کلاینت)
+        if (contestRes.data.status === 'upcoming' && contestRes.data.start_time) {
+          const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
+          const diffSec = Math.floor(diffMs / 1000);
+          setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
+        }
+
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
         if (adminStatus) {
-          const analyticsRes = await api.get(`/admin/contests/${params.id}/analytics`);
+          const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
           setAnalyticsData(analyticsRes.data);
         }
 
@@ -63,29 +71,41 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
       }
     };
     fetchData();
-  }, [params.id]);
+  }, [contestId]);
 
-  // ۲. موتور شمارش معکوس مسابقات در شرف برگزاری
+  // ۲. 🌟 موتور شمارش معکوس جدید: کاملاً خطی، ضد هک و ایزوله از دستکاری ساعت سیستم
   useEffect(() => {
-    if (!mounted || contest?.status !== 'upcoming' || !contest?.start_time) return;
+    if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null || totalSecondsLeft <= 0) {
+      if (totalSecondsLeft === 0 && contest?.status === 'upcoming') {
+        // باز شدن خودکار دکمه آزمون به محض به پایان رسیدن ثانیه‌ها
+        setContest((prev: any) => ({ ...prev, status: 'active' }));
+      }
+      return;
+    }
 
     const timer = setInterval(() => {
-      const difference = +new Date(contest.start_time) - +new Date();
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60)
-        });
-      } else {
-        setTimeLeft(null);
-      }
+      setTotalSecondsLeft((prev) => (prev && prev > 0 ? prev - 1 : 0));
     }, 1000);
-    return () => clearInterval(timer);
-  }, [contest, mounted]);
 
-  // ۳. ابزار کنترل وضعیت مسابقه توسط کنسول مدیریت ادمین
+    return () => clearInterval(timer);
+  }, [totalSecondsLeft, contest, mounted]);
+
+  // ۳. 🌟 افکت کمکی رندر: تبدیل ثانیه‌های زنده به فرمت روز/ساعت/دقیقه/ثانیه برای لایه UI
+  useEffect(() => {
+    if (totalSecondsLeft === null || totalSecondsLeft <= 0) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const secs = totalSecondsLeft;
+    setTimeLeft({
+      days: Math.floor(secs / (3600 * 24)),
+      hours: Math.floor((secs % (3600 * 24)) / 3600),
+      minutes: Math.floor((secs % 3600) / 60),
+      seconds: Math.floor(secs % 60)
+    });
+  }, [totalSecondsLeft]);
+
   const changeContestStatus = async (newStatus: string) => {
     if (newStatus === 'active') {
       try {
@@ -99,35 +119,40 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
         }
 
         if (actualQuestionsCount < targetLimit) {
-          const ignoreWarning = window.confirm(
-            `⚠️ هشدار تعداد سوالات:\n\nتعداد سوالات طراحی شده (${toPersianDigits(actualQuestionsCount)} سوال) کمتر از حد مجاز تعیین‌شده در ساخت مسابقه (${toPersianDigits(targetLimit)} سوال) است!\n\nآیا می‌خواهید این هشدار را نادیده گرفته و مسابقه را فوراً شروع کنید؟`
-          );
+          const ignoreWarning = window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`);
           if (!ignoreWarning) return;
         }
       } catch (error) {
-        console.error("Error validating contest questions:", error);
-        alert("خطا در اعتبارسنجی سوالات مسابقه از سرور. لطفاً مجدداً تلاش کنید.");
+        alert("خطا در اعتبارسنجی سوالات");
         return;
       }
     }
 
-    const actionText = newStatus === 'active' ? 'شروع فوری مسابقه' : newStatus === 'draft' ? 'توقف مسابقه' : 'پایان دادن به مسابقه';
+    const actionText = 
+      newStatus === 'active' ? 'شروع فوری مسابقه' : 
+      newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' : 
+      newStatus === 'resume' ? 'فعال‌سازی و انتشار مجدد خودکار' : 'پایان دادن به مسابقه';
+      
     if (!window.confirm(`آیا از ${actionText} مطمئن هستید؟`)) return;
 
     try {
-      await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
-      setContest({ ...contest, status: newStatus });
-      if (newStatus === 'active') {
+      const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
+      
+      setContest({ 
+        ...contest, 
+        status: response.data.status, 
+        start_time: response.data.start_time 
+      });
+      
+      if (response.data.status === 'active') {
         setTimeLeft(null);
       }
-      alert("وضعیت مسابقه با موفقیت به روزرسانی شد.");
+      alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
     } catch (error) {
-      console.error(error);
       alert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
     }
   };
 
-  // ۴. حذف کامل آزمون از دیتابیس
   const deleteContest = async () => {
     if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
 
@@ -141,13 +166,11 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
     }
   };
 
-  // ۵. تابع تبدیل ارقام به زبان فارسی
   const toPersianDigits = (str: string | number) => {
     const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
 
-  // ۶. استخراج پارامتر امبد پلیر ویدیو آپارات
   const getAparatEmbedUrl = (url: string) => {
     if (!url) return null;
     const match = url.match(/(?:v\/|videohash\/|frame\/v\/|embed\/v\/|v=)([a-zA-Z0-9]+)/);
@@ -157,23 +180,16 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
     return null;
   };
 
-  // هندل کلیک روی ستون سوالات جهت باز شدن پاپ‌آپ جزییات متنی سوال
-  const handleChartQuestionClick = (state: any) => {
-    if (state && state.activePayload && state.activePayload.length > 0) {
-      const questionData = state.activePayload[0].payload;
-      setSelectedQuestion(questionData);
-      setQuestionModalOpen(true);
-    }
-  };
-
   if (loading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#faf9f6]"><Loader2 className="animate-spin text-[#1a2e44]" size={40} /></div>;
   if (!contest) return <div className="p-6 text-center text-[#1a2e44] font-bold">مسابقه یافت نشد.</div>;
 
   const currentUserId = profile?.id || profile?.user_id;
-  const leaderboardMatch = currentUserId ? leaderboard.find((user) => String(user.user_id) === String(currentUserId)) : null;
+  
+  // 🌟 اصلاح کلیدی: استفاده از ساختار مقایسه نرم و حذف فضاهای خالی برای حل مشکل عدم تطابق آیدی‌ها
+  const leaderboardMatch = currentUserId ? leaderboard.find((user) => String(user.user_id || user.id).trim() == String(currentUserId).trim()) : null;
+  
   const historyMatch = profile?.history?.find((h:any) => 
-    String(h.contest_id) === String(params.id) || 
-    String(h.id) === String(params.id) ||
+    String(h.contest_id).trim() == String(contestId).trim() || 
     (contest?.title && h.contest_title === contest.title)
   );
   
@@ -181,14 +197,13 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   const hasParticipated = !!myResult;
   const topThree = leaderboard.slice(0, 3);
 
-  // 🌟 محاسبه داینامیک رتبه‌ آنلاین کاربر از آرایه لیدربرد برای حل مشکل نمایش -#
+  // 🌟 اصلاح کلیدی: محاسبه پویای رتبه آنلاین کاربر بدون کاراکتر منفی
   const getLiveRank = () => {
     if (leaderboardMatch?.rank) return leaderboardMatch.rank;
     if (!currentUserId || !leaderboard.length) return '-';
     
-    // جستجو بر اساس هر دو فیلد احتمالی فرانت و بک‌ند
     const indexInLeaderboard = leaderboard.findIndex(
-      (u) => String(u.user_id || u.id) === String(currentUserId)
+      (u) => String(u.user_id || u.id).trim() == String(currentUserId).trim()
     );
     
     return indexInLeaderboard !== -1 ? indexInLeaderboard + 1 : '-';
@@ -197,7 +212,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   return (
     <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] font-sans pb-24 relative" dir="rtl">
       
-      {/* هدر بالایی مسابقه */}
       <div className="relative w-full h-48 sm:h-64 bg-[#1a2e44] rounded-b-[2rem] sm:rounded-b-[2.5rem] overflow-hidden shadow-sm">
         {contest.image_url ? (
           <>
@@ -219,13 +233,10 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
         </header>
       </div>
 
-      {/* بوم گریدبندی اصلی */}
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-4 sm:px-8 relative z-30 -mt-8 sm:-mt-12">
               
-        {/* ستون راست */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* پنل مدیریت ابزارهای ادمین */}
           {isAdminUser && (
             <div className="bg-white/95 backdrop-blur-md border border-red-100 p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] flex flex-col gap-4 shadow-md relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
@@ -255,17 +266,21 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                   <button onClick={() => changeContestStatus('finished')} className="w-full sm:w-auto bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a]"><Power size={15} className="text-[#c5a059]" /> اتمام نهایی مسابقه</button>
                 )}
                 {contest.status === 'draft' && (
-                  <button onClick={() => changeContestStatus('upcoming')} className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#emerald-700]">▶️ فعال‌سازی و انتشار مجدد</button>
+                  <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
+                )}
+                
+                {contest.status === 'finished' && (
+                  <div className="w-full text-center py-2 bg-gray-100 border border-gray-200 text-gray-500 rounded-xl text-xs font-black select-none">
+                    🏁 این مسابقه به اتمام رسیده و پاسخنامه‌ها بسته شده‌اند.
+                  </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* نمودارهای آنالیز متصل به دیتای واقعی با رنگ‌بندی هماهنگ با تم برند پروژه */}
           {isAdminUser && analyticsData && (
             <div className="space-y-6 animate-in fade-in duration-300">
               
-              {/* چارت اول: توزیع زمانی حضور شرکت‌کنندگان */}
               <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <Clock size={18} className="text-[#c5a059]" />
@@ -290,54 +305,57 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                 </div>
               </div>
 
-              {/* 🌟 نسخه اصلاح شده و ضد باگ نمودار میله‌ای سوالات در فرانت‌ند */}
-              <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart 
-                    data={analyticsData.questions_stats} 
-                    margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                    <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
-                    <YAxis stroke="#9ca3af" tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                    <Legend verticalAlign="top" height={36} iconType="circle" />
-                    
-                    {/* 🌟 انتقال onClick به تک‌تک بارها برای باز شدن قطعی پاپ‌آپ سوالات */}
-                    <Bar 
-                      dataKey="correct" 
-                      name="پاسخ صحیح" 
-                      fill="#0f766e" 
-                      radius={[4, 4, 0, 0]} 
-                      barSize={9} 
-                      onClick={(item) => {
-                        if(item && item.payload) {
-                          setSelectedQuestion(item.payload);
-                          setQuestionModalOpen(true);
-                        }
-                      }}
-                    />
-                    <Bar 
-                      dataKey="incorrect" 
-                      name="پاسخ اشتباه" 
-                      fill="#be123c" 
-                      radius={[4, 4, 0, 0]} 
-                      barSize={9} 
-                      onClick={(item) => {
-                        if(item && item.payload) {
-                          setSelectedQuestion(item.payload);
-                          setQuestionModalOpen(true);
-                        }
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
+                  <BarChart3 size={18} className="text-[#c5a059]" />
+                  <h3 className="font-black text-sm text-[#1a2e44]">پاسخ‌های صحیح و اشتباه به تفکیک سوالات</h3>
+                </div>
+                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart 
+                      data={analyticsData.questions_stats} 
+                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+                      <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
+                      <YAxis stroke="#9ca3af" tickLine={false} />
+                      <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
+                      <Legend verticalAlign="top" height={36} iconType="circle" />
+                      
+                      <Bar 
+                        dataKey="correct" 
+                        name="پاسخ صحیح" 
+                        fill="#0f766e" 
+                        radius={[4, 4, 0, 0]} 
+                        barSize={9} 
+                        onClick={(item) => {
+                          if(item && item.payload) {
+                            setSelectedQuestion(item.payload);
+                            setQuestionModalOpen(true);
+                          }
+                        }}
+                      />
+                      <Bar 
+                        dataKey="incorrect" 
+                        name="پاسخ اشتباه" 
+                        fill="#be123c" 
+                        radius={[4, 4, 0, 0]} 
+                        barSize={9} 
+                        onClick={(item) => {
+                          if(item && item.payload) {
+                            setSelectedQuestion(item.payload);
+                            setQuestionModalOpen(true);
+                          }
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
             </div>
           )}
 
-          {/* باکس شناسنامه مسابقه */}
           <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4 pt-6 sm:pt-8">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -385,7 +403,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
             )}
           </div>
 
-          {/* اکشن‌های برگزاری مسابقه */}
           {contest.status === 'active' && (
             <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100">
               {hasParticipated ? (
@@ -396,14 +413,12 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                   <div className="grid grid-cols-3 gap-1.5 sm:gap-3 max-w-md mx-auto">
                     <div className="bg-white p-2 sm:p-3 rounded-xl border border-green-100 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 font-bold mb-0.5">امتیاز</span>
-                      {/* 🌟 اصلاح شد: پاکسازی نماد درصد اضافه برای برطرف کردن باگ %100% */}
                       <span className="font-black text-sm sm:text-base text-[#1a2e44]">
                         {toPersianDigits(myResult.score?.toString().replace('%', ''))}%
                       </span>
                     </div>
                     <div className="bg-white p-2 sm:p-3 rounded-xl border border-green-100 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 font-bold mb-0.5">رتبه فعلی</span>
-                      {/* 🌟 اصلاح شد: اتصال به تابع آنلاین getLiveRank جهت از بین بردن #- */}
                       <span className="font-black text-sm sm:text-base text-[#c5a059]">
                         #{toPersianDigits(getLiveRank())}
                       </span>
@@ -416,7 +431,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                     </div>
                   </div>
 
-                  {/* 🌟 قابلیت جدید: افزودن دکمه مرور مجدد سوالات به صفحه لندینگ در حالت شرکت کرده */}
                   <button 
                     onClick={() => router.push(`/review-final/${contest.id}`)}
                     className="w-full mt-4 bg-white hover:bg-gray-50 text-[#1a2e44] py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 shadow-sm"
@@ -431,7 +445,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
             </div>
           )}
 
-          {/* رقبای هم‌سطح نزدیک */}
           {contest.status === 'finished' && hasParticipated && leaderboard.length > 3 && (
             <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-50">
@@ -440,16 +453,16 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
               </div>
               <div className="space-y-2">
                 {(() => {
-                  const userIndex = leaderboard.findIndex(u => u.user_id == profile?.id);
+                  const userIndex = leaderboard.findIndex(u => String(u.user_id || u.id).trim() == String(profile?.id).trim());
                   const start = userIndex === -1 ? 3 : Math.max(3, userIndex - 2);
                   const end = userIndex === -1 ? 8 : Math.min(leaderboard.length, userIndex + 3);
                   const surroundingUsers = leaderboard.slice(start, end);
 
                   return surroundingUsers.map((user: any) => {
-                    const isMe = user.user_id === profile?.id;
+                    const isMe = String(user.user_id || user.id).trim() == String(profile?.id).trim();
                     const shortNationalId = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
                     return (
-                      <div key={user.user_id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] border-[#1a2e44] shadow-md text-white' : 'bg-white border-gray-100 shadow-sm'}`}>
+                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] border-[#1a2e44] shadow-md text-white' : 'bg-white border-gray-100 shadow-sm'}`}>
                         <div className="flex items-center gap-2.5">
                           <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ${isMe ? 'bg-[#c5a059] text-[#1a2e44]' : 'bg-[#faf9f6] text-[#c5a059]'}`}>{toPersianDigits(user.rank)}</span>
                           <div className="flex flex-col text-right">
@@ -457,7 +470,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                             <div className={`flex items-center gap-2 mt-0.5 text-[9px] font-bold ${isMe ? 'text-gray-300' : 'text-gray-400'}`}>
                               <span>نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}%</span>
                               <span>•</span>
-                              {/* تغییر این خط به پوشش هر دو کلید */}
                               <span>زمان: {toPersianDigits(user.time_taken || user.time || 0)} ثانیه</span>
                             </div>
                           </div>
@@ -473,7 +485,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
 
         </div>
 
-        {/* ستون چپ */}
         <div className="lg:col-span-1 space-y-6">
           {contest.status === 'upcoming' && (
             <div className="bg-[#1a2e44] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border border-[#2a405a]">
@@ -503,7 +514,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                 </div>
                 <div className="text-center flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">زمان مصرفی</span>
-                  <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}s</span>
+                  <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}ثانیه</span>
                 </div>
               </div>
               <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full bg-[#faf9f6] text-[#1a2e44] hover:bg-gray-100 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100"><FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات</button>
@@ -552,14 +563,13 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
                   {topThree.length === 0 ? <p className="text-center text-xs text-gray-400 italic">آمار لیدربرد هنوز ثبت نشده است.</p> : topThree.map((user: any) => {
                     const shortIdForTop = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
                     return (
-                      <div key={user.user_id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${user.rank === 1 ? 'bg-[#faf9f6] border-[#c5a059] shadow-sm' : 'border-gray-50'}`}>
+                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${user.rank === 1 ? 'bg-[#faf9f6] border-[#c5a059] shadow-sm' : 'border-gray-50'}`}>
                         <div className="flex items-center gap-2">
                           {user.rank === 1 ? <Crown size={18} className="text-yellow-500 shrink-0" /> : <Medal size={16} className="text-gray-400 shrink-0" />}
                           <div className="flex flex-col text-right">
                             <span className="font-bold text-xs text-[#1a2e44]">{user.name} {shortIdForTop}</span>
-                            {/* تغییر این خط به پوشش هر دو کلید */}
                             <span className="text-[9px] text-gray-400 font-bold mt-0.5">
-                              نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}% | زمان: {toPersianDigits(user.time_taken || user.time || 0)}s
+                              نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}% | زمان: {toPersianDigits(user.time_taken || user.time || 0)}ثانیه
                             </span>
                           </div>
                         </div>
@@ -574,7 +584,6 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
         </div>
       </main>
 
-      {/* مُدال پیشرفته نمایش جزییات کامل سوال انتخابی پس از کلیک روی نمودار ادمین */}
       {questionModalOpen && selectedQuestion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col text-right">

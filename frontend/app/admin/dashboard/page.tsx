@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import {
-  Users, Trophy, Layout, Plus, Settings,
+  LogOut, ArrowRight, Save, Users, Trophy, Layout, Plus, Settings,
   BarChart3, ArrowUpRight, ChevronLeft, Award, TrendingUp, Globe,
   ImageIcon
 } from 'lucide-react';
@@ -43,6 +43,34 @@ export default function AdminDashboard() {
       return label;
     }
     return label;
+  };
+
+  const handleLogout = () => {
+    if (!window.confirm("آیا می‌خواهید از حساب کاربری خود خارج شوید؟")) return;
+    
+    try {
+      // ۱. 🚀 پاک‌سازی بمب اتمی: تمام دیتای لوکال استوریج و سشن استوریج را یکجا جارو کن
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // ۲. 🚀 پاک‌سازی تمام کوکی‌های مرورگر در صورتی که توکن آنجا ذخیره شده باشد
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      
+      alert("شما با موفقیت از سیستم خارج شدید.");
+      
+      // ۳. 🌟 شاه‌کلید: به جای router.push از window.location.href استفاده می‌کنیم 
+      // تا کل سایت هارد-ریفرش شده و حافظه کاملاً سفید شود
+      window.location.href = '/login';
+      
+    } catch (error) {
+      console.error("خطا در فرآیند خروج:", error);
+      // اگر باز هم مشکلی بود، انتقال اجباری انجام شود
+      window.location.href = '/login';
+    }
   };
 
   const exportToExcel = async () => {
@@ -140,6 +168,17 @@ export default function AdminDashboard() {
             <Plus size={20} className="text-[#c5a059]" /> 
             <span>مسابقه جدید</span>
           </button>
+
+          {/* 🌟 دکمه کاملاً جدید خروج از حساب کاربری در سمت چپ هدر */}
+          <button 
+            type="button" 
+            onClick={handleLogout}
+            className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 shadow-sm hover:bg-red-100 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 font-black text-xs"
+            title="خروج از پنل مدیریت"
+          >
+            <LogOut size={16} />
+            <span className="hidden sm:inline">خروج از حساب</span>
+          </button>
         </div>
       </header>
 
@@ -176,11 +215,16 @@ export default function AdminDashboard() {
               <TrendingUp className="text-[#c5a059]" /> نمودار رشد شرکت‌کنندگان
             </h3>
 
-            <span className={`text-[10px] font-black px-3 py-1 rounded-full select-none transition-colors duration-300 ${stats.growth >= 0
-                ? 'text-emerald-500 bg-emerald-50'
-                : 'text-rose-500 bg-rose-50'
-              }`}>
-              {stats.growth >= 0 ? `+${stats.growth}%` : `${stats.growth}%`} رشد نسبت به هفته گذشته
+            {/* 🌟 اصلاح هوشمند باگ جهت‌نویسی علامت درصد و داینامیک شدن عبارات رشد/کاهش */}
+            <span 
+              className={`text-[10px] font-black px-3 py-1 rounded-full select-none transition-colors duration-300 ${
+                stats.growth >= 0
+                  ? 'text-emerald-500 bg-emerald-50'
+                  : 'text-rose-500 bg-rose-50'
+              }`}
+              dir="rtl"
+            >
+              {Math.abs(stats.growth)}% {stats.growth >= 0 ? 'رشد' : 'کاهش'} نسبت به هفته گذشته
             </span>
           </div>
 

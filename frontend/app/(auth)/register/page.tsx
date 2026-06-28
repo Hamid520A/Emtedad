@@ -110,6 +110,7 @@ export default function RegisterPage() {
     province_id: '', // ذخیره شناسه استان انتخابی
     city_id: '',     // ذخیره شناسه نهایی شهر انتخابی برای دیتابیس
     birth_date: '',
+    gender: 'male',
     password: '',
     confirmPassword: ''
   });
@@ -177,6 +178,11 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.password.length < 6) {
+    alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
+    return; // متوقف کردن ارسال فرم
+    }
     
     const finalPhone = toEnglishDigits(formData.phone || '').trim();
     const finalNationalId = toEnglishDigits(formData.national_id || '').trim();
@@ -213,6 +219,7 @@ export default function RegisterPage() {
         national_id: finalNationalId,
         city_id: Number(formData.city_id), 
         birth_date: formattedBirthDate,
+        gender: formData.gender,
         password: formData.password
       });
       
@@ -335,23 +342,53 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* تاریخ تولد (فیلد جنسیت کاملاً بر اساس نقشه جدید حذف شد) */}
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
-            <div className="relative">
-              <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-              <DatePickerComponent
-                calendar={persian}
-                locale={persian_fa}
-                calendarPosition="bottom-right"
-                value={formData.birth_date}
-                onChange={(date: any) => {
-                  setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" });
-                }}
-                containerClassName="w-full"
-                inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
-                placeholder="1380/01/01"
-              />
+          {/* 🌟 اصلاح شد: تاریخ تولد و جنسیت در یک ردیف دو ستونه متقارن */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
+              <div className="relative">
+                <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                <DatePickerComponent
+                  calendar={persian}
+                  locale={persian_fa}
+                  calendarPosition="bottom-right"
+                  value={formData.birth_date}
+                  onChange={(date: any) => {
+                    setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" });
+                  }}
+                  containerClassName="w-full"
+                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  placeholder="1380/01/01"
+                />
+              </div>
+            </div>
+            {/* 🌟 بخش انتخاب جنسیت با تم اختصاصی و هماهنگ با فرم */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">جنسیت</label>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-[#faf9f6] rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setFormData({...formData, gender: 'male'})}
+                  className={`py-3.5 text-sm font-black rounded-xl transition-all ${
+                    formData.gender === 'male' 
+                      ? 'bg-white text-[#1a2e44] shadow-sm' 
+                      : 'bg-transparent text-gray-400 hover:text-[#1a2e44]'
+                  }`}
+                >
+                  آقا
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({...formData, gender: 'female'})}
+                  className={`py-3.5 text-sm font-black rounded-xl transition-all ${
+                    formData.gender === 'female' 
+                      ? 'bg-white text-[#1a2e44] shadow-sm' 
+                      : 'bg-transparent text-gray-400 hover:text-[#1a2e44]'
+                  }`}
+                >
+                  خانم
+                </button>
+              </div>
             </div>
           </div>
 

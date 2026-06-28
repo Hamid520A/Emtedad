@@ -5,14 +5,17 @@ import api from '../../../lib/api';
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-const getAnalysis = (score: number, totalQuestions: number = 3) => {
+const getAnalysis = (score: number, totalQuestions: number = 3, certificateType: string = 'none') => {
   const s = parseFloat(score.toString());
+  const hasCert = certificateType !== 'none' && certificateType !== '';
   const minRequired = Math.ceil(totalQuestions * 0.5);
   
   if (s >= 85) {
     return { 
-      msg: "فوق‌العاده! شما موفق به کسب «گواهی عالی» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
-      certMsg: "امتیاز شما در بازه گواهی عالی قرار دارد.",
+      msg: hasCert 
+        ? "فوق‌العاده! شما موفق به کسب «گواهی عالی» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید." 
+        : "فوق‌العاده! شما با رتبه‌ای عالی و درخشان این مسابقه را به پایان رساندید.", 
+      certMsg: hasCert ? "امتیاز شما در بازه گواهی عالی قرار دارد." : "عملکرد شما در این آزمون بی‌نظیر بود.",
       color: "text-green-600", 
       bg: "bg-green-50", 
       emoji: "🏆" 
@@ -20,8 +23,10 @@ const getAnalysis = (score: number, totalQuestions: number = 3) => {
   }
   if (s >= 70) {
     return { 
-      msg: "عالی! شما موفق به کسب «گواهی خیلی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
-      certMsg: "امتیاز شما در بازه گواهی خیلی خوب قرار دارد.",
+      msg: hasCert 
+        ? "عالی! شما موفق به کسب «گواهی خیلی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید." 
+        : "عالی! شما با موفقیت و کسب امتیازی بسیار خوب مسابقه را به پایان رساندید.", 
+      certMsg: hasCert ? "امتیاز شما در بازه گواهی خیلی خوب قرار دارد." : "نتیجه آزمون شما بسیار خوب و رضایت‌بخش است.",
       color: "text-blue-600", 
       bg: "bg-blue-50", 
       emoji: "🥇" 
@@ -29,16 +34,20 @@ const getAnalysis = (score: number, totalQuestions: number = 3) => {
   }
   if (s >= 50) {
     return { 
-      msg: "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
-      certMsg: "امتیاز شما در بازه گواهی خوب قرار دارد.",
+      msg: hasCert 
+        ? "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید." 
+        : "بارک‌الله! شما موفق شدید نمره قبولی این مسابقه را با موفقیت کسب کنید.", 
+      certMsg: hasCert ? "امتیاز شما در بازه گواهی خوب قرار دارد." : "آزمون را با موفقیت پشت سر گذاشتید.",
       color: "text-amber-600", 
       bg: "bg-amber-50", 
       emoji: "✨" 
     };
   }
   return { 
-    msg: `تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ${minRequired} سوال پاسخ صحیح بدهید.`, 
-    certMsg: "حد نصاب قبولی برای صدور گواهی کسب نشد.",
+    msg: hasCert 
+      ? `تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ${minRequired} سوال پاسخ صحیح بدهید.` 
+      : "تلاشت خوب بود، برای کسب نتیجه بهتر در مسابقات بعدی می‌توانید منابع آموزشی را مجدداً مطالعه کنید.", 
+    certMsg: hasCert ? "حد نصاب قبولی برای صدور گواهی کسب نشد." : "مسابقه به پایان رسید.",
     color: "text-red-600", 
     bg: "bg-red-50", 
     emoji: "📚" 
@@ -53,7 +62,8 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [answers, setAnswers] = useState<{ [key: number]: number }>({});
-  
+  const [certificateType, setCertificateType] = useState<string>('none');
+
   const [timeLeft, setTimeLeft] = useState(600); 
   const [totalTime, setTotalTime] = useState(600); 
 
@@ -62,27 +72,70 @@ export default function ExamPage({ params }: { params: { id: string } }) {
   const [result, setResult] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // ۱. افکت هوشمند دریافت اطلاعات جامع مسابقه و پلمپ وضعیت مرور در رفرش
   useEffect(() => {
+    let isCurrent = true;
+    
+    // 🌟 بررسی هوشمندانه کوئری استرینگ مرورگر برای حفظ وضعیت در زمان رفرش صفحه
+    const isUrlReviewMode = typeof window !== 'undefined' && window.location.search.includes('mode=review');
+
     const fetchData = async () => {
       try {
         const cleanId = parseInt(params.id);
-        const [contestRes, questionsRes] = await Promise.all([
-          api.get(`/contests/${cleanId}`),
-          api.get(`/contests/${cleanId}/questions`)
-        ]);
 
-        const limitInSeconds = (contestRes.data.time_limit || 10) * 60;
-        setTotalTime(limitInSeconds);
-        setTimeLeft(limitInSeconds);
-        setQuestions(questionsRes.data);
-      } catch (error) {
-        console.error("خطا در دریافت اطلاعات آزمون", error);
+        if (isUrlReviewMode || showReview) {
+          // 🔒 سنگر مرور پاسخنامه‌ها: واکشی امن دیتای ثبت شده بدون برخورد به گواهی مسدودی ۴۰۳ سوالات
+          const [contestRes, reviewRes] = await Promise.all([
+            api.get(`/contests/${cleanId}?t=${Date.now()}`),
+            api.get(`/users/me/submissions/${cleanId}?t=${Date.now()}`)
+          ]);
+
+          if (!isCurrent) return;
+
+          setQuestions(reviewRes.data.questions || []);
+          setCertificateType(contestRes.data.certificate_type || 'none');
+          
+          // بازسازی داینامیک گزینه‌های انتخاب شده کاربر برای رندر دایره‌های رادیو باتن
+          const savedAnswers: any = {};
+          if (reviewRes.data.questions) {
+            reviewRes.data.questions.forEach((q: any) => {
+              savedAnswers[q.id] = q.user_option || q.selected_option;
+            });
+          }
+          setAnswers(savedAnswers);
+          setShowReview(true);
+        } else {
+          // 📝 حالت برگزاری آزمون زنده واقعی
+          const [contestRes, questionsRes] = await Promise.all([
+            api.get(`/contests/${cleanId}?t=${Date.now()}`),
+            api.get(`/contests/${cleanId}/questions?t=${Date.now()}`)
+          ]);
+
+          if (!isCurrent) return;
+
+          const limitInSeconds = (contestRes.data.time_limit || 10) * 60;
+          setTotalTime(limitInSeconds);
+          setTimeLeft(limitInSeconds);
+          setQuestions(questionsRes.data || []);
+          setCertificateType(contestRes.data.certificate_type || 'none');
+        }
+      } catch (error: any) {
+        if (!isCurrent) return;
+
+        if (error.response && error.response.status === 403) {
+          alert("شما قبلاً در این مسابقه شرکت کرده‌اید و پاسخنامه شما ثبت شده است.");
+          router.replace(`/contests/${params.id}`); 
+        } else {
+          console.error("خطا در دریافت اطلاعات آزمون", error);
+        }
       } finally {
-        setLoading(false);
+        if (isCurrent) setLoading(false);
       }
     };
+
     fetchData();
-  }, [params.id]);
+    return () => { isCurrent = false; };
+  }, [params.id, router, showReview]);
 
   useEffect(() => {
     if (isSubmitted || timeLeft <= 0 || loading || questions.length === 0 || showReview) return;
@@ -136,14 +189,12 @@ export default function ExamPage({ params }: { params: { id: string } }) {
     const timeTaken = totalTime - timeLeft;
 
     try {
-      // 🌟 سپردن فرآیند محاسبه نمره به اندپوینت امن بک‌ند برای جلوگیری از تقلب فرانت‌ند
       const response = await api.post('/submissions', {
         contest_id: parseInt(contestId),
         time_taken: timeTaken,
         answers_map: answers
       });
 
-      // خواندن نمره‌ی واقعی محاسبه شده توسط پایتون از پاسخ سرور
       const serverScore = response.data.score ?? 0;
       const serverCorrectCount = response.data.correct_count ?? 0;
 
@@ -151,7 +202,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         score: Math.round(serverScore),
         correctCount: serverCorrectCount,
         timeTaken: timeTaken,
-        analysis: getAnalysis(serverScore, questions.length)
+        analysis: getAnalysis(serverScore, questions.length, certificateType)
       });
       setIsSubmitted(true);
     } catch (error) {
@@ -217,7 +268,20 @@ export default function ExamPage({ params }: { params: { id: string } }) {
 
         <div className="w-full space-y-3">
           <button onClick={() => router.push('/')} className="w-full bg-[#1a2e44] text-white py-4 rounded-3xl font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95"><Home size={20} /> بازگشت به داشبورد</button>
-          <button onClick={() => { setShowReview(true); setCurrentQIndex(0); }} className="w-full bg-white text-[#1a2e44] py-4 rounded-3xl font-bold flex items-center justify-center gap-2 border border-gray-200 transition active:scale-95"><Eye size={20} /> مرور مجدد سوالات</button>
+          
+          {/* 🌟 اصلاح شد: چفت کردن وضعیت پارامتر آدرس در زمان زدن دکمه مرور برای فلش‌بک امن در رفرش */}
+          <button 
+            onClick={() => { 
+              if (typeof window !== 'undefined') {
+                window.history.replaceState(null, '', `?mode=review`);
+              }
+              setShowReview(true); 
+              setCurrentQIndex(0); 
+            }} 
+            className="w-full bg-white text-[#1a2e44] py-4 rounded-3xl font-bold flex items-center justify-center gap-2 border border-gray-200 transition active:scale-95"
+          >
+            <Eye size={20} /> مرور مجدد سوالات
+          </button>
         </div>
       </div>
     );
@@ -237,9 +301,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {showReview ? (
-          <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl font-black text-[10px]">اتمام رقابت</div>
-        ) : (
+        {!showReview && (
           <div className="flex flex-col items-end">
             <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-sm ${timeLeft < 60 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-gray-50 text-[#1a2e44]'}`}>
               <Clock className="w-4 h-4 text-[#c5a059]" />
@@ -254,7 +316,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
 
       <main className="flex-1 p-6 overflow-y-auto">
         <div className="mb-8 text-right">
-          {/* 🌟 اصلاح شد: خواندن فیلد title به جای text */}
           <h2 className="font-black text-xl text-[#1a2e44] leading-relaxed mb-4">{question.title}</h2>
           {question.description && (
             <div className="flex items-start gap-3 text-sm text-gray-600 bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
@@ -265,7 +326,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className="space-y-4">
-          {/* 🌟 اصلاح شد: خواندن فیلد title گزینه‌ها از دیتای شافل شده‌ی دیتابیس */}
           {question.shuffled_options && question.shuffled_options.map((option: any, index: number) => {
             const isSelected = answers[question.id] === option.id;
             return (
@@ -279,7 +339,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
                   : 'border-gray-200 bg-white hover:border-[#c5a059]'
                 }`}
               >
-                {/* 🌟 فیلد خوانش متن گزینه به title تغییر یافت */}
                 <span className="font-bold">{option.title}</span>
                 <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${isSelected ? (showReview ? 'border-blue-500' : 'border-white') : 'border-gray-300'}`}>
                   {isSelected && <div className={`w-3 h-3 ${showReview ? 'bg-blue-500' : 'bg-[#c5a059]'} rounded-full`}></div>}
@@ -291,25 +350,61 @@ export default function ExamPage({ params }: { params: { id: string } }) {
       </main>
 
       <footer className="p-6 bg-[#faf9f6] flex gap-4">
-        <button 
-          onClick={() => setCurrentQIndex(prev => prev - 1)} 
-          disabled={currentQIndex === 0} 
-          className="p-4 rounded-3xl bg-white text-[#1a2e44] disabled:opacity-30 shadow-sm border border-gray-100 transition-all active:scale-95"
-        >
-          <ChevronRight size={24} />
-        </button>
+        {showReview ? (
+          <>
+            <button 
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.history.replaceState(null, '', window.location.pathname);
+                }
+                setShowReview(false);
+              }} 
+              className="p-4 rounded-3xl bg-white text-[#1a2e44] shadow-sm border border-gray-100 transition-all active:scale-95 flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-100"
+              title="خروج از مرور و بازگشت به کارنامه"
+            >
+              <ChevronRight size={24} />
+            </button>
 
-        {currentQIndex === questions.length - 1 ? (
-          <button 
-            onClick={showReview ? () => router.push('/') : handleSubmitExam} 
-            className={`flex-1 ${showReview ? 'bg-gray-200 text-gray-600' : 'bg-[#c5a059] text-white'} rounded-3xl font-black shadow-sm active:scale-95 transition-all`}
-          >
-            {showReview ? 'خروج از مرور' : 'تایید و ثبت نتایج'}
-          </button>
+            <div className="flex-1 flex gap-3">
+              <button 
+                onClick={() => setCurrentQIndex(prev => prev - 1)} 
+                disabled={currentQIndex === 0} 
+                className="flex-1 bg-white border border-gray-200 text-[#1a2e44] disabled:opacity-30 rounded-3xl font-black text-xs shadow-sm transition-all active:scale-95"
+              >
+                سوال قبلی
+              </button>
+              <button 
+                onClick={() => setCurrentQIndex(prev => prev + 1)} 
+                disabled={currentQIndex === questions.length - 1} 
+                className="flex-1 bg-[#1a2e44] text-white disabled:opacity-30 rounded-3xl font-black text-xs shadow-sm transition-all active:scale-95"
+              >
+                سوال بعدی
+              </button>
+            </div>
+          </>
         ) : (
-          <button onClick={() => setCurrentQIndex(prev => prev + 1)} className="flex-1 bg-[#1a2e44] text-white rounded-3xl font-black shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2">
-            سوال بعدی <ChevronLeft size={20} />
-          </button>
+          <>
+            <button 
+              onClick={() => setCurrentQIndex(prev => prev - 1)} 
+              disabled={currentQIndex === 0} 
+              className="p-4 rounded-3xl bg-white text-[#1a2e44] disabled:opacity-30 shadow-sm border border-gray-100 transition-all active:scale-95"
+            >
+              <ChevronRight size={24} />
+            </button>
+
+            {currentQIndex === questions.length - 1 ? (
+              <button 
+                onClick={handleSubmitExam} 
+                className="flex-1 bg-[#c5a059] text-white rounded-3xl font-black shadow-sm active:scale-95 transition-all"
+              >
+                تایید و ثبت نتایج
+              </button>
+            ) : (
+              <button onClick={() => setCurrentQIndex(prev => prev + 1)} className="flex-1 bg-[#1a2e44] text-white rounded-3xl font-black shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2">
+                سوال بعدی <ChevronLeft size={20} />
+              </button>
+            )}
+          </>
         )}
       </footer>
     </div>

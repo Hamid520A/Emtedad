@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { 
-  Users, ArrowRight, Search, Trophy, X, MapPin, Calendar, 
-  Smartphone, FileText, Edit2, Save, Download, ArrowUpDown, ShieldCheck, UserCheck 
+  Users, ArrowRight, Search, Trophy, X, MapPin, Calendar, CheckCircle2, XCircle,
+  Smartphone, FileText, Edit2, Save, Download, ArrowUpDown, ShieldCheck, UserCheck, HelpCircle
 } from 'lucide-react'; 
 
 export default function AdminUsersPage() {
@@ -16,50 +16,68 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState(''); 
   const [loading, setLoading] = useState(true);
 
-  // 👈 استیت‌های جدید برای مدیریت سیستم مرتب‌سازی (Sorting)
-  const [sortField, setSortField] = useState<string>('name'); // فیلد پیش‌فرض مرتب‌سازی بر اساس نام
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); // صعودی (الف تا ی / کمترین به بیشترین)
+  // سیستم مرتب‌سازی (Sorting)
+  const [sortField, setSortField] = useState<string>('name'); 
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); 
 
   // استیت‌های مربوط به مدال و دیتای کاربر
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   
-  // استیت‌های مربوط به ویرایش
+  // استیت‌های مربوط به ویرایش پرونده
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
   const [saveLoading, setSaveLoading] = useState(false);
+
+  // استیت‌های لایه نمایش پاسخنامه کاربر به ادمین
+  const [answerSheet, setAnswerSheet] = useState<any>(null);
+  const [answerModalOpen, setAnswerModalOpen] = useState(false);
+  const [answerLoading, setAnswerLoading] = useState(false);
 
   const toEnglishDigits = (str: string) => {
     return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
               .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
   };
 
+  const toPersianDigits = (str: string | number) => {
+    const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
+  };
+
+  // دریافت همزمان اطلاعات کاربران و مسابقات از سرور
   const fetchInitialData = async () => {
     try {
+      setLoading(true);
       const [usersRes, contestsRes] = await Promise.all([
-        api.get('/admin/users-list'),
-        api.get('/contests')
+        // 🌟 بهینه‌سازی شده با روت جدید تفکیک‌شده و تکنیک ضد کش مرورگر
+        api.get(`/admin/users?t=${Date.now()}`),
+        api.get(`/contests?t=${Date.now()}`)
       ]);
-      setUsersList(usersRes.data);
-      setFilteredUsers(usersRes.data);
+      setUsersList(usersRes.data || []);
+      setFilteredUsers(usersRes.data || []);
       setContests(contestsRes.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching data:", error);
+      if (error.response?.status === 403 || error.response?.status === 401) {
+        alert("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
+        localStorage.clear();
+        window.location.href = '/login';
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // 🌟 فیکس اصلی: اضافه شدن این افکتِ حیاتی برای اجرای خودکار تابع دریافت دیتا در لحظه ورود به صفحه
   useEffect(() => {
     fetchInitialData();
   }, []);
 
-  // 👈 ارتقای موتور فیلترینگ برای پشتیبانی همزمان از فیلتر، جستجو و مرتب‌سازی دقیق حروف و اعداد
+  // موتور هوشمند فیلترینگ، جستجو و مرتب‌سازی داده‌ها
   useEffect(() => {
     const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
     
-    // ۱. فیلتر کردن بر اساس سرچ و مسابقه انتخاب شده
     let result = usersList.filter((user: any) => {
       const matchesContest = selectedContest === '' || 
         (user.all_contests ? user.all_contests.includes(selectedContest) : user.last_contest === selectedContest);
@@ -81,24 +99,20 @@ export default function AdminUsersPage() {
       return matchesSearch && matchesContest;
     });
 
-    // ۲. اعمال منطق مرتب‌سازی پویا بر اساس حروف الفبا و ارقام عددی صعودی/نزولی
     if (sortField) {
       result.sort((a: any, b: any) => {
         let valA = a[sortField];
         let valB = b[sortField];
 
-        // مهار مقادیر خالی یا نال برای جلوگیری از کرش
         if (valA === undefined || valA === null) valA = '';
         if (valB === undefined || valB === null) valB = '';
 
-        // در صورتی که فیلد متنی یا رشته فارسی باشد از localeCompare استفاده می‌کنیم
         if (typeof valA === 'string' && typeof valB === 'string') {
           return sortOrder === 'asc' 
             ? valA.localeCompare(valB, 'fa') 
             : valB.localeCompare(valA, 'fa');
         }
 
-        // در صورتی که عددی باشد
         return sortOrder === 'asc' ? valA - valB : valB - valA;
       });
     }
@@ -106,19 +120,15 @@ export default function AdminUsersPage() {
     setFilteredUsers(result);
   }, [searchQuery, selectedContest, usersList, sortField, sortOrder]);
 
-  // 👈 تابع کمکی برای سوئیچ یا فعال‌سازی وضعیت مرتب‌سازی ستون‌ها
   const handleSortRequest = (field: string) => {
     if (sortField === field) {
-      // اگر روی همان ستون مجدد کلیک شد، جهت آن برعکس شود (صعودی به نزولی و برعکس)
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
-      // اگر روی ستون جدید کلیک شد، روی فیلد جدید و به صورت صعودی تنظیم شود
       setSortField(field);
       setSortOrder('asc');
     }
   };
 
-  // 👈 موتور هوشمند تولید خروجی استاندارد اکسل/CSV هماهنگ با آخرین فیلترهای اعمال شده توسط ادمین
   const exportToCSV = () => {
     if (filteredUsers.length === 0) {
       alert("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
@@ -139,11 +149,9 @@ export default function AdminUsersPage() {
       user.average_score || '---'
     ]);
 
-    // چسباندن کاراکتر ویژه برای جلوگیری از خرابی حروف فارسی در اکسل (\uFEFF)
     let csvContent = "\uFEFF";
     csvContent += headers.join(",") + "\n";
     rows.forEach((row) => {
-      // مهار فیلدها با دابل کوتیشن جهت حفظ یکپارچگی ساختار کاماها
       const cleanRow = row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",");
       csvContent += cleanRow + "\n";
     });
@@ -163,13 +171,13 @@ export default function AdminUsersPage() {
     setModalOpen(true);
     setIsEditing(false); 
     try {
-      const response = await api.get(`/admin/users/${userId}/detail`);
+      const response = await api.get(`/admin/users/${userId}/detail?t=${Date.now()}`);
       setSelectedUser(response.data);
       
       setEditFormData({
         first_name: response.data.first_name || '',
         last_name: response.data.last_name || '',
-        phone: response.data.phone || '',
+        phone: response.data.phone || response.data.phone_number || '',
         national_id: response.data.national_id || '',
         province: response.data.province || '',
         city: response.data.city || '',
@@ -181,6 +189,25 @@ export default function AdminUsersPage() {
       setModalOpen(false);
     } finally {
       setModalLoading(false);
+    }
+  };
+
+  const handleViewAnswerSheet = async (contestId: number, contestTitle: string) => {
+    if (!selectedUser) return;
+    setAnswerLoading(true);
+    setAnswerModalOpen(true);
+    try {
+      const response = await api.get(`/admin/users/${selectedUser.id}/contests/${contestId}/answers?t=${Date.now()}`);
+      setAnswerSheet({
+        contest_title: contestTitle,
+        questions: response.data || []
+      });
+    } catch (error) {
+      console.error(error);
+      alert("خطا در بارگذاری لیست پاسخ‌های کاربر از سرور.");
+      setAnswerModalOpen(false);
+    } finally {
+      setAnswerLoading(false);
     }
   };
 
@@ -214,7 +241,6 @@ export default function AdminUsersPage() {
 
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
-      {/* Header */}
       <header className="p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
@@ -232,7 +258,6 @@ export default function AdminUsersPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          {/* 👈 دکمه دانلود گزارش اکسل/CSV منطبق بر فیلتر */}
           <button 
             onClick={exportToCSV}
             className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-700/10 hover:bg-emerald-700 transition-all active:scale-95 shrink-0"
@@ -267,14 +292,12 @@ export default function AdminUsersPage() {
         </div>
       </header>
 
-      {/* Table Content */}
       <main className="px-8">
         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="border-b border-gray-100 text-gray-400 text-xs font-black uppercase select-none">
-                  {/* 👈 هدرهای جدول برای کلیک و مرتب‌سازی مجهز به آیکون ArrowUpDown شدند */}
                   <th onClick={() => handleSortRequest('name')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors items-center gap-1">
                     نام و نام خانوادگی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
@@ -290,7 +313,6 @@ export default function AdminUsersPage() {
                   <th onClick={() => handleSortRequest('gender')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
                     جنسیت <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
-                  {/* 👈 اضافه شدن ستون نقش کاربری */}
                   <th className="pb-4 font-black">نقش سیستم</th>
                   <th className="pb-4 font-black">آخرین رقابت</th>
                   <th className="pb-4 font-black text-center">میانگین نمره</th>
@@ -322,19 +344,12 @@ export default function AdminUsersPage() {
                           {user.gender === 'male' || user.gender === 'مرد' ? 'مرد' : 'زن'}
                         </span>
                       </td>
-                      {/* رندر ستون تفکیک نقش با منطق اصلاح‌شده و ضد ضرب خطاهای تایپ بک‌ند */}
                       <td className="py-4">
                         {(() => {
-                          // بررسی هوشمند تمام حالت‌های ممکن (boolean، عدد 1 یا رشته "true")
                           const checkIsAdmin = user.is_admin === true || user.is_admin === 1 || String(user.is_admin).toLowerCase() === 'true';
-                          
                           return (
                             <span className={`text-[10px] font-black px-2.5 py-1 rounded-md flex items-center gap-1 w-max ${checkIsAdmin ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-slate-50 text-slate-600'}`}>
-                              {checkIsAdmin ? (
-                                <><ShieldCheck size={12} /> مدیر سیستم</>
-                              ) : (
-                                <><UserCheck size={12} /> کاربر عادی</>
-                              )}
+                              {checkIsAdmin ? <><ShieldCheck size={12} /> مدیر سیستم</> : <><UserCheck size={12} /> کاربر عادی</>}
                             </span>
                           );
                         })()}
@@ -356,10 +371,9 @@ export default function AdminUsersPage() {
 
       {/* مُدال نمایش و ویرایش سوابق کاربر */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-3xl shadow-2xl border border-gray-100 max-h-[85vh] overflow-y-auto flex flex-col animate-in zoom-in-95 duration-200 text-right">
             
-            {/* هدر مدال */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-[#1a2e44] text-[#c5a059] rounded-xl flex items-center justify-center shadow-md">
@@ -367,7 +381,7 @@ export default function AdminUsersPage() {
                 </div>
                 <div>
                   <h3 className="font-black text-lg text-[#1a2e44]">
-                    {modalLoading ? "در حال فراخوانی پرونده..." : isEditing ? "اصلاح اطلاعات پرونده کاربر" : `پرونده آموزشی: ${selectedUser?.first_name} ${selectedUser?.last_name || ''}`}
+                    {modalLoading ? "در حال فراخوانی پرونده..." : isEditing ? "اصلاح اطلاعات پرونده کاربر" : `پرونده آموزشی: ${selectedUser?.first_name || ''} ${selectedUser?.last_name || ''}`}
                   </h3>
                   <p className="text-[10px] text-gray-400 font-bold mt-0.5">مشخصات هویتی و تاریخچه کامل حضور در آزمون‌ها</p>
                 </div>
@@ -402,7 +416,6 @@ export default function AdminUsersPage() {
               <form onSubmit={handleSaveChanges} className="flex-1 flex flex-col m-0">
                 <div className="p-6 space-y-6 flex-1">
                   
-                  {/* لایه فرم ویرایش / نمایش اطلاعات مشخصات فردی */}
                   <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100">
                     {isEditing ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -468,50 +481,43 @@ export default function AdminUsersPage() {
                     )}
                   </div>
 
-                  {/* دکمه‌های تایید ویرایش فرم در زیر فیلدها */}
                   {isEditing && (
                     <div className="flex items-center gap-2 justify-end animate-in fade-in duration-200">
-                      <button 
-                        type="button" 
-                        onClick={() => setIsEditing(false)} 
-                        className="p-2.5 px-4 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold text-gray-500 transition-all"
-                      >
-                        انصراف
-                      </button>
-                      <button 
-                        type="submit" 
-                        disabled={saveLoading}
-                        className="p-2.5 px-5 bg-[#1a2e44] text-white hover:bg-[#2a405a] rounded-xl text-xs font-black flex items-center gap-1 transition-all shadow-md"
-                      >
+                      <button type="button" onClick={() => setIsEditing(false)} className="p-2.5 px-4 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold text-gray-500 transition-all">انصراف</button>
+                      <button type="submit" disabled={saveLoading} className="p-2.5 px-5 bg-[#1a2e44] text-white hover:bg-[#2a405a] rounded-xl text-xs font-black flex items-center gap-1 transition-all shadow-md">
                         {saveLoading ? "در حال ذخیره..." : <><Save size={14} className="text-[#c5a059]" /> ذخیره تغییرات پرونده</>}
                       </button>
                     </div>
                   )}
 
-                  {/* بخش دوم: لیست کامل مسابقاتی که شرکت کرده */}
                   <div className="space-y-3">
                     <h4 className="font-black text-xs text-[#1a2e44] flex items-center gap-1.5 border-b border-gray-100 pb-2">
                       <Trophy size={14} className="text-[#c5a059]" /> تاریخچه و کارنامه‌های آزمون
                     </h4>
                     
-                    {selectedUser.history?.length === 0 ? (
+                    {!selectedUser.history || selectedUser.history.length === 0 ? (
                       <p className="text-center text-xs text-gray-400 italic py-6 font-bold">این کاربر هنوز در هیچ مسابقه‌ای شرکت نکرده است.</p>
                     ) : (
                       <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white">
                         <table className="w-full text-right text-xs">
                           <thead className="bg-gray-50 text-gray-400 font-black">
                             <tr>
-                              <th className="p-3">عنوان مسابقه</th>
+                              <th className="p-3">عنوان مسابقه (جهت مشاهده پاسخنامه کلیک کنید)</th>
                               <th className="p-3 text-center">امتیاز مکتسبه</th>
                               <th className="p-3 text-center">زمان مصرف شده</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50 font-bold text-gray-600">
                             {selectedUser.history.map((h: any, idx: number) => (
-                              <tr key={idx} className="hover:bg-gray-50/50">
-                                <td className="p-3 text-[#1a2e44] font-black">{h.contest_title}</td>
+                              <tr 
+                                key={idx} 
+                                onClick={() => handleViewAnswerSheet(h.contest_id, h.contest_title)}
+                                className="hover:bg-blue-50/40 cursor-pointer transition-colors"
+                                title="کلیک کنید تا جزئیات پاسخنامه باز شود"
+                              >
+                                <td className="p-3 text-[#1a2e44] font-black group-hover:text-[#c5a059]">{h.contest_title}</td>
                                 <td className="p-3 text-center"><span className="bg-amber-50 text-[#c5a059] px-2 py-0.5 rounded font-black text-sm">{h.score}%</span></td>
-                                <td className="p-3 text-center text-blue-600 font-mono">{h.time_taken} ثانیه</td>
+                                <td className="p-3 text-center text-blue-600 font-mono">{toPersianDigits(h.time_taken)} ثانیه</td>
                               </tr>
                             ))}
                           </tbody>
@@ -523,6 +529,90 @@ export default function AdminUsersPage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+{/* مُدال نمایش لایو پاسخنامه کاربر جهت آنالیز سوال به سوال ادمین */}
+      {answerModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 max-h-[80vh] overflow-hidden flex flex-col text-right animate-in zoom-in-95 duration-200">
+            
+            {/* هدر مدال */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f6]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#c5a059] text-white rounded-xl flex items-center justify-center shadow-md">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-[#1a2e44]">بررسی لایو پاسخنامه شرکت‌کننده</h3>
+                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">{answerSheet?.contest_title || "در حال بارگذاری..."}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setAnswerModalOpen(false); setAnswerSheet(null); }}
+                className="p-2 bg-white border border-gray-100 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all shadow-sm"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* بدنه و سوالات */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-gray-50/30">
+              {answerLoading ? (
+                <div className="py-16 flex flex-col items-center justify-center gap-2.5 text-gray-400 font-bold text-xs">
+                  <span className="w-6 h-6 border-3 border-[#1a2e44] border-t-transparent rounded-full animate-spin"></span>
+                  <span>در حال دریافت گزینه‌ها از دیتابیس...</span>
+                </div>
+              ) : answerSheet?.questions?.length === 0 ? (
+                <p className="text-center text-xs text-gray-400 italic py-6">پاسخنامه‌ای یافت نشد یا کاربر گزینه‌ای ثبت نکرده است.</p>
+              ) : (
+                // 🌟 اصلاح شد: مپ اصلی سوالات بدون کدهای شکسته و کاملاً تراز شده
+                answerSheet?.questions.map((q: any, qIdx: number) => {
+                  return (
+                    <div key={qIdx} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                      {/* صورت سوال */}
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-6 h-6 rounded-lg bg-[#1a2e44] text-[#c5a059] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                          {toPersianDigits(qIdx + 1)}
+                        </span>
+                        <p className="text-xs font-black text-[#1a2e44] leading-relaxed text-justify">{q.title}</p>
+                      </div>
+
+                      {/* گزینه‌ها */}
+                      <div className="grid grid-cols-1 gap-2">
+                        {q.options?.map((opt: any, optIdx: number) => {
+                          const isUserSelected = String(q.selected_option_id) === String(opt.id);
+                          const isKeyOption = String(q.correct_option_id) === String(opt.id);
+                          const isCorrect = String(q.selected_option_id) === String(q.correct_option_id);
+
+                          let cardStyle = "bg-[#faf9f6] border-gray-50 text-gray-600";
+                          if (isKeyOption) cardStyle = "bg-emerald-50 border-emerald-200 text-emerald-900";
+                          if (isUserSelected && !isKeyOption) cardStyle = "bg-rose-50 border-rose-200 text-rose-900";
+
+                          return (
+                            <div key={optIdx} className={`p-3 rounded-xl border text-[11px] font-bold flex items-center justify-between ${cardStyle}`}>
+                              <span className="flex items-center gap-2">
+                                <span className={`w-5 h-5 rounded-md text-[9px] font-black flex items-center justify-center ${isKeyOption ? 'bg-emerald-500 text-white' : isUserSelected ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                  {toPersianDigits(optIdx + 1)}
+                                </span>
+                                <span>{opt.title}</span> 
+                              </span>
+
+                              <div className="flex items-center gap-1 shrink-0 font-black text-[9px]">
+                                {isKeyOption && <span className="text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded flex items-center gap-0.5"><CheckCircle2 size={10} />پاسخ صحیح (کلید)</span>}
+                                {isUserSelected && <span className={`text-[#1a2e44] ${isCorrect ? 'text-emerald-700 bg-emerald-200/50' : 'text-rose-600 bg-rose-100'} px-2 py-0.5 rounded flex items-center gap-0.5`}>{!isCorrect && <XCircle size={10} />}انتخاب کاربر</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }) // 👈 تمام بسته‌شدن‌های تکراری و شکسته قبلی اینجا پاکسازی شدند
+              )}
+            </div>
+
           </div>
         </div>
       )}

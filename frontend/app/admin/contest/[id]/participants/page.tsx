@@ -4,46 +4,54 @@ import { useRouter } from 'next/navigation';
 import api from '../../../../../lib/api'; 
 import { 
   ArrowRight, Users, Loader2, Search, Trophy, Medal, Crown, 
-  X, Edit2, Save, ArrowUpDown, Smartphone, FileText, MapPin, Calendar, Download 
+  X, Edit2, Save, ArrowUpDown, Smartphone, FileText, MapPin, Calendar, Download,
+  CheckCircle2, XCircle // 🌟 اضافه شدن آیکون‌های مورد نیاز مدال پاسخنامه
 } from 'lucide-react';
 
 export default function ParticipantsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const contestId = params.id;
   const [participants, setParticipants] = useState<any[]>([]);
   const [filteredParticipants, setFilteredParticipants] = useState<any[]>([]); 
   const [contest, setContest] = useState<any>(null); 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // استیت‌های سیستم مرتب‌سازی (Sorting)
   const [sortField, setSortField] = useState<string>('rank'); 
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // استیت‌های یکپارچه لایه مدیریت پرونده و مدال هوشمند کاربر
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   
-  // استیت‌های حالت ویرایش لایو پرونده فردی
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
   const [saveLoading, setSaveLoading] = useState(false);
+
+  // 🌟 استیت‌های جدید: همگام‌سازی لایه مدال پاسخنامه کاربران در این صفحه
+  const [answerSheet, setAnswerSheet] = useState<any>(null);
+  const [answerModalOpen, setAnswerModalOpen] = useState(false);
+  const [answerLoading, setAnswerLoading] = useState(false);
 
   const toEnglishDigits = (str: string) => {
     return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
               .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
   };
 
-  // دریافت همزمان اطلاعات مسابقه و لیست لیدربرد
+  const toPersianDigits = (str: string | number) => {
+    const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
+  };
+
   const fetchPageData = async () => {
     try {
-      const [leaderboardRes, contestRes] = await Promise.all([
-        api.get(`/contests/${params.id}/leaderboard`),
-        api.get(`/contests/${params.id}`)
+      const [participantsRes, contestRes] = await Promise.all([
+        api.get(`/admin/contests/${contestId}/participants?t=${Date.now()}`),
+        api.get(`/contests/${contestId}?t=${Date.now()}`)
       ]);
       
-      setParticipants(leaderboardRes.data || []);
-      setFilteredParticipants(leaderboardRes.data || []);
+      setParticipants(participantsRes.data || []);
+      setFilteredParticipants(participantsRes.data || []);
       setContest(contestRes.data);
     } catch (error) {
       console.error("خطا در دریافت اطلاعات صفحه مدیریت", error);
@@ -54,13 +62,11 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
 
   useEffect(() => {
     fetchPageData();
-  }, [params.id]);
+  }, [contestId]);
 
-  // موتور هوشمند فیلترینگ، جستجو و مرتب‌سازی داده‌های جدول و دسکتاپ
   useEffect(() => {
     const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
     
-    // ۱. مدیریت و اعمال منطق سرچ
     let result = participants.filter((p: any) => {
       if (!normalizedQuery) return true;
       const name = p.name?.toLowerCase() || '';
@@ -68,7 +74,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
       return name.includes(normalizedQuery) || lastFour.includes(normalizedQuery);
     });
 
-    // ۲. مدیریت و اعمال منطق مرتب‌سازی الفبایی و عددی
     if (sortField) {
       result.sort((a: any, b: any) => {
         let valA = a[sortField];
@@ -90,7 +95,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
     setFilteredParticipants(result);
   }, [searchQuery, participants, sortField, sortOrder]);
 
-  // فعال‌سازی و تغییر فیلد سورتر ستون‌ها
   const handleSortRequest = (field: string) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -100,20 +104,17 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
     }
   };
 
-  // 👈 🌟 موتور تولید خروجی Excel / CSV هوشمند هماهنگ با فیلترها
   const exportToCSV = () => {
     if (filteredParticipants.length === 0) {
       alert("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
       return;
     }
 
-    // تعریف هدرهای جدول فایل اکسل
     const headers = ["رتبه", "نام شرکت‌کننده", "زمان مصرفی (ثانیه)", "کد شناسایی (۴ رقم آخر)", "نمره نهایی"];
     if (contest?.certificate_type !== 'none') {
       headers.push("وضعیت گواهی");
     }
 
-    // استخراج ردیف‌ها بر اساس لیست فیلتر شده فعلی ادمین
     const rows = filteredParticipants.map((user: any) => {
       const rowData = [
         user.rank || '',
@@ -129,7 +130,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
       return rowData;
     });
 
-    // اضافه کردن بایت اوردر مارک (BOM) برای رفع به هم ریختگی فونت فارسی در اکسل
     let csvContent = "\uFEFF";
     csvContent += headers.join(",") + "\n";
     rows.forEach((row) => {
@@ -141,26 +141,25 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `شرکت_کنندگان_مسابقه_${contest?.title || params.id}.csv`);
+    link.setAttribute("download", `شرکت_کنندگان_مسابقه_${contest?.title || contestId}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // باز کردن پرونده کامل کاربر به محض کلیک روی سطر یا کارت مسابقه
   const handleUserClick = async (userId: number) => {
     if (!userId) return;
     setModalLoading(true);
     setModalOpen(true);
     setIsEditing(false); 
     try {
-      const response = await api.get(`/admin/users/${userId}/detail`);
+      const response = await api.get(`/admin/users/${userId}/detail?t=${Date.now()}`);
       setSelectedUser(response.data);
       
       setEditFormData({
         first_name: response.data.first_name || '',
         last_name: response.data.last_name || '',
-        phone: response.data.phone || '',
+        phone: response.data.phone || response.data.phone_number || '',
         national_id: response.data.national_id || '',
         province: response.data.province || '',
         city: response.data.city || '',
@@ -175,7 +174,26 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
     }
   };
 
-  // ذخیره نهایی تغییرات مشخصات فردی شرکت‌کننده
+  // 🌟 تابع اختصاصی جدید: لود درجا و نمایش پاپ‌آپ پاسخنامه بدون خروج از صفحه
+  const handleViewAnswerSheet = async (targetContestId: number, targetContestTitle: string) => {
+    if (!selectedUser) return;
+    setAnswerLoading(true);
+    setAnswerModalOpen(true);
+    try {
+      const response = await api.get(`/admin/users/${selectedUser.id}/contests/${targetContestId}/answers?t=${Date.now()}`);
+      setAnswerSheet({
+        contest_title: targetContestTitle,
+        questions: response.data || []
+      });
+    } catch (error) {
+      console.error(error);
+      alert("خطا در بارگذاری لیست پاسخ‌های کاربر از سرور.");
+      setAnswerModalOpen(false);
+    } finally {
+      setAnswerLoading(false);
+    }
+  };
+
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveLoading(true);
@@ -215,7 +233,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
       
-      {/* هدر منعطف دسکتاپ و ویندوز */}
       <header className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100/50 bg-white/50 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]">
@@ -232,7 +249,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          {/* 👈 🌟 دکمه دانلود خروجی گزارش CSV بر اساس لیست فیلتر شده فعلی */}
           <button 
             onClick={exportToCSV}
             className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-700/10 hover:bg-emerald-700 transition-all active:scale-95 shrink-0"
@@ -261,24 +277,25 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
 
       <main className="p-4 sm:p-8 space-y-6">
         
-        {/* بخش رندر جوایز رتبه‌بندی مسابقه */}
         {contest && (() => {
           try {
             const parsedAwards = JSON.parse(contest.award);
             if (Array.isArray(parsedAwards) && parsedAwards.length > 0) {
               return (
-                <div className="p-5 bg-amber-50/40 rounded-[2rem] border border-amber-100 space-y-2.5 text-right max-w-3xl animate-in fade-in duration-300">
+                <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-2.5 text-right animate-in fade-in duration-300">
                   <h4 className="font-black text-xs text-amber-800 flex items-center gap-1.5 mb-2">
-                    <Trophy size={14} className="text-[#c5a059]" /> لیست جوایز برندگان این مسابقه:
+                    <Trophy size={14} className="text-[#c5a059]" /> لیست جوایز برندگان بر اساس رتبه:
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {parsedAwards.map((item: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center text-xs bg-white p-3 rounded-xl border border-amber-100/60 shadow-sm">
-                        <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md text-[10px]">رتبه {item.rank}</span>
-                        <span className="font-bold text-[#1a2e44] truncate max-w-[120px]">{item.title}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {contest.awards.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center gap-2 text-xs bg-[#faf9f6] p-2.5 rounded-xl border border-gray-100">
+                      <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md text-[10px] shrink-0">
+                        رتبه {toPersianDigits(item.rank)}
+                      </span>
+                      <span className="font-bold text-[#1a2e44] text-right break-words min-w-0 flex-1">
+                        {item.title}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               );
             }
@@ -289,7 +306,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
           }
         })()}
 
-        {/* 💻 نمای اول: جدول هوشمند مخصوص سیستم‌عامل ویندوز و دسکتاپ (مخفی در موبایل) */}
         <div className="hidden md:block bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
@@ -353,7 +369,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
           </div>
         </div>
 
-        {/* 📱 نمای دوم: کادرهای موبایلی مخصوص سیستم‌عامل اندروید و ابعاد کوچک (مخفی در دسکتاپ) */}
         <div className="block md:hidden bg-white rounded-[2rem] p-4 shadow-sm border border-gray-100 space-y-3">
           {filteredParticipants.length === 0 ? (
             <div className="text-center py-10">
@@ -393,9 +408,8 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
 
       </main>
 
-      {/* مُدال نمایش جامع و ویرایش لایو پرونده فردی شرکت‌کننده */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-3xl shadow-2xl border border-gray-100 max-h-[85vh] overflow-y-auto flex flex-col text-right">
             
             <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
@@ -405,7 +419,7 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                 </div>
                 <div>
                   <h3 className="font-black text-lg text-[#1a2e44]">
-                    {modalLoading ? "در حال فراخوانی پرونده..." : isEditing ? "اصلاح اطلاعات پرونده کاربر" : `پرونده آموزشی: ${selectedUser?.first_name} ${selectedUser?.last_name || ''}`}
+                    {modalLoading ? "در حال فراخوانی پرونده..." : isEditing ? "اصلاح اطلاعات پرونده کاربر" : `پرونده آموزشی: ${selectedUser?.first_name || ''} ${selectedUser?.last_name || ''}`}
                   </h3>
                   <p className="text-[10px] text-gray-400 font-bold mt-0.5">مشخصات هویتی سیستم و تاریخچه حضور در آزمون‌ها</p>
                 </div>
@@ -481,7 +495,7 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="flex items-center gap-2.5 text-xs">
                           <Smartphone size={16} className="text-gray-400" />
-                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">شماره تماس</span><span className="font-black font-mono text-gray-700">{selectedUser.phone}</span></div>
+                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">شماره تماس</span><span className="font-black font-mono text-gray-700">{selectedUser.phone || selectedUser.phone_number}</span></div>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
                           <FileText size={16} className="text-gray-400" />
@@ -512,28 +526,39 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                     </div>
                   )}
 
-                  {/* بخش سوم: لیست کامل مسابقاتی که شرکت کرده */}
                   <div className="space-y-3">
                     <h4 className="font-black text-xs text-[#1a2e44] flex items-center gap-1.5 border-b border-gray-100 pb-2">
                       <Trophy size={14} className="text-[#c5a059]" /> تاریخچه مسابقات و کارنامه‌های آزمون
                     </h4>
-                    {selectedUser.history?.length === 0 ? (
+                    {(!selectedUser.history || selectedUser.history.length === 0) ? (
                       <p className="text-center text-xs text-gray-400 italic py-6 font-bold">این کاربر هنوز در هیچ مسابقه‌ای شرکت نکرده است.</p>
                     ) : (
                       <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white">
                         <table className="w-full text-right text-xs">
                           <thead className="bg-gray-50 text-gray-400 font-black">
                             <tr>
-                              <th className="p-3">عنوان مسابقه</th>
+                              <th className="p-3">عنوان مسابقه (جهت مشاهده پاسخنامه کلیک کنید)</th>
                               <th className="p-3 text-center">امتیاز مکتسبه</th>
                               <th className="p-3 text-center">زمان مصرف شده</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50 font-bold text-gray-600">
-                            {selectedUser.history.map((h: any, idx: number) => (
-                              <tr key={idx} className="hover:bg-gray-50/50">
-                                <td className="p-3 text-[#1a2e44] font-black">{h.contest_title}</td>
-                                <td className="p-3 text-center"><span className="bg-amber-50 text-[#c5a059] px-2 py-0.5 rounded font-black text-sm">{h.score}%</span></td>
+                            {(selectedUser.history).map((h: any, idx: number) => (
+                              <tr 
+                                key={idx} 
+                                // 🌟 فیکس اصلی: تغییر روت به باز کردن مدال درون‌برنامه‌ایِ پاسخنامه به جای شوت کردن کاربر به آدرس دیگر
+                                onClick={() => handleViewAnswerSheet(h.contest_id, h.contest_title)}
+                                className="hover:bg-gray-50/50 cursor-pointer transition-colors group"
+                                title="کلیک کنید تا جزئیات پاسخنامه باز شود"
+                              >
+                                <td className="p-3 text-[#1a2e44] font-black group-hover:text-[#c5a059] transition-colors">
+                                  {h.contest_title}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <span className="bg-amber-50 text-[#c5a059] px-2 py-0.5 rounded font-black text-sm">
+                                    {h.score}%
+                                  </span>
+                                </td>
                                 <td className="p-3 text-center text-blue-600 font-mono">{h.time_taken} ثانیه</td>
                               </tr>
                             ))}
@@ -546,6 +571,91 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {answerModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 max-h-[80vh] overflow-hidden flex flex-col text-right animate-in zoom-in-95 duration-200">
+            
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f6]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#c5a059] text-white rounded-xl flex items-center justify-center shadow-md">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-[#1a2e44]">بررسی لایو پاسخنامه شرکت‌کننده</h3>
+                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">{answerSheet?.contest_title || "در حال بارگذاری..."}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setAnswerModalOpen(false); setAnswerSheet(null); }}
+                className="p-2 bg-white border border-gray-100 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all shadow-sm"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-gray-50/30">
+              {/* بخش رندر سوالات کارنامه تشریحی */}
+              {answerLoading ? (
+                <div className="py-16 flex flex-col items-center justify-center gap-2.5 text-gray-400 font-bold text-xs">
+                  <span className="w-6 h-6 border-3 border-[#1a2e44] border-t-transparent rounded-full animate-spin"></span>
+                  <span>در حال دریافت گزینه‌ها از دیتابیس...</span>
+                </div>
+              ) : answerSheet?.questions?.length === 0 ? (
+                <p className="text-center text-xs text-gray-400 italic py-6">پاسخنامه‌ای یافت نشد یا کاربر گزینه‌ای ثبت نکرده است.</p>
+              ) : (
+                answerSheet?.questions.map((q: any, qIdx: number) => {
+                  return (
+                    <div key={qIdx} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                      {/* صورت سوال */}
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-6 h-6 rounded-lg bg-[#1a2e44] text-[#c5a059] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                          {toPersianDigits(qIdx + 1)}
+                        </span>
+                        <p className="text-xs font-black text-[#1a2e44] leading-relaxed text-justify">{q.title}</p>
+                      </div>
+
+                      {/* گزینه‌ها */}
+                      <div className="grid grid-cols-1 gap-2">
+                        {q.options?.map((opt: string, optIdx: number) => {
+                          const currentOptNum = optIdx + 1;
+
+                          // 🎯 محاسبات و تطابق کاملاً شفاف عددی ۱ تا ۴
+                          const isUserSelected = q.selected_option !== undefined && q.selected_option !== null && Number(q.selected_option) === currentOptNum;
+                          const isKeyOption = q.correct_answer !== undefined && q.correct_answer !== null && Number(q.correct_answer) === currentOptNum;
+                          const isCorrect = Number(q.selected_option) === Number(q.correct_answer);
+
+                          let cardStyle = "bg-[#faf9f6] border-gray-50 text-gray-600";
+                          if (isKeyOption) cardStyle = "bg-emerald-50 border-emerald-200 text-emerald-900";
+                          if (isUserSelected && !isKeyOption) cardStyle = "bg-rose-50 border-rose-200 text-rose-900";
+
+                          return (
+                            <div key={optIdx} className={`p-3 rounded-xl border text-[11px] font-bold flex items-center justify-between ${cardStyle}`}>
+                              <span className="flex items-center gap-2">
+                                <span className={`w-5 h-5 rounded-md text-[9px] font-black flex items-center justify-center ${isKeyOption ? 'bg-emerald-500 text-white' : isUserSelected ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                  {toPersianDigits(currentOptNum)}
+                                </span>
+                                {/* رندر مستقیم متن استرینگ بدون خطای آبجکت ری‌آکت */}
+                                <span>{opt}</span> 
+                              </span>
+
+                              <div className="flex items-center gap-1 shrink-0 font-black text-[9px]">
+                                {isKeyOption && <span className="text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded flex items-center gap-0.5"><CheckCircle2 size={10} />پاسخ صحیح</span>}
+                                {isUserSelected && <span className={`text-[#1a2e44] ${isCorrect ? 'text-emerald-700 bg-emerald-200/50' : 'text-rose-600 bg-rose-100'} px-2 py-0.5 rounded flex items-center gap-0.5`}>{!isCorrect && <XCircle size={10} />}انتخاب کاربر</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
           </div>
         </div>
       )}

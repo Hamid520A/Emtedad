@@ -42,18 +42,37 @@ class UserLogin(BaseModel):
     password: str
 
 # ==========================================
-# Admin Schemas
+# Admin Schemas (بروزرسانی شده بر اساس رابطه ۱ به ۱ جدید)
 # ==========================================
 class AdminBase(BaseModel):
-    name: str
-    username: str
+    user_id: int
+    is_active: int = 1
 
-class AdminCreate(AdminBase):
-    password: str
+class AdminCreate(BaseModel):
+    user_id: int
 
 class Admin(AdminBase):
     id: int
-    is_active: int
+    class Config:
+        from_attributes = True
+
+# ==========================================
+# AdminLog Schemas
+# ==========================================
+class AdminLogBase(BaseModel):
+    action: str
+    target_model: Optional[str] = None
+    target_id: Optional[int] = None
+    description: Optional[str] = None
+
+class AdminLogCreate(AdminLogBase):
+    admin_id: int
+
+class AdminLogOut(AdminLogBase):
+    id: int
+    admin_id: int
+    created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -92,18 +111,18 @@ class Question(QuestionBase):
         from_attributes = True
 
 # ==========================================
-# Randomized Question Schemas (برای محیط آزمون فرانت‌ند)
+# Randomized Question Schemas
 # ==========================================
 class QuestionOption(BaseModel):
     id: int
-    title: str # هماهنگ با فیلد title در مدل جدید Answer
+    title: str 
 
     class Config:
         from_attributes = True
 
 class RandomizedQuestion(BaseModel):
     id: int
-    title: str # هماهنگ با فیلد title در مدل جدید Question
+    title: str 
     description: Optional[str] = None
     shuffled_options: List[QuestionOption]
     
@@ -151,7 +170,7 @@ class ContestCreate(ContestBase):
     time_limit: int
     question_limit: int
     certificate_type: str = "none"
-    award: Optional[str] = None  # دریافت آرایه جوایز به صورت stringified JSON
+    award: Optional[str] = None  
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
 
@@ -168,7 +187,6 @@ class AwardDetailOut(BaseModel):
     class Config:
         from_attributes = True
 
-# 🌟 اسکیمای اصلی برای پاسخ اندپوینت جزئیات مسابقه
 class ContestDetailOut(BaseModel):
     id: int
     title: str
@@ -179,10 +197,10 @@ class ContestDetailOut(BaseModel):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     question_limit: Optional[int] = None
-    time_limit: int                         # 👈 زمان آزمون به دقیقه
-    file_url: Optional[str] = None          # 👈 آدرس فایل جزوه
-    awards: List[AwardDetailOut] = []       # 👈 لیست جوایز تفکیک شده
-    certificate_type: str                   # 👈 نوع گواهی مسابقه
+    time_limit: int                         
+    file_url: Optional[str] = None          
+    awards: List[AwardDetailOut] = []       
+    certificate_type: str                   
 
     class Config:
         from_attributes = True
@@ -216,10 +234,31 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     phone_number: Optional[str] = None
 
-
-
+# ==========================================
+# Banner Schemas
+# ==========================================
 class BannerCreate(BaseModel):
     title: str
     link_url: Optional[str] = None
     image_url: str
     status: str = "active"
+
+class BannerOut(BannerCreate):
+    id: int
+    class Config:
+        from_attributes = True
+
+class BannerUserBase(BaseModel):
+    banner_id: int
+    user_id: int
+
+class BannerUserCreate(BannerUserBase):
+    pass
+
+class BannerUser(BannerUserBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
