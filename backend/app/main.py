@@ -468,12 +468,13 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
 
 @app.get("/contests", response_model=List[schemas.Contest])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)):
+    """دریافت لیست مسابقات - فیلتر کامل و قطعی مسابقات حذف شده (Soft Deleted)"""
+    # 🌟 فیکس: فیلتر سخت‌گیرانه برای عدم نمایش مسابقات حذف شده
     contests = db.query(models.Contest).filter(models.Contest.deleted_at == None).all()
-    now = datetime.now()
+    now = datetime.now() # 🌟 اصلاح شد: استفاده مستقیم از کلاس datetime
     
     modified = False
     for contest in contests:
-        # 🌟 فیکس نهایی: فقط شروع شدن مسابقه خودکار است، اما پایان یافتن آن هرگز خودکار نیست!
         if contest.status == 'upcoming' and contest.start_time and contest.start_time <= now:
             contest.status = 'active'
             modified = True
@@ -481,10 +482,11 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
     if modified:
         db.commit()
 
+    # اگر فرانت‌ند فیلتر استاتوس فرستاده بود
     if status:
         return db.query(models.Contest).filter(
             models.Contest.status == status,
-            models.Contest.deleted_at == None
+            models.Contest.deleted_at == None # 🌟 فیلتر همزمان حذف نرم
         ).all()
         
     return contests
@@ -1204,35 +1206,32 @@ def admin_login(login_data: schemas.UserLogin, db: Session = Depends(database.ge
     token = auth.create_access_token(data={"sub": user.phone_number, "is_admin": True})
     return {"access_token": token, "token_type": "bearer", "is_admin": True}
 
-@app.delete("/admin/contests/{contest_id}") # اضافه کردن /admin برای هماهنگی با فرانت‌ند
+@app.delete("/admin/contests/{contest_id}")
+@app.delete("/admin/contest/{contest_id}")
 def delete_contest(
-    contest_id: int, # تغییر از str به int برای هماهنگی با دیتابیس
-    db: Session = Depends(database.get_db),
-    current_admin: models.User = Depends(require_admin) # تامین امنیت روت
+    contest_id: int, 
+    db: Session = Depends(database.get_db), 
+    current_admin: models.User = Depends(require_admin)
 ):
-    # ۱. پیدا کردن مسابقه‌ای که قبلاً حذف نرم نشده باشد
-    contest = db.query(models.Contest).filter(
-        models.Contest.id == contest_id, 
-        models.Contest.deleted_at == None
-    ).first()
+    """نسخه اصلاح شده حذف مسابقه بدون باگ کرش تایم"""
+    db_contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     
-    if not contest:
+    if not db_contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+        
+    if db_contest.deleted_at is not None:
+        return {"message": "این مسابقه قبلاً حذف شده است", "status": "already_deleted"}
     
-    current_time = func.now()
+    now = datetime.now() # 🌟 فیکس اصلی: اصلاح از datetime.datetime.now به datetime.now
     
-    # ۲. 🌟 اعمال حذف نرم روی خود مسابقه
-    contest.deleted_at = current_time
+    db_contest.deleted_at = now
+    db_contest.is_active = 0
     
-    # ۳. 🌟 حذف نرم آبشاری: پر کردن فیلد حذف برای تمام سوالات و گزینه‌های این مسابقه
-    if contest.questions:
-        for q in contest.questions:
-            q.deleted_at = current_time
-            for ans in q.answers:
-                ans.deleted_at = current_time
-                
+    db.query(models.Question).filter(models.Question.contest_id == contest_id).update({"deleted_at": now, "is_active": 0}, synchronize_session=False)
+    db.query(models.Attachment).filter(models.Attachment.contest_id == contest_id).update({"deleted_at": now, "is_active": 0}, synchronize_session=False)
+    
     db.commit()
-    return {"message": "مسابقه و تمام سوالات متصل به آن با موفقیت (به صورت نرم) حذف شدند"}
+    return {"message": "مسابقه با موفقیت حذف شد"}
 
 @app.delete("/admin/questions/{question_id}")
 def delete_question(
@@ -1259,6 +1258,17 @@ def delete_question(
         
     db.commit()
     return {"message": "سوال با موفقیت (به صورت نرم) حذف شد"}
+
+@app.get("/admin/contests", response_model=List[schemas.Contest])
+def get_admin_contests_list(
+    db: Session = Depends(database.get_db), 
+    current_admin: models.User = Depends(require_admin)
+):
+    """روت اختصاصی پنل ادمین برای لود لیست مسابقات بدون نمایش موارد حذف شده"""
+    contests = db.query(models.Contest).filter(
+        models.Contest.deleted_at == None
+    ).order_by(models.Contest.id.desc()).all()
+    return contests
 
 @app.get("/admin/stats")
 async def get_admin_stats(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
@@ -1817,11 +1827,12 @@ def update_contest(
     db: Session = Depends(database.get_db), 
     current_admin: models.User = Depends(require_admin)
 ):
+    """ویرایش فوق‌امن مسابقه و سینک خودکار قالب گواهی بدون ریسک خطای ۵۰۰ و CORS"""
     db_contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not db_contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
     
-    now = datetime.datetime.now()
+    now = datetime.now()
 
     for key, value in contest_data.items():
         if value is None:
@@ -1831,30 +1842,23 @@ def update_contest(
             minutes = int(value or 10)
             db_contest.max_time = time(hour=minutes // 60, minute=minutes % 60)
             
-        # 🌟 فیکس باگ اول: تبدیل استرینگ‌های تاریخ فرانت‌ند به ابجکت DateTime معتبر پایتون
         elif key == "start_time" and isinstance(value, str):
-            try:
-                db_contest.start_time = datetime.datetime.fromisoformat(value.replace('Z', ''))
-            except ValueError:
-                pass
+            try: db_contest.start_time = datetime.fromisoformat(value.replace('Z', ''))
+            except ValueError: pass
                 
         elif key == "end_time" and isinstance(value, str):
-            try:
-                db_contest.end_time = datetime.datetime.fromisoformat(value.replace('Z', ''))
-            except ValueError:
-                pass
+            try: db_contest.end_time = datetime.fromisoformat(value.replace('Z', ''))
+            except ValueError: pass
             
         elif key == "status":
             if value == "active":
                 db_contest.status = "active"
                 db_contest.start_time = now
-                # 🌟 زمان پایان را بر اساس طول مسابقه به صورت داینامیک جلو بکش تا منقضی نشود
                 if db_contest.max_time:
                     duration_minutes = db_contest.max_time.hour * 60 + db_contest.max_time.minute
                     db_contest.end_time = now + timedelta(minutes=duration_minutes)
                 else:
-                    db_contest.end_time = now + timedelta(minutes=10) # مقدار پیش‌فرض
-                    
+                    db_contest.end_time = now + timedelta(minutes=10)
             elif value == "resume":
                 if db_contest.start_time and db_contest.start_time <= now:
                     db_contest.status = "active"
@@ -1865,63 +1869,95 @@ def update_contest(
                     db_contest.status = "upcoming"
             elif value == "ended":
                 db_contest.status = "ended"
-                db_contest.end_time = now # خاتمه آنی و همزمان مسابقه در دیتابیس
+                db_contest.end_time = now
             else:
                 db_contest.status = value
                 
-        # جلوگیری از تداخل فیلدهای سفارشی با ستون‌های اصلی کامپوننت دیتابیس
-        elif hasattr(db_contest, key) and key not in ["time_limit", "start_time", "end_time", "status", "award", "file_url"]:
+        # 🌟 تغییر کلیدی: بروزرسانی نوع گواهی مسابقه در صورت تغییر در فرم
+        elif key == "certificate_type":
+            cert = db.query(models.Certificate).filter(models.Certificate.contest_id == contest_id).first()
+            if value == "none":
+                if cert: db.delete(cert)
+            else:
+                type_labels = {"excellent": "عالی", "very_good": "خیلی خوب", "good": "خوب"}
+                label = type_labels.get(value, "عمومی")
+                title_str = f"گواهی {label} - دوره {db_contest.title}"
+                if cert: cert.title = title_str
+                else:
+                    db.add(models.Certificate(contest_id=contest_id, title=title_str, content="بدین‌وسیله گواهی می‌شود...", is_active=1))
+
+        # 🌟 فیکس اصلی: فقط فیلدهای متنی و عددی مجاز را تغییر بده تا دیتابیس روی ریلیشن‌ها کرش نکند
+        elif key in ["title", "description", "image_url", "video_url", "question_limit", "is_active"]:
             setattr(db_contest, key, value)
     
-    # 🌟 فیکس باگ دوم: پارس هوشمندانه لایه جوایز ادمین بدون ریسک کرش در فرمت‌های مختلف
+    # 🌟 هوشمندسازی: اگر دیتای قالب گواهی همزمان با این فرم پست شده بود، همین‌جا ذخیره‌اش کن
+    cert_text = contest_data.get("certificate_text_template")
+    cert_bg = contest_data.get("certificate_bg_url")
+    cert_logo = contest_data.get("certificate_logo_url")
+    
+    if cert_text or cert_bg or cert_logo:
+        cert = db.query(models.Certificate).filter(models.Certificate.contest_id == contest_id).first()
+        if not cert:
+            cert = models.Certificate(contest_id=contest_id, title=f"گواهی - دوره {db_contest.title}")
+            db.add(cert)
+            db.commit()
+            db.refresh(cert)
+            
+        if cert_text: cert.content = cert_text
+        if cert_bg: cert.background_url = cert_bg
+        if cert_logo: cert.logo_url = cert_logo
+        db.commit()
+        
+        # مدیریت و نوسازی امضاکنندگان قالب گواهی
+        if "signer_name" in contest_data:
+            db.query(models.CertificateSigners).filter(models.CertificateSigners.certificate_id == cert.id).delete()
+            db.commit()
+            
+            def link_signer(name, title, sig_url):
+                if name:
+                    signer = db.query(models.Signer).filter(models.Signer.name == name, models.Signer.title == title).first()
+                    if not signer:
+                        signer = models.Signer(name=name, title=title, sign_url=sig_url)
+                        db.add(signer)
+                        db.commit()
+                        db.refresh(signer)
+                    db.add(models.CertificateSigners(certificate_id=cert.id, signer_id=signer.id))
+            
+            link_signer(contest_data.get("signer_name"), contest_data.get("signer_title"), contest_data.get("signer_signature_url"))
+            link_signer(contest_data.get("signer_2_name"), contest_data.get("signer_2_title"), contest_data.get("signer_2_signature_url"))
+            link_signer(contest_data.get("signer_3_name"), contest_data.get("signer_3_title"), contest_data.get("signer_3_signature_url"))
+
+    # مدیریت تغییرات بخش جوایز
     if "award" in contest_data and contest_data["award"]:
         try:
             db.query(models.AwardContest).filter(models.AwardContest.contest_id == contest_id).delete()
-            
             awards_list = contest_data["award"]
-            if isinstance(awards_list, str):
-                awards_list = json.loads(awards_list)
-                
+            if isinstance(awards_list, str): awards_list = json.loads(awards_list)
             if isinstance(awards_list, list):
                 for aw in awards_list:
                     rank_num = int(aw.get('rank', 1))
                     award_title = aw.get('title', '').strip()
                     if not award_title: continue
-                    
                     db_award = db.query(models.Award).filter(models.Award.title == award_title).first()
                     if not db_award:
                         db_award = models.Award(title=award_title)
                         db.add(db_award)
                         db.commit()
                         db.refresh(db_award)
-                    
-                    db_award_contest = models.AwardContest(
-                        contest_id=contest_id,
-                        award_id=db_award.id,
-                        number=rank_num
-                    )
-                    db.add(db_award_contest)
+                    db.add(models.AwardContest(contest_id=contest_id, award_id=db_award.id, number=rank_num))
         except Exception as e:
-            print(f"⚠️ خطا در به‌روزرسانی ساختار جوایز دیتابیس: {e}")
+            print(f"⚠️ خطا در به‌روزرسانی جوایز: {e}")
 
-    # مدیریت پیوست جزوه دوره
+    # مدیریت پیوست جزوه
     if "file_url" in contest_data and contest_data["file_url"]:
         db.query(models.Attachment).filter(models.Attachment.contest_id == contest_id, models.Attachment.file_type == "pdf").delete()
-        db_attachment = models.Attachment(
-            contest_id=contest_id, 
-            file_name="جزوه راهنمای دوره", 
-            file_url=contest_data["file_url"], 
-            file_type="pdf", 
-            file_size=0
-        )
-        db.add(db_attachment)
+        db.add(models.Attachment(contest_id=contest_id, file_name="جزوه راهنمای دوره", file_url=contest_data["file_url"], file_type="pdf", file_size=0))
 
     db.commit()
     db.refresh(db_contest)
     
-    # 🌟 فیکس باگ سوم: ارسال زمان پایان جدید به فرانت‌ند تا استیت کامپوننت فورا هماهنگ شود
     return {
-        "message": "مسابقه با موفقیت به‌روزرسانی شد",
+        "message": "مسابقه و گواهی متصل به آن با موفقیت ویرایش شدند",
         "status": db_contest.status,
         "start_time": db_contest.start_time.isoformat() if db_contest.start_time else None,
         "end_time": db_contest.end_time.isoformat() if db_contest.end_time else None

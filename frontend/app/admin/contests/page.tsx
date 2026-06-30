@@ -12,7 +12,8 @@ export default function AdminContestsPage() {
   useEffect(() => {
     const fetchContests = async () => {
       try {
-        const res = await api.get('/contests');
+        // 🌟 شاه‌کلید حل باگ کش: استفاده از روت اختصاصی ادمین همراه با پارامتر زمان زنده
+        const res = await api.get(`/admin/contests?t=${Date.now()}`);
         setContests(res.data);
       } catch (error) {
         console.error("Error fetching contests:", error);

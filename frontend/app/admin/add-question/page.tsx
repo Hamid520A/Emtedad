@@ -25,10 +25,11 @@ export default function AddQuestionPage() {
   useEffect(() => {
     const fetchContests = async () => {
       try {
-        const response = await api.get('/contests');
+        // 🌟 فیکس نهایی: اتصال به روت اختصاصی ادمین همراه با فلش‌بک ضد کش زمان زنده
+        const response = await api.get(`/admin/contests?t=${Date.now()}`);
         setContests(response.data);
       } catch (error) {
-        console.error("خطا در بارگذاری لیست مسابقات", error);
+        console.error("خطا در دریافت اطلاعات زنده مسابقات", error);
       } finally {
         setLoading(false);
       }
