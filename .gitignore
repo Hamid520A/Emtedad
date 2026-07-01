@@ -5,3 +5,5 @@ venv/
 static/uploads/*
 .next/
 dist/
+*.zip
+emtedad.mdj
