@@ -7,7 +7,7 @@ import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import { iranProvinces, iranCities } from '../../../lib/utils/iranCities';
-import { SearchableDropdown } from '../../(auth)/register/page';
+import { SearchableDropdown } from '../../(auth)/register/SearchableDropdown';
 
 const DatePickerComponent = DatePicker as any;
 
