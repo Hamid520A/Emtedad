@@ -27,6 +27,7 @@ class UserBase(BaseModel):
     national_id: str
     city_id: Optional[int] = None
     birth_date: Optional[date] = None
+    gender: str = "male"
 
 class UserCreate(UserBase):
     password: str
