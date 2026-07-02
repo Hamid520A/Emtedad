@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from datetime import datetime, date, time
 
@@ -28,6 +28,21 @@ class UserBase(BaseModel):
     city_id: Optional[int] = None
     birth_date: Optional[date] = None
     gender: str = "male"
+    @field_validator("birth_date")
+    @classmethod
+    def validate_min_age(cls, value):
+        if value is None:
+            return value
+        
+        today = date.today()
+        # محاسبه دقیق سن با توجه به سال، ماه و روز
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+        
+        if age < 10:
+            raise ValueError("حداقل سن برای ثبت‌نام در مسابقات ۱۰ سال است.")
+        
+        return value
+
 
 class UserCreate(UserBase):
     password: str

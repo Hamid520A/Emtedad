@@ -1,5 +1,5 @@
 # backend/seed_cities.py
-from app.database import SessionLocal
+from app.database import SessionLocal, engine
 from app import models
 
 # 🌟 انتقال و تبدیل کامل دیتای فایل iranCities.ts به دیکشنری پایتون
@@ -38,6 +38,7 @@ IRAN_DATA = {
 }
 
 def seed_entire_iran_cities():
+    models.Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     print("seeding cities for all provinces of Iran...")
     
