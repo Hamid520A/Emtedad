@@ -315,9 +315,6 @@ export default function ProfilePage() {
           <button onClick={() => router.push('/')} className="flex-1 text-gray-400 hover:text-white transition flex flex-col items-center gap-1 p-2">
             <Trophy size={20} /> <span className="text-[10px]">خانه</span>
           </button>
-          <button onClick={() => router.push('/leaderboard')} className="flex-1 text-gray-400 hover:text-white transition flex flex-col items-center gap-1 p-2">
-            <Crown size={20} /> <span className="text-[10px]">برترین‌ها</span>
-          </button>
           <button className="flex-1 text-[#c5a059] flex flex-col items-center gap-1 p-2 bg-white/10 rounded-2xl">
             <User size={20} /> <span className="text-[10px] font-bold">پروفایل</span>
           </button>
