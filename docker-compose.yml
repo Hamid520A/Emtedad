@@ -7,16 +7,16 @@ volumes:
   redis_data:
 
 services:
-  # 🟣 سرویس فرانت‌ند (Next.js)
+# 🟣 سرویس فرانت‌ند (Next.js)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000
+        # 🌟 شاه‌کلید: داکر حالا مقدار را مستقیماً از فایل .env روت اصلی می‌خواند
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"
-    # 🌟 ولوم‌های فرانت‌ند رو کاملاً پاک کن تا کدهای داخل ایمیج زنده بشن
     networks:
       - emtedad_network
     depends_on:
