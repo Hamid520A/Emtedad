@@ -50,7 +50,6 @@ export default function AdminUsersPage() {
     try {
       setLoading(true);
       const [usersRes, contestsRes] = await Promise.all([
-        // 🌟 بهینه‌سازی شده با روت جدید تفکیک‌شده و تکنیک ضد کش مرورگر
         api.get(`/admin/users?t=${Date.now()}`),
         api.get(`/contests?t=${Date.now()}`)
       ]);
@@ -69,7 +68,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  // 🌟 فیکس اصلی: اضافه شدن این افکتِ حیاتی برای اجرای خودکار تابع دریافت دیتا در لحظه ورود به صفحه
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -174,6 +172,9 @@ export default function AdminUsersPage() {
       const response = await api.get(`/admin/users/${userId}/detail?t=${Date.now()}`);
       setSelectedUser(response.data);
       
+      // 🌟 تغییر جدید: وضعیت ادمین بودن به فرم ویرایش تزریق شد
+      const checkAdmin = response.data.is_admin === true || response.data.is_admin === 1 || String(response.data.is_admin).toLowerCase() === 'true';
+
       setEditFormData({
         first_name: response.data.first_name || '',
         last_name: response.data.last_name || '',
@@ -182,7 +183,8 @@ export default function AdminUsersPage() {
         province: response.data.province || '',
         city: response.data.city || '',
         gender: response.data.gender || 'male',
-        birth_date: response.data.birth_date || ''
+        birth_date: response.data.birth_date || '',
+        is_admin: checkAdmin // 🌟 اضافه شدن فیلد ادمین به دیتای فرم
       });
     } catch (error) {
       alert("خطا در دریافت پرونده کامل کاربر");
@@ -219,6 +221,7 @@ export default function AdminUsersPage() {
       alert("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
       setIsEditing(false);
       
+      // 🌟 تغییر جدید: به‌روزرسانی استیت لوکال برای نمایش فوری نقش جدید در مدال
       setSelectedUser({
         ...selectedUser,
         first_name: editFormData.first_name,
@@ -228,7 +231,8 @@ export default function AdminUsersPage() {
         province: editFormData.province,
         city: editFormData.city,
         gender: editFormData.gender,
-        birth_date: editFormData.birth_date
+        birth_date: editFormData.birth_date,
+        is_admin: editFormData.is_admin // 🌟 سینک شدن آنی استیت
       });
       
       fetchInitialData();
@@ -454,6 +458,18 @@ export default function AdminUsersPage() {
                             <option value="female">زن</option>
                           </select>
                         </div>
+                        {/* 🌟 تغییر جدید: اضافه شدن فیلد انتخاب نقش سیستم (ادمین/کاربر عادی) */}
+                        <div>
+                          <label className="block text-[10px] font-black text-purple-600 mb-1">سطح دسترسی سیستم</label>
+                          <select 
+                            className="w-full p-2.5 bg-purple-50/50 border border-purple-200 rounded-xl text-xs font-black text-purple-700 outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer" 
+                            value={editFormData.is_admin ? "true" : "false"} 
+                            onChange={(e)=>setEditFormData({...editFormData, is_admin: e.target.value === "true"})}
+                          >
+                            <option value="false">👤 کاربر عادی</option>
+                            <option value="true">👑 مدیر سیستم (ادمین)</option>
+                          </select>
+                        </div>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -476,6 +492,16 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-2.5 text-xs">
                           <Users size={16} className="text-gray-400" />
                           <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">جنسیت</span><span className="font-black text-gray-700">{selectedUser.gender === 'male' || selectedUser.gender === 'مرد' ? 'مرد' : 'زن'}</span></div>
+                        </div>
+                        {/* 🌟 تغییر جدید: نمایش نقش فعلی کاربر در حالت عادی پرونده */}
+                        <div className="flex items-center gap-2.5 text-xs">
+                          <ShieldCheck size={16} className={selectedUser.is_admin ? "text-purple-500" : "text-gray-400"} />
+                          <div>
+                            <span className="block text-[9px] text-gray-400 font-bold mb-0.5">وضعیت کاربری</span>
+                            <span className={`font-black ${selectedUser.is_admin ? "text-purple-600" : "text-gray-700"}`}>
+                              {selectedUser.is_admin ? "👑 مدیر سیستم" : "👤 کاربر عادی"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -533,12 +559,11 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-{/* مُدال نمایش لایو پاسخنامه کاربر جهت آنالیز سوال به سوال ادمین */}
+      {/* مُدال نمایش لایو پاسخنامه کاربر جهت آنالیز سوال به سوال ادمین */}
       {answerModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 max-h-[80vh] overflow-hidden flex flex-col text-right animate-in zoom-in-95 duration-200">
             
-            {/* هدر مدال */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f6]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-[#c5a059] text-white rounded-xl flex items-center justify-center shadow-md">
@@ -557,7 +582,6 @@ export default function AdminUsersPage() {
               </button>
             </div>
 
-            {/* بدنه و سوالات */}
             <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-gray-50/30">
               {answerLoading ? (
                 <div className="py-16 flex flex-col items-center justify-center gap-2.5 text-gray-400 font-bold text-xs">
@@ -567,11 +591,9 @@ export default function AdminUsersPage() {
               ) : answerSheet?.questions?.length === 0 ? (
                 <p className="text-center text-xs text-gray-400 italic py-6">پاسخنامه‌ای یافت نشد یا کاربر گزینه‌ای ثبت نکرده است.</p>
               ) : (
-                // 🌟 اصلاح شد: مپ اصلی سوالات بدون کدهای شکسته و کاملاً تراز شده
                 answerSheet?.questions.map((q: any, qIdx: number) => {
                   return (
                     <div key={qIdx} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                      {/* صورت سوال */}
                       <div className="flex items-start gap-2.5">
                         <span className="w-6 h-6 rounded-lg bg-[#1a2e44] text-[#c5a059] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
                           {toPersianDigits(qIdx + 1)}
@@ -579,7 +601,6 @@ export default function AdminUsersPage() {
                         <p className="text-xs font-black text-[#1a2e44] leading-relaxed text-justify">{q.title}</p>
                       </div>
 
-                      {/* گزینه‌ها */}
                       <div className="grid grid-cols-1 gap-2">
                         {q.options?.map((opt: any, optIdx: number) => {
                           const isUserSelected = String(q.selected_option_id) === String(opt.id);
@@ -609,7 +630,7 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
                   );
-                }) // 👈 تمام بسته‌شدن‌های تکراری و شکسته قبلی اینجا پاکسازی شدند
+                }) 
               )}
             </div>
 
