@@ -1,3 +1,4 @@
+# backend/app/auth.py
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
@@ -5,10 +6,11 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from . import schemas, models, database
 from sqlalchemy.orm import Session
+import os
 
-# 🌟 اصلاح کلیدی ۱: هماهنگ‌سازی دقیق کلید امنیتی با فایل main.py
-SECRET_KEY = "YOUR_SUPER_SECRET_KEY" 
-ALGORITHM = "HS256"
+# 🌟 اصلاح کلیدی: خواندن داینامیک از فایل env با مقدار پیش‌فرض امن
+SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development") 
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 

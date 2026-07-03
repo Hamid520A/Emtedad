@@ -52,7 +52,7 @@ export default function SupportPage() {
             </div>
           </a>
 
-          <a href="mailto:support@yara.com" className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between hover:border-[#c5a059] hover:shadow-md transition-all group">
+          <a href="mailto:support@emtedad.com" className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between hover:border-[#c5a059] hover:shadow-md transition-all group">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-[#faf9f6] text-gray-500 rounded-2xl flex items-center justify-center group-hover:bg-orange-50 group-hover:text-[#c5a059] transition-colors">
                 <Mail size={24} />

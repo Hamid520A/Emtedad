@@ -1,0 +1,69 @@
+networks:
+  emtedad_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+  # 🟣 سرویس فرانت‌ند (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # 🌟 پاس دادن آدرس بک‌ند به داکر فرانت‌ند در لحظه بیلد
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/.next # جلوگیری از تداخل کش لوکال با کانتینر
+    networks:
+      - emtedad_network
+    depends_on:
+      - backend
+
+  # 🟢 سرویس بک‌ند (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      network: host # سوپاپ اطمینان حل مشکل DNS فدورا موقع نصب requirements
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./backend/static/uploads:/app/static/uploads
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - emtedad_network
+
+  # 🔵 سرویس دیتابیس (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=emtedad_user
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=emtedad_db
+    ports:
+      - "5432:5432"
+    networks:
+      - emtedad_network
+
+  # 🔴 سرویس کش (Redis)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - emtedad_network

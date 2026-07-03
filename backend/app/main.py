@@ -26,17 +26,22 @@ ACCOUNT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
 ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989371787445")
 r = redis.Redis(host=ACCOUNT_REDIS_HOST, port=ACCOUNT_REDIS_PORT, db=ACCOUNT_REDIS_DB, decode_responses=True, socket_timeout=5)
 
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_env.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://dynamic-tanuki-1975df.netlify.app", "http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# کانفیگ‌های امنیتی JWT
-SECRET_KEY = "YOUR_SUPER_SECRET_KEY"
-ALGORITHM = "HS256"
+# ۲. هماهنگ‌سازی کلیدهای JWT با فایل auth
+SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+EITAA_API_URL = os.getenv("EITAA_API_URL", "http://10.10.10.4:3000/send")
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 LIMIT_WINDOW = 60       # پنجره زمانی بر اساس ثانیه (۱ دقیقه)
@@ -99,7 +104,7 @@ def safe_load_image(url_str):
         return None
     try:
         if url_str.startswith("/"):
-            url_str = f"http://127.0.0.1:8000{url_str}"
+            url_str = f"{BACKEND_URL}{url_str}"
             
         response = requests.get(url_str, timeout=5)
         return Image.open(io.BytesIO(response.content)).convert("RGBA")
@@ -326,7 +331,7 @@ async def rate_limiter_and_ip_blocker(request: Request, call_next):
         return await call_next(request)
 
     cors_headers = {
-        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "*",
         "Access-Control-Allow-Headers": "*",
@@ -737,7 +742,7 @@ async def upload_file(file: UploadFile = File(...)):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    return {"url": f"http://localhost:8000/static/uploads/{file.filename}"}
+    return {"url": f"{BACKEND_URL}/static/uploads/{file.filename}"}
 
 @app.get("/contests/{contest_id}/leaderboard")
 def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
