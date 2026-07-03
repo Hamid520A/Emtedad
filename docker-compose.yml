@@ -13,13 +13,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # 🌟 پاس دادن آدرس بک‌ند به داکر فرانت‌ند در لحظه بیلد
         - NEXT_PUBLIC_API_URL=http://localhost:8000
     ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/.next # جلوگیری از تداخل کش لوکال با کانتینر
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
+    # 🌟 ولوم‌های فرانت‌ند رو کاملاً پاک کن تا کدهای داخل ایمیج زنده بشن
     networks:
       - emtedad_network
     depends_on:
@@ -30,12 +27,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      network: host # سوپاپ اطمینان حل مشکل DNS فدورا موقع نصب requirements
+      network: host
     ports:
-      - "8000:8000"
+      - "${BACKEND_HOST_PORT:-8000}:8000"
     volumes:
-      - ./backend:/app
-      - ./backend/static/uploads:/app/static/uploads
+      # 🌟 خط ./backend:/app را پاک کن و فقط خط آپلودها رو بذار بمونه
+      - ./backend/static/uploads:/app/static/uploads 
     env_file:
       - ./backend/.env
     depends_on:
@@ -54,7 +51,7 @@ services:
       - POSTGRES_PASSWORD=123456
       - POSTGRES_DB=emtedad_db
     ports:
-      - "5432:5432"
+      - "${DB_HOST_PORT:-5432}:5432"
     networks:
       - emtedad_network
 
@@ -62,7 +59,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:
