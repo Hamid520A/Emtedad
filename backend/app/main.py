@@ -1575,7 +1575,12 @@ def get_user_detail(user_id: int, db: Session = Depends(database.get_db), curren
     }
 
 @app.put("/admin/users/{user_id}/update")
-def update_admin_user_profile(user_id: int, payload: dict, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+def update_admin_user_profile(
+    user_id: int, 
+    payload: dict, 
+    db: Session = Depends(database.get_db), 
+    current_admin: models.User = Depends(require_admin)
+):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="کاربر یافت نشد")
@@ -1593,6 +1598,21 @@ def update_admin_user_profile(user_id: int, payload: dict, db: Session = Depends
             user.birth_date = datetime.strptime(payload.get("birth_date"), "%Y-%m-%d").date()
         except Exception:
             pass
+            
+    # 🌟 مدیریت هوشمند جدول admins بر اساس مقدار کلید is_admin ارسالی از فرانت‌ند
+    if "is_admin" in payload:
+        is_admin_requested = payload.get("is_admin")
+        
+        # چک کردن وضعیت فعلی کاربر در جدول ادمین‌ها
+        existing_admin = db.query(models.Admin).filter(models.Admin.user_id == user_id).first()
+        
+        if is_admin_requested and not existing_admin:
+            # اگر فرانت‌ند گفته ادمین شود ولی ردیف ندارد -> ردیف جدید بساز
+            new_admin = models.Admin(user_id=user_id, is_active=1)
+            db.add(new_admin)
+        elif not is_admin_requested and existing_admin:
+            # اگر فرانت‌ند گفته کاربر عادی شود ولی ردیف دارد -> ردیف را پاک کن
+            db.delete(existing_admin)
     
     db.commit()
     return {"status": "success", "message": "اطلاعات کاربر با موفقیت ویرایش شد"}
