@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { 
   Users, ArrowRight, Search, Trophy, X, MapPin, Calendar, CheckCircle2, XCircle,
-  Smartphone, FileText, Edit2, Save, Download, ArrowUpDown, ShieldCheck, UserCheck, HelpCircle
+  Smartphone, FileText, Edit2, Save, Download, ArrowUpDown, ShieldCheck, UserCheck
 } from 'lucide-react'; 
 
 export default function AdminUsersPage() {
@@ -16,21 +16,17 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState(''); 
   const [loading, setLoading] = useState(true);
 
-  // سیستم مرتب‌سازی (Sorting)
   const [sortField, setSortField] = useState<string>('name'); 
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); 
 
-  // استیت‌های مربوط به مدال و دیتای کاربر
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   
-  // استیت‌های مربوط به ویرایش پرونده
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
   const [saveLoading, setSaveLoading] = useState(false);
 
-  // استیت‌های لایه نمایش پاسخنامه کاربر به ادمین
   const [answerSheet, setAnswerSheet] = useState<any>(null);
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [answerLoading, setAnswerLoading] = useState(false);
@@ -45,7 +41,6 @@ export default function AdminUsersPage() {
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
 
-  // دریافت همزمان اطلاعات کاربران و مسابقات از سرور
   const fetchInitialData = async () => {
     try {
       setLoading(true);
@@ -72,7 +67,6 @@ export default function AdminUsersPage() {
     fetchInitialData();
   }, []);
 
-  // موتور هوشمند فیلترینگ، جستجو و مرتب‌سازی داده‌ها
   useEffect(() => {
     const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
     
@@ -172,7 +166,6 @@ export default function AdminUsersPage() {
       const response = await api.get(`/admin/users/${userId}/detail?t=${Date.now()}`);
       setSelectedUser(response.data);
       
-      // 🌟 تغییر جدید: وضعیت ادمین بودن به فرم ویرایش تزریق شد
       const checkAdmin = response.data.is_admin === true || response.data.is_admin === 1 || String(response.data.is_admin).toLowerCase() === 'true';
 
       setEditFormData({
@@ -184,7 +177,7 @@ export default function AdminUsersPage() {
         city: response.data.city || '',
         gender: response.data.gender || 'male',
         birth_date: response.data.birth_date || '',
-        is_admin: checkAdmin // 🌟 اضافه شدن فیلد ادمین به دیتای فرم
+        is_admin: checkAdmin
       });
     } catch (error) {
       alert("خطا در دریافت پرونده کامل کاربر");
@@ -221,7 +214,6 @@ export default function AdminUsersPage() {
       alert("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
       setIsEditing(false);
       
-      // 🌟 تغییر جدید: به‌روزرسانی استیت لوکال برای نمایش فوری نقش جدید در مدال
       setSelectedUser({
         ...selectedUser,
         first_name: editFormData.first_name,
@@ -232,7 +224,7 @@ export default function AdminUsersPage() {
         city: editFormData.city,
         gender: editFormData.gender,
         birth_date: editFormData.birth_date,
-        is_admin: editFormData.is_admin // 🌟 سینک شدن آنی استیت
+        is_admin: editFormData.is_admin
       });
       
       fetchInitialData();
@@ -265,7 +257,6 @@ export default function AdminUsersPage() {
           <button 
             onClick={exportToCSV}
             className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-700/10 hover:bg-emerald-700 transition-all active:scale-95 shrink-0"
-            title="دانلود فایل خروجی از لیست فیلتر شده فعلی"
           >
             <Download size={16} /> خروجی Excel / CSV
           </button>
@@ -337,14 +328,13 @@ export default function AdminUsersPage() {
                       key={user.id} 
                       onClick={() => handleUserClick(user.id)}
                       className="hover:bg-[#faf9f6] cursor-pointer transition-colors group"
-                      title="برای مشاهده پرونده کامل کلیک کنید"
                     >
                       <td className="py-4 font-bold text-[#1a2e44] group-hover:text-[#c5a059] transition-colors">{user.name}</td>
                       <td className="py-4 font-bold text-gray-500 tracking-wider font-mono">{user.phone}</td>
                       <td className="py-4 text-gray-500 font-mono">{user.national_id}</td>
                       <td className="py-4 font-bold text-gray-600">{user.province}</td>
                       <td className="py-4">
-                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'مرد' || user.gender === 'male' ? 'bg-blue-50 text-blue-600' : user.gender === 'زن' || user.gender === 'female' ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'مرد' || user.gender === 'male' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
                           {user.gender === 'male' || user.gender === 'مرد' ? 'مرد' : 'زن'}
                         </span>
                       </td>
@@ -373,7 +363,6 @@ export default function AdminUsersPage() {
         </div>
       </main>
 
-      {/* مُدال نمایش و ویرایش سوابق کاربر */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-3xl shadow-2xl border border-gray-100 max-h-[85vh] overflow-y-auto flex flex-col animate-in zoom-in-95 duration-200 text-right">
@@ -458,7 +447,6 @@ export default function AdminUsersPage() {
                             <option value="female">زن</option>
                           </select>
                         </div>
-                        {/* 🌟 تغییر جدید: اضافه شدن فیلد انتخاب نقش سیستم (ادمین/کاربر عادی) */}
                         <div>
                           <label className="block text-[10px] font-black text-purple-600 mb-1">سطح دسترسی سیستم</label>
                           <select 
@@ -493,7 +481,6 @@ export default function AdminUsersPage() {
                           <Users size={16} className="text-gray-400" />
                           <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">جنسیت</span><span className="font-black text-gray-700">{selectedUser.gender === 'male' || selectedUser.gender === 'مرد' ? 'مرد' : 'زن'}</span></div>
                         </div>
-                        {/* 🌟 تغییر جدید: نمایش نقش فعلی کاربر در حالت عادی پرونده */}
                         <div className="flex items-center gap-2.5 text-xs">
                           <ShieldCheck size={16} className={selectedUser.is_admin ? "text-purple-500" : "text-gray-400"} />
                           <div>
@@ -539,7 +526,6 @@ export default function AdminUsersPage() {
                                 key={idx} 
                                 onClick={() => handleViewAnswerSheet(h.contest_id, h.contest_title)}
                                 className="hover:bg-blue-50/40 cursor-pointer transition-colors"
-                                title="کلیک کنید تا جزئیات پاسخنامه باز شود"
                               >
                                 <td className="p-3 text-[#1a2e44] font-black group-hover:text-[#c5a059]">{h.contest_title}</td>
                                 <td className="p-3 text-center"><span className="bg-amber-50 text-[#c5a059] px-2 py-0.5 rounded font-black text-sm">{h.score}%</span></td>
@@ -559,7 +545,6 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* مُدال نمایش لایو پاسخنامه کاربر جهت آنالیز سوال به سوال ادمین */}
       {answerModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 max-h-[80vh] overflow-hidden flex flex-col text-right animate-in zoom-in-95 duration-200">
