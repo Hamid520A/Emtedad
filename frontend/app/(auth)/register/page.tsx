@@ -142,11 +142,19 @@ export default function RegisterPage() {
       const detail = error.response?.data?.detail;
       let errorMsg = "مشکل ارتباط با سرور. اطلاعات را بررسی کنید.";
       
-      if (detail === "شماره قبلاً ثبت شده" || String(detail).includes("phone_number")) {
-        errorMsg = "این شماره موبایل قبلاً در سیستم ثبت شده است.";
-      }
-      if (detail === "کد ملی قبلاً ثبت شده" || String(detail).includes("national_id")) {
-        errorMsg = "این کد ملی قبلاً در سیستم ثبت شده است.";
+      if (Array.isArray(detail)) {
+        const firstError = detail[0];
+        if (firstError && firstError.msg) {
+          errorMsg = firstError.msg.replace("Value error, ", "");
+        }
+      } else if (detail) {
+        if (detail === "شماره قبلاً ثبت شده" || String(detail).includes("phone_number")) {
+          errorMsg = "این شماره موبایل قبلاً در سیستم ثبت شده است.";
+        } else if (detail === "کد ملی قبلاً ثبت شده" || String(detail).includes("national_id")) {
+          errorMsg = "این کد ملی قبلاً در سیستم ثبت شده است.";
+        } else {
+          errorMsg = String(detail);
+        }
       }
       
       alert("خطا در ثبت‌نام: " + errorMsg);
