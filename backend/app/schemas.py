@@ -2,6 +2,7 @@
 from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from datetime import datetime, date, time
+import jdatetime
 
 # ==========================================
 # City Schemas
@@ -35,9 +36,12 @@ class UserBase(BaseModel):
         if value is None:
             return value
         
-        today = date.today()
-        # محاسبه دقیق سن با توجه به سال، ماه و روز
-        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+        # تبدیل تاریخ میلادی امروز به شمسی جهت محاسبه همگن و دقیق سن
+        today_gregorian = date.today()
+        today_jalali = jdatetime.date.fromgregorian(date=today_gregorian)
+        
+        # محاسبه دقیق سن با توجه به سال، ماه و روز در تقویم جلالی
+        age = today_jalali.year - value.year - ((today_jalali.month, today_jalali.day) < (value.month, value.day))
         
         if age < 10:
             raise ValueError("حداقل سن برای ثبت‌نام در مسابقات ۱۰ سال است.")
