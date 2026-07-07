@@ -279,6 +279,9 @@ export default function RegisterPage() {
                   containerClassName="w-full"
                   inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="1380/01/01"
+                  name="birth_date"
+                  id="birth_date"
+                  autoComplete="bday"
                 />
               </div>
             </div>
