@@ -1,5 +1,5 @@
 # ۱. استفاده از نسخه سبک و پایدار پایتون
-FROM python:3.11-slim
+FROM docker.arvancloud.ir/library/python:3.11-slim
 
 # ۲. تنظیم پوشه کاری داخل کانتینر
 WORKDIR /app

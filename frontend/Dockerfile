@@ -1,12 +1,12 @@
 # مرحله اول: دانلود و نصب پکیج‌ها
-FROM node:18-alpine AS deps
+FROM docker.arvancloud.ir/library/node:18-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # مرحله دوم: بیلد کردن پروژه نکست‌جی‌اس
-FROM node:18-alpine AS builder
+FROM docker.arvancloud.ir/library/node:18-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -18,7 +18,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
 # مرحله سوم: اجرای فرانت‌ند در محیط پروداکشن با کمترین حجم ممکن
-FROM node:18-alpine AS runner
+FROM docker.arvancloud.ir/library/node:18-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV production
 
