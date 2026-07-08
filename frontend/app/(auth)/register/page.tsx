@@ -318,6 +318,14 @@ export default function RegisterPage() {
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">رمز عبور</label>
               <div className="relative">
+                <input
+                  type="text"
+                  name="fake_username_to_prevent_autofill"
+                  style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}
+                  tabIndex={-1}
+                  autoComplete="username"
+                  readOnly
+                />
                 <Lock className="absolute right-4 top-4 text-gray-400" size={18} />
                 <input
                   type="password" required dir="ltr"
