@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api'; 
+import api from '../../../lib/api';
 import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, ChevronDown, Search } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
@@ -12,7 +12,7 @@ const DatePickerComponent = DatePicker as any;
 
 export default function RegisterPage() {
   const router = useRouter();
-  
+
   // استیت فرم منطبق بر فیلدهای دقیق مدل هویتی جدید پایتون
   const [formData, setFormData] = useState({
     first_name: '',
@@ -31,10 +31,10 @@ export default function RegisterPage() {
   const [provinces, setProvinces] = useState<{ id: number; title: string }[]>([]);
   const [availableCities, setAvailableCities] = useState<{ id: number; title: string }[]>([]);
 
-// تبدیل داینامیک و استاندارد اعداد فارسی/عربی به انگلیسی (اصلاح شده)
+  // تبدیل داینامیک و استاندارد اعداد فارسی/عربی به انگلیسی (اصلاح شده)
   const toEnglishDigits = (str: string) => {
     return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728))
-              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584));
+      .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584));
   };
 
   // الگوریتم رسمی و ریاضی اعتبارسنجی کد ملی ایران
@@ -77,7 +77,7 @@ export default function RegisterPage() {
         try {
           const response = await api.get(`/cities?parent_id=${formData.province_id}`);
           setAvailableCities(response.data || []);
-          setFormData(prev => ({ ...prev, city_id: '' })); 
+          setFormData(prev => ({ ...prev, city_id: '' }));
         } catch (error) {
           console.error("خطا در بارگذاری زیرمجموعه شهرهای استان", error);
         }
@@ -92,10 +92,10 @@ export default function RegisterPage() {
     e.preventDefault();
 
     if (formData.password.length < 6) {
-    alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
-    return; // متوقف کردن ارسال فرم
+      alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
+      return; // متوقف کردن ارسال فرم
     }
-    
+
     const finalPhone = toEnglishDigits(formData.phone || '').trim();
     const finalNationalId = toEnglishDigits(formData.national_id || '').trim();
 
@@ -115,11 +115,11 @@ export default function RegisterPage() {
     }
 
     if (!formData.city_id) {
-       alert("⚠️ لطفاً شهر محل سکونت خود را انتخاب کنید.");
-       return;
+      alert("⚠️ لطفاً شهر محل سکونت خود را انتخاب کنید.");
+      return;
     }
-    let formattedBirthDate = formData.birth_date 
-      ? toEnglishDigits(formData.birth_date).replace(/\//g, '-') 
+    let formattedBirthDate = formData.birth_date
+      ? toEnglishDigits(formData.birth_date).replace(/\//g, '-')
       : null;
     setLoading(true);
     try {
@@ -127,21 +127,21 @@ export default function RegisterPage() {
       await api.post('/register', {
         first_name: formData.first_name,
         last_name: formData.last_name,
-        phone_number: finalPhone,     
+        phone_number: finalPhone,
         national_id: finalNationalId,
-        city_id: Number(formData.city_id), 
+        city_id: Number(formData.city_id),
         birth_date: formattedBirthDate,
         gender: formData.gender,
         password: formData.password
       });
-      
+
       alert("ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.");
       router.push('/login');
     } catch (error: any) {
       console.error(error.response?.data);
       const detail = error.response?.data?.detail;
       let errorMsg = "مشکل ارتباط با سرور. اطلاعات را بررسی کنید.";
-      
+
       if (Array.isArray(detail)) {
         const firstError = detail[0];
         if (firstError && firstError.msg) {
@@ -156,7 +156,7 @@ export default function RegisterPage() {
           errorMsg = String(detail);
         }
       }
-      
+
       alert("خطا در ثبت‌نام: " + errorMsg);
     } finally {
       setLoading(false);
@@ -166,7 +166,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-[#faf9f6] flex flex-col justify-center py-12 px-6 font-sans" dir="rtl">
       <div className="max-w-md w-full mx-auto">
-        
+
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-[#1a2e44] text-[#c5a059] mx-auto rounded-3xl flex items-center justify-center shadow-lg rotate-3 mb-6">
             <Trophy size={40} />
@@ -176,19 +176,19 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-5">
-          
+
           {/* نام و نام خانوادگی */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">نام</label>
               <div className="relative">
                 <User className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input 
+                <input
                   type="text" required
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
                   placeholder="علی"
                   value={formData.first_name}
-                  onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                 />
               </div>
             </div>
@@ -196,12 +196,12 @@ export default function RegisterPage() {
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">نام خانوادگی</label>
               <div className="relative">
                 <User className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input 
+                <input
                   type="text" required
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
                   placeholder="احمدی"
                   value={formData.last_name}
-                  onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                 />
               </div>
             </div>
@@ -213,12 +213,12 @@ export default function RegisterPage() {
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">کد ملی</label>
               <div className="relative">
                 <CreditCard className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input 
+                <input
                   type="text" required dir="ltr" maxLength={10}
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="0012345678"
                   value={formData.national_id}
-                  onChange={(e) => setFormData({...formData, national_id: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
                 />
               </div>
             </div>
@@ -226,12 +226,12 @@ export default function RegisterPage() {
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شماره موبایل</label>
               <div className="relative">
                 <Phone className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input 
+                <input
                   type="text" required dir="ltr" maxLength={11}
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="0912..."
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
             </div>
@@ -241,20 +241,20 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">استان</label>
-              <SearchableDropdown 
+              <SearchableDropdown
                 options={provinces}
                 value={formData.province_id}
-                onChange={(id) => setFormData({...formData, province_id: String(id)})}
+                onChange={(id) => setFormData({ ...formData, province_id: String(id) })}
                 placeholder="انتخاب استان"
                 icon={MapPin}
               />
             </div>
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شهرستان</label>
-              <SearchableDropdown 
+              <SearchableDropdown
                 options={availableCities}
                 value={formData.city_id}
-                onChange={(id) => setFormData({...formData, city_id: String(id)})}
+                onChange={(id) => setFormData({ ...formData, city_id: String(id) })}
                 placeholder={formData.province_id ? "انتخاب شهر" : "ابتدا استان را انتخاب کنید"}
                 icon={MapPin}
                 disabled={!formData.province_id || availableCities.length === 0}
@@ -291,23 +291,21 @@ export default function RegisterPage() {
               <div className="grid grid-cols-2 gap-2 p-1 bg-[#faf9f6] rounded-2xl">
                 <button
                   type="button"
-                  onClick={() => setFormData({...formData, gender: 'male'})}
-                  className={`py-3.5 text-sm font-black rounded-xl transition-all ${
-                    formData.gender === 'male' 
-                      ? 'bg-white text-[#1a2e44] shadow-sm' 
+                  onClick={() => setFormData({ ...formData, gender: 'male' })}
+                  className={`py-3.5 text-sm font-black rounded-xl transition-all ${formData.gender === 'male'
+                      ? 'bg-white text-[#1a2e44] shadow-sm'
                       : 'bg-transparent text-gray-400 hover:text-[#1a2e44]'
-                  }`}
+                    }`}
                 >
                   آقا
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData({...formData, gender: 'female'})}
-                  className={`py-3.5 text-sm font-black rounded-xl transition-all ${
-                    formData.gender === 'female' 
-                      ? 'bg-white text-[#1a2e44] shadow-sm' 
+                  onClick={() => setFormData({ ...formData, gender: 'female' })}
+                  className={`py-3.5 text-sm font-black rounded-xl transition-all ${formData.gender === 'female'
+                      ? 'bg-white text-[#1a2e44] shadow-sm'
                       : 'bg-transparent text-gray-400 hover:text-[#1a2e44]'
-                  }`}
+                    }`}
                 >
                   خانم
                 </button>
@@ -321,12 +319,12 @@ export default function RegisterPage() {
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">رمز عبور</label>
               <div className="relative">
                 <Lock className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input 
+                <input
                   type="password" required dir="ltr"
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="••••••••"
                   value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
               </div>
             </div>
@@ -334,18 +332,18 @@ export default function RegisterPage() {
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تکرار رمز</label>
               <div className="relative">
                 <Lock className="absolute right-4 top-4 text-[#c5a059]" size={18} />
-                <input 
+                <input
                   type="password" required dir="ltr"
                   className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="••••••••"
                   value={formData.confirmPassword}
-                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 />
               </div>
             </div>
           </div>
 
-          <button 
+          <button
             type="submit" disabled={loading}
             className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 hover:bg-[#2a405a] transition-all shadow-xl shadow-blue-900/10 active:scale-95 mt-4 disabled:opacity-70"
           >
