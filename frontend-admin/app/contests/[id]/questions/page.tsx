@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../../../lib/api';
+import api from '@/app/lib/api';
 // 🌟 اضافه شدن آیکون Trash2 به ایمپورت‌ها
 import { ArrowRight, HelpCircle, Edit3, Save, X, Loader2, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 

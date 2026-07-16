@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api';
+import api from '@/app/lib/api';
 import { Lock, Phone, Loader2, ShieldCheck } from 'lucide-react';
 
 export default function AdminLoginPage() {

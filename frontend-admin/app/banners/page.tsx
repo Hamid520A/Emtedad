@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api';
+import api from '@/app/lib/api';
 import { ArrowRight, Save, Image as ImageIcon, Link as LinkIcon, Type, Eye, Loader2, CheckCircle } from 'lucide-react';
 
 export default function AdminBannersPage() {

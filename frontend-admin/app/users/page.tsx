@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../lib/api';
+import api from '@/app/lib/api';
 import { 
   Users, ArrowRight, Search, Trophy, X, MapPin, Calendar, CheckCircle2, XCircle,
   Smartphone, FileText, Edit2, Save, Download, ArrowUpDown, ShieldCheck, UserCheck

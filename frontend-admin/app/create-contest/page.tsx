@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api';
+import api from '@/app/lib/api';
 import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle, Plus, Trash2, FileMinus } from 'lucide-react'; 
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";

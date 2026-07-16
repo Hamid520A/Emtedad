@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api';
+import api from '@/app/lib/api';
 import { 
   ArrowRight, Save, Image as ImageIcon, FileText, Trophy, 
   Settings, Award, Loader2, AlertCircle, HelpCircle, User, Info
