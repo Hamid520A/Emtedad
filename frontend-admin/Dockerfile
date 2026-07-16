@@ -3,7 +3,7 @@ FROM docker.arvancloud.ir/library/node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 
 # مرحله دوم: بیلد کردن پروژه نکست‌جی‌اس
 FROM docker.arvancloud.ir/library/node:20-alpine AS builder
