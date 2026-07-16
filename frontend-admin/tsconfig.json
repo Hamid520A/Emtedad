@@ -1,10 +1,13 @@
 {
   "compilerOptions": {
-    "types": ["node"],
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
+    "types": [
+      "node"
+    ],
+    "moduleResolution": "bundler",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
     "target": "ES2017",
     "lib": [
@@ -19,10 +22,9 @@
     "incremental": true,
     "module": "esnext",
     "esModuleInterop": true,
-    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "plugins": [
       {
         "name": "next"
