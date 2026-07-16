@@ -1,4 +1,13 @@
 {
+  "name": "frontend-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
     "jalaali-js": "^1.2.8",
