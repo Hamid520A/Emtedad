@@ -8,8 +8,8 @@ RUN npm install
 # مرحله دوم: بیلد کردن پروژه نکست‌جی‌اس
 FROM docker.arvancloud.ir/library/node:20-alpine AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+COPY --from=deps /app/node_modules ./node_modules
 
 # 🌟 شاه‌کلید: دریافت آدرس بک‌ند در زمان بیلد و پلمپ کردن آن در کدهای مرورگر
 ARG NEXT_PUBLIC_API_URL
