@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 15, 23, 42;
+}
+
+body {
+  direction: rtl; /* تنظیم جهت کل اپلیکیشن به راست به چپ */
+  font-family: 'Tahoma', sans-serif; /* در آینده می‌توانید فونت ایران‌یکان اضافه کنید */
+  background-color: #0f172a; /* تم تیره پیش‌فرض هماهنگ با پنل ادمین */
+  color: #f8fafc; /* رنگ متن پیش‌فرض روشن */
+}
+
+/* سفارشی‌سازی تقویم امتداد */
+.rmdp-ep-arrow {
+  background-color: #1a2e44 !important;
+}
+.rmdp-wrapper {
+  border-radius: 1.5rem !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1) !important;
+  border: none !important;
+}
+.rmdp-header-values {
+  color: #1a2e44 !important;
+  font-weight: bold !important;
+}
+.rmdp-day.rmdp-selected span {
+  background-color: #c5a059 !important; /* رنگ طلایی برای روز انتخاب شده */
+  box-shadow: none !important;
+}
+.rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
+  background-color: #1a2e44 !important;
+  color: white !important;
+}
