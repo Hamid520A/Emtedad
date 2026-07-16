@@ -7,16 +7,29 @@ volumes:
   redis_data:
 
 services:
-# 🟣 سرویس فرانت‌ند (Next.js)
-  frontend:
+  # 🟣 سرویس فرانت‌ند کاربران (برنامک ایتا)
+  frontend-user:
     build:
-      context: ./frontend
+      context: ./frontend-user
       dockerfile: Dockerfile
       args:
-        # 🌟 شاه‌کلید: داکر حالا مقدار را مستقیماً از فایل .env روت اصلی می‌خواند
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
-      - "${FRONTEND_HOST_PORT:-3000}:3000"
+      - "${FRONTEND_USER_PORT:-63000}:3000" # 🌟 پورت ۶۳۰۰۰ برای برنامک ایتا
+    networks:
+      - emtedad_network
+    depends_on:
+      - backend
+
+  # 🟠 سرویس فرانت‌ند ادمین (پنل مدیریت وب)
+  frontend-admin:
+    build:
+      context: ./frontend-admin
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    ports:
+      - "${FRONTEND_ADMIN_PORT:-63001}:3000" # 🌟 پورت ۶۳۰۰۱ برای پنل ادمین
     networks:
       - emtedad_network
     depends_on:
