@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../../lib/api';
+import api from '@/app/lib/api';
 import { ArrowRight, Save, Loader2, HelpCircle, LayoutList } from 'lucide-react';
 
 export default function AddQuestionPage() {
