@@ -1,5 +1,4 @@
-// frontend-admin/postcss.config.js
-export default {
+module.exports = {
   plugins: {
     '@tailwindcss/postcss': {},
   },
