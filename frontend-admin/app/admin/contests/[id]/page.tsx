@@ -13,11 +13,10 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-export default function ContestLandingPage({ params }: { params: { id: string } }) {
+export default function ContestLandingPage() { // 🌟 حذف params از ورودی برای جلوگیری از تداخل
   const router = useRouter();
-  
-  // 🌟 استفاده از همان متغیر مطمئن قبلی
-  const contestId = params?.id;
+  const pathParams = useParams(); // 🌟 استخراج مستقیم و هماهنگ با تمام نسخه‌های نکست‌جی‌اس
+  const contestId = pathParams?.id;
 
   const [contest, setContest] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -33,33 +32,30 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
-    console.log("=== 🚀 هوک ردیاب امتداد فعال شد ===");
-    console.log("مقدار خام contestId از پراپ لایوت:", contestId);
-    
     if (typeof window !== 'undefined') {
       const adminStatus = localStorage.getItem('isAdmin') === 'true';
       setIsAdminUser(adminStatus); 
     }
     setMounted(true);
+
+    // 🛑 گارد اول: اگر هنوز هوک مرورگر آیدی را استخراج نکرده، لودینگ را روشن نگه دار و صبر کن
+    if (!contestId) {
+      console.log("⏳ در انتظار استخراج آیدی از آدرس مرورگر...");
+      return;
+    }
+
+    const cleanId = parseInt(contestId as string, 10);
+    if (isNaN(cleanId)) {
+      console.error("❌ آیدی پیدا شده عدد نیست:", contestId);
+      setLoading(false);
+      return;
+    }
     
     const fetchData = async () => {
-      console.log("🔄 تابع fetchData شروع به کار کرد...");
-      
-      // ۱. تبدیل امن آیدی به عدد
-      const cleanId = contestId ? parseInt(contestId as string, 10) : null;
-      console.log("پارامتر پردازش شده cleanId:", cleanId);
-      
-      // ۲. گارد امنیتی اصلاح‌شده: اگر آیدی نبود، لودینگ را قطع کن تا قفل نکند
-      if (!cleanId || isNaN(cleanId)) {
-        console.warn("⚠️ هشدار: آیدی مسابقه نامعتبر یا خالی است. لودینگ خاموش شد.");
-        setLoading(false);
-        return;
-      }
-
+      console.log(`📡 ارسال درخواست نهایی برای مسابقه شماره: ${cleanId}`);
       try {
-        console.log(`📡 در حال ارسال درخواست به روت عمومی مسابقه: /contests/${cleanId}`);
+        // ۱. دریافت اطلاعات اصلی مسابقه از روت عمومی
         const contestRes = await api.get(`/contests/${cleanId}?t=${Date.now()}`);
-        console.log("✅ اطلاعات مسابقه با موفقیت دریافت شد:", contestRes.data);
         setContest(contestRes.data);
 
         // محاسبه زمان معکوس
@@ -69,44 +65,36 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
         }
 
-        // ۳. دریافت اطلاعات لیدربرد (ایمن شده)
+        // ۲. دریافت اطلاعات لیدربرد (ایمن شده)
         try {
-          console.log("📊 در حال فراخوانی لیدربرد...");
           const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
           setLeaderboard(lbRes.data || []);
-          console.log("✅ لیدربرد دریافت شد.");
         } catch (lbError) {
-          console.log("ℹ️ لیدربرد این مسابقه هنوز لود نمیشود (طبیعی است).");
+          console.log("لیدربرد مسابقه هنوز در دسترس نیست.");
         }
 
-        // ۴. دریافت پروفایل (ایمن شده)
+        // ۳. دریافت پروفایل (ایمن شده)
         try {
-          console.log("👤 در حال فراخوانی پروفایل...");
           const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
           setProfile(profileRes.data);
-          console.log("✅ پروفایل دریافت شد.");
         } catch (profError) {
-          console.log("ℹ️ پروفایل کاربری در لایه ادمین رد شد (طبیعی است).");
+          console.log("پروفایل کاربری در لایه ادمین رد شد.");
         }
 
-        // ۵. دریافت آنالیز اختصاصی ادمین (ایمن شده)
+        // ۴. دریافت آنالیز اختصاصی ادمین
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
         if (adminStatus) {
           try {
-            console.log("📈 در حال دریافت نمودارهای آنالیز ادمین...");
             const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
             setAnalyticsData(analyticsRes.data);
-            console.log("✅ نمودارها با موفقیت دریافت شدند.");
           } catch (anError) {
-            console.log("ℹ️ نمودارهای آماری برای این مسابقه هنوز پخته نشده‌اند.");
+            console.log("نمودارهای آماری برای این مسابقه هنوز آماده نشده‌اند.");
           }
         }
 
       } catch (error) {
-        console.error("❌ خطا در بلاک اصلی دریافت مسابقه از سرور:", error);
+        console.error("خطا در بلاک اصلی دریافت اطلاعات مسابقه:", error);
       } finally {
-        // 🌟 سنگر آخر: تحت هر شرایطی (موفقیت یا خطا) لودینگ اینجا خاموش می‌شود
-        console.log("🏁 فرآیند fetchData خاتمه یافت. setLoading(false) اجرا شد.");
         setLoading(false);
       }
     };
