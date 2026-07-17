@@ -41,23 +41,34 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
       try {
         const cleanId = parseInt(contestId);
         
-        const [contestRes, lbRes, profileRes] = await Promise.all([
-          api.get(`/admin/contests/${cleanId}?t=${Date.now()}`),
-          api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`),
-          api.get(`/users/me/profile?t=${Date.now()}`)
-        ]);
-        
+        // ۱. دریافت اطلاعات اصلی مسابقه از روت ادمین (حیاتی)
+        const contestRes = await api.get(`/admin/contests/${cleanId}?t=${Date.now()}`);
         setContest(contestRes.data);
-        setLeaderboard(lbRes.data || []);
-        setProfile(profileRes.data);
 
-        // 🌟 سنگر امنیت: محاسبه مستقل ثانیه‌های باقی‌مانده بر اساس ساعت واقعی سرور (نه کلاینت)
+        // 🌟 سنگر امنیت: محاسبه مستقل ثانیه‌های باقی‌مانده بر اساس ساعت واقعی سرور
         if (contestRes.data.status === 'upcoming' && contestRes.data.start_time) {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
           const diffSec = Math.floor(diffMs / 1000);
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
         }
 
+        // ۲. دریافت اطلاعات لیدربرد (ایمن شده با try-catch مستقل)
+        try {
+          const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
+          setLeaderboard(lbRes.data || []);
+        } catch (lbError) {
+          console.log("لیدربرد مسابقه هنوز فعال یا در دسترس نیست.");
+        }
+
+        // ۳. دریافت پروفایل ادمین (ایمن شده با try-catch مستقل)
+        try {
+          const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
+          setProfile(profileRes.data);
+        } catch (profError) {
+          console.log("پروفایل کاربری در پنل ادمین یافت نشد یا نیازی به آن نیست.");
+        }
+
+        // ۴. دریافت آنالیز اختصاصی ادمین
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
         if (adminStatus) {
           const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
@@ -65,7 +76,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
         }
 
       } catch (error) {
-        console.error("خطا در دریافت اطلاعات جامع مسابقه از سرور", error);
+        console.error("خطا در دریافت اطلاعات اصلی مسابقه از سرور", error);
       } finally {
         setLoading(false);
       }
