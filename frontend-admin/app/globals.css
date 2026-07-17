@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 15, 23, 42;
-  --background-end-rgb: 15, 23, 42;
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 243, 244, 246;
+  --background-end-rgb: 255, 255, 255;
 }
 
 body {
   direction: rtl; /* تنظیم جهت کل اپلیکیشن به راست به چپ */
   font-family: 'Tahoma', sans-serif; /* در آینده می‌توانید فونت ایران‌یکان اضافه کنید */
-  background-color: #0f172a; /* تم تیره پیش‌فرض هماهنگ با پنل ادمین */
-  color: #f8fafc; /* رنگ متن پیش‌فرض روشن */
+  background-color: #f3f4f6; /* 🌟 بازگشت به رنگ روشن اصلی پروژه */
+  color: #1e293b;
 }
 
 /* سفارشی‌سازی تقویم امتداد */
