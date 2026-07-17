@@ -42,7 +42,7 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
         const cleanId = parseInt(contestId);
         
         const [contestRes, lbRes, profileRes] = await Promise.all([
-          api.get(`/contests/${cleanId}?t=${Date.now()}`),
+          api.get(`/admin/contests/${cleanId}?t=${Date.now()}`),
           api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`),
           api.get(`/users/me/profile?t=${Date.now()}`)
         ]);
