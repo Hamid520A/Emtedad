@@ -1,9 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-/* برای اینکه مطمئن شویم استایل‌ها اعمال می‌شوند، این تست را اضافه کن */
+@import "tailwindcss"; /* 🌟 اصلاح خط اول برای نسخه ۴ */
+
 body {
-  background-color: #faf9f6; /* رنگ کاغذ گرم */
+  direction: rtl;
+  font-family: 'Tahoma', sans-serif;
+  background-color: #f3f4f6;
 }
 :root {
   --foreground-rgb: 0, 0, 0;
