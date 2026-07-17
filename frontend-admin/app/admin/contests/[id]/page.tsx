@@ -33,6 +33,9 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
+    console.log("=== 🚀 هوک ردیاب امتداد فعال شد ===");
+    console.log("مقدار خام contestId از پراپ لایوت:", contestId);
+    
     if (typeof window !== 'undefined') {
       const adminStatus = localStorage.getItem('isAdmin') === 'true';
       setIsAdminUser(adminStatus); 
@@ -40,21 +43,23 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
     setMounted(true);
     
     const fetchData = async () => {
+      console.log("🔄 تابع fetchData شروع به کار کرد...");
+      
       // ۱. تبدیل امن آیدی به عدد
       const cleanId = contestId ? parseInt(contestId as string, 10) : null;
+      console.log("پارامتر پردازش شده cleanId:", cleanId);
       
-      // ۲. گارد امنیتی اصلاح‌شده: اگر آیدی هنوز لود نشده، موقتاً خارج شو
+      // ۲. گارد امنیتی اصلاح‌شده: اگر آیدی نبود، لودینگ را قطع کن تا قفل نکند
       if (!cleanId || isNaN(cleanId)) {
-        // اگر آیدی کلاً نامعتبر بود (مثلاً متن اشتباه)، لودینگ را ببند تا صفحه «یافت نشد» رندر شود
-        if (contestId && isNaN(Number(contestId))) {
-          setLoading(false);
-        }
+        console.warn("⚠️ هشدار: آیدی مسابقه نامعتبر یا خالی است. لودینگ خاموش شد.");
+        setLoading(false);
         return;
       }
 
       try {
-        // ۳. دریافت اطلاعات اصلی مسابقه از روت عمومی بک‌ند
+        console.log(`📡 در حال ارسال درخواست به روت عمومی مسابقه: /contests/${cleanId}`);
         const contestRes = await api.get(`/contests/${cleanId}?t=${Date.now()}`);
+        console.log("✅ اطلاعات مسابقه با موفقیت دریافت شد:", contestRes.data);
         setContest(contestRes.data);
 
         // محاسبه زمان معکوس
@@ -64,33 +69,44 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
         }
 
-        // ۴. دریافت اطلاعات لیدربرد (ایمن شده)
+        // ۳. دریافت اطلاعات لیدربرد (ایمن شده)
         try {
+          console.log("📊 در حال فراخوانی لیدربرد...");
           const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
           setLeaderboard(lbRes.data || []);
+          console.log("✅ لیدربرد دریافت شد.");
         } catch (lbError) {
-          console.log("لیدربرد مسابقه هنوز در دسترس نیست.");
+          console.log("ℹ️ لیدربرد این مسابقه هنوز لود نمیشود (طبیعی است).");
         }
 
-        // ۵. دریافت پروفایل (ایمن شده)
+        // ۴. دریافت پروفایل (ایمن شده)
         try {
+          console.log("👤 در حال فراخوانی پروفایل...");
           const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
           setProfile(profileRes.data);
+          console.log("✅ پروفایل دریافت شد.");
         } catch (profError) {
-          console.log("پروفایل کاربری در پنل ادمین یافت نشد.");
+          console.log("ℹ️ پروفایل کاربری در لایه ادمین رد شد (طبیعی است).");
         }
 
-        // ۶. دریافت آنالیز اختصاصی ادمین
+        // ۵. دریافت آنالیز اختصاصی ادمین (ایمن شده)
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
         if (adminStatus) {
-          const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
-          setAnalyticsData(analyticsRes.data);
+          try {
+            console.log("📈 در حال دریافت نمودارهای آنالیز ادمین...");
+            const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
+            setAnalyticsData(analyticsRes.data);
+            console.log("✅ نمودارها با موفقیت دریافت شدند.");
+          } catch (anError) {
+            console.log("ℹ️ نمودارهای آماری برای این مسابقه هنوز پخته نشده‌اند.");
+          }
         }
 
       } catch (error) {
-        console.error("خطا در دریافت اطلاعات اصلی مسابقه از سرور", error);
+        console.error("❌ خطا در بلاک اصلی دریافت مسابقه از سرور:", error);
       } finally {
-        // 🌟 اینجاست که قفل باز می‌شود؛ تحت هر شرایطی لودینگ در پایان خاموش خواهد شد
+        // 🌟 سنگر آخر: تحت هر شرایطی (موفقیت یا خطا) لودینگ اینجا خاموش می‌شود
+        console.log("🏁 فرآیند fetchData خاتمه یافت. setLoading(false) اجرا شد.");
         setLoading(false);
       }
     };
