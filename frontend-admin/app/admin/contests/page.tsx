@@ -102,7 +102,7 @@ export default function AdminContestsPage() {
                     </button>
                     
                     <button 
-                      onClick={() => router.push(`/contests/${c.id}`)} 
+                      onClick={() => router.push(`/admin/contests/${c.id}`)}
                       className="p-3 bg-white rounded-xl shadow-sm text-gray-400 hover:text-[#1a2e44] hover:scale-110 transition-all"
                       title="ورود به اتاق فرمان مسابقه"
                     >
