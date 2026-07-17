@@ -13,9 +13,10 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-export default function ContestLandingPage() {
+export default function ContestLandingPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const params = useParams();
+  
+  // 🌟 استفاده از همان متغیر مطمئن قبلی
   const contestId = params?.id;
 
   const [contest, setContest] = useState<any>(null);
@@ -23,7 +24,7 @@ export default function ContestLandingPage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
+  const [timeLeft, setTimeLeft] = useState<any>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
   
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -31,27 +32,65 @@ export default function ContestLandingPage() {
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
 
-  // ۱. افکت دریافت اطلاعات جامع با تکنیک ضد کش و محاسبه اختلاف زمان سرور
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const adminStatus = localStorage.getItem('isAdmin') === 'true';
+      setIsAdminUser(adminStatus); 
+    }
+    setMounted(true);
+    
     const fetchData = async () => {
-      // 🛑 گارد امنیتی اول: اگر هنوز کلاینت آیدی را از مرورگر نخوانده، بیخیال شو
-      if (!contestId) return; 
-
-      const cleanId = parseInt(contestId as string, 10);
+      // ۱. تبدیل امن آیدی به عدد
+      const cleanId = contestId ? parseInt(contestId as string, 10) : null;
       
-      // 🛑 گارد امنیتی دوم: اگر آیدی تبدیل به NaN شد، درخواست فرستاده نشود
-      if (isNaN(cleanId)) return;
+      // ۲. گارد امنیتی اصلاح‌شده: اگر آیدی هنوز لود نشده، موقتاً خارج شو
+      if (!cleanId || isNaN(cleanId)) {
+        // اگر آیدی کلاً نامعتبر بود (مثلاً متن اشتباه)، لودینگ را ببند تا صفحه «یافت نشد» رندر شود
+        if (contestId && isNaN(Number(contestId))) {
+          setLoading(false);
+        }
+        return;
+      }
 
       try {
-        // ۱. دریافت اطلاعات اصلی مسابقه از روت ادمین
+        // ۳. دریافت اطلاعات اصلی مسابقه از روت عمومی بک‌ند
         const contestRes = await api.get(`/contests/${cleanId}?t=${Date.now()}`);
         setContest(contestRes.data);
 
-        // ... بقیه کدهای داخل try که در مرحله قبل تفکیک کردیم ...
+        // محاسبه زمان معکوس
+        if (contestRes.data.status === 'upcoming' && contestRes.data.start_time) {
+          const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
+          const diffSec = Math.floor(diffMs / 1000);
+          setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
+        }
+
+        // ۴. دریافت اطلاعات لیدربرد (ایمن شده)
+        try {
+          const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
+          setLeaderboard(lbRes.data || []);
+        } catch (lbError) {
+          console.log("لیدربرد مسابقه هنوز در دسترس نیست.");
+        }
+
+        // ۵. دریافت پروفایل (ایمن شده)
+        try {
+          const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
+          setProfile(profileRes.data);
+        } catch (profError) {
+          console.log("پروفایل کاربری در پنل ادمین یافت نشد.");
+        }
+
+        // ۶. دریافت آنالیز اختصاصی ادمین
+        const adminStatus = localStorage.getItem('isAdmin') === 'true';
+        if (adminStatus) {
+          const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
+          setAnalyticsData(analyticsRes.data);
+        }
 
       } catch (error) {
         console.error("خطا در دریافت اطلاعات اصلی مسابقه از سرور", error);
       } finally {
+        // 🌟 اینجاست که قفل باز می‌شود؛ تحت هر شرایطی لودینگ در پایان خاموش خواهد شد
         setLoading(false);
       }
     };
