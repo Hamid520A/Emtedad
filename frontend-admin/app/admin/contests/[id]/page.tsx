@@ -44,7 +44,7 @@ export default function ContestLandingPage() {
 
       try {
         // ۱. دریافت اطلاعات اصلی مسابقه از روت ادمین
-        const contestRes = await api.get(`/admin/contests/${cleanId}?t=${Date.now()}`);
+        const contestRes = await api.get(`/contests/${cleanId}?t=${Date.now()}`);
         setContest(contestRes.data);
 
         // ... بقیه کدهای داخل try که در مرحله قبل تفکیک کردیم ...
