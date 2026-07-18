@@ -6,7 +6,7 @@ import axios from 'axios';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
-  baseURL: apiUrl, 
+  baseURL: '/api',
 });
 
 api.interceptors.request.use(
