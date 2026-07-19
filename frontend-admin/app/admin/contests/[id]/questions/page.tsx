@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';
-// 🌟 اضافه شدن آیکون Trash2 به ایمپورت‌ها
 import { ArrowRight, HelpCircle, Edit3, Save, X, Loader2, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 
 export default function AdminContestQuestionsPage({ params }: { params: { id: string } }) {
@@ -59,14 +58,14 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
     }
   };
 
-  // 🌟 تابع اختصاصی برای حذف نرم سوال از دیتابیس
+  // تابع اختصاصی برای حذف سوال از دیتابیس
   const handleDeleteQuestion = async (questionId: number) => {
     if (!window.confirm("آیا از حذف کامل این سوال و گزینه‌های آن اطمینان دارید؟")) return;
     
     try {
       await api.delete(`/admin/questions/${questionId}`);
       alert("سوال با موفقیت حذف شد! 🗑️");
-      fetchQuestions(); // بروزرسانی آنی صفحه و غیب شدن سوال حذف شده
+      fetchQuestions(); // بروزرسانی آنی صفحه
     } catch (error: any) {
       console.error("Error deleting question:", error);
       const errorMsg = error.response?.data?.detail || "خطا در حذف سوال. مجدداً تلاش کنید.";
@@ -86,8 +85,9 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
       {/* Header */}
       <header className="p-8 flex items-center gap-4">
+        {/* 🌟 اصلاح شد: هدایت درست و مستقیم ادمین به دشبورد اصلی مدیریت امتداد */}
         <button 
-          onClick={() => router.push(`/admin/contests/${contestId}?t=${Date.now()}`)}
+          onClick={() => router.push('/admin/dashboard')}
           className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]"
         >
           <ArrowRight size={20} />
@@ -123,7 +123,6 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
                   {q.description && <p className="text-xs text-gray-400 mt-1 font-medium bg-gray-50 p-2.5 rounded-xl">{q.description}</p>}
                 </div>
                 
-                {/* 🌟 دایو دکمه‌های عملیاتی ادمین (ویرایش + حذف) */}
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => {
@@ -146,7 +145,6 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
                     <Edit3 size={16} /> ویرایش سوال
                   </button>
 
-                  {/* 🌟 دکمه‌ی جدید حذف نرم سوال */}
                   <button 
                     type="button"
                     onClick={() => handleDeleteQuestion(q.id)}
@@ -232,7 +230,7 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
 
               {/* انتخاب گزینه صحیح */}
               <div className="pt-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">گزینه صحیح کدام است؟</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">گزینه صحیح کدام است?</label>
                 <select 
                   className="w-full p-3.5 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] outline-none font-bold text-xs"
                   value={editingQuestion.correct_option}
