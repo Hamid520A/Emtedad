@@ -1,12 +1,13 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation'; // 🌟 اصلاح شد: اضافه شدن useParams برای دریافت پایدار آی‌دی
 import api from '@/app/lib/api';
 import { ArrowRight, HelpCircle, Edit3, Save, X, Loader2, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 
-export default function AdminContestQuestionsPage({ params }: { params: { id: string } }) {
+export default function AdminContestQuestionsPage() {
   const router = useRouter();
-  const contestId = params.id;
+  const params = useParams(); // 🌟 اصلاح شد: استفاده از هوک استاندارد کلاینت برای استخراج خودکار پارامترها
+  const contestId = params?.id; // دریافت قطعی و پایدار عدد آی‌دی مسابقه از آدرس بار مرورگر
 
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,7 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
 
   // دریافت سوالات مسابقه از بک‌ند
   const fetchQuestions = async () => {
+    if (!contestId) return;
     try {
       setLoading(true);
       const res = await api.get(`/admin/contests/${contestId}/questions`);
@@ -85,7 +87,7 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
       {/* Header */}
       <header className="p-8 flex items-center gap-4">
-        {/* 🌟 اصلاح نهایی: هدایت دقیق به صفحه جزئیات همان مسابقه در بخش مدیریت (پورت 63001) */}
+        {/* 🌟 اصلاح شد: مسیر برگشت به کمک متغیر داینامیک و بدون تولید آدرس undefined */}
         <button 
           onClick={() => router.push(`/admin/contests/${contestId}`)}
           className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]"
@@ -93,7 +95,7 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
           <ArrowRight size={20} />
         </button>
         <button 
-          onClick={() => router.push(`/admin/add-question?contest_id=${params.id}`)}
+          onClick={() => router.push(`/admin/add-question?contest_id=${contestId}`)}
           className="bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl font-black flex items-center gap-2 shadow-md hover:bg-[#2a405a] transition-all active:scale-95 text-xs"
         >
           <Plus size={16} className="text-[#c5a059]" />
