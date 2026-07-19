@@ -191,13 +191,24 @@ export default function RegisterPage() {
   }
 
   return (
-    // 🌟 تزریق مستقیم رنگ پس‌زمینه کرم با فرمت HEX برای دور زدن باگ oklch وب‌ویو
+    // 🌟 ایزوله کردن کامل لایه والد با position: absolute برای شکستن حلقه تکرار viewport ایتا
     <div 
-      className="w-full min-h-screen block pt-6 pb-12 px-4 font-sans" 
-      style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
+      className="font-sans" 
+      style={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#faf9f6', 
+        color: '#1a2e44',
+        overflowY: 'auto', // مدیریت اسکرول داخلی بدون تحریک وب‌ویو
+        WebkitOverflowScrolling: 'touch', // اسکرول روان در گوشی‌های هوشمند
+        padding: '24px 16px'
+      }}
       dir="rtl"
     >
-      {/* 🌟 تزریق مستقیم رنگ سفید و مشکی به کارت اصلی فرم */}
+      {/* کارت اصلی فرم */}
       <div 
         className="w-full max-w-md mx-auto rounded-[2rem] shadow-sm border border-gray-100 p-6 sm:p-8"
         style={{ backgroundColor: '#ffffff', color: '#1a2e44' }}
