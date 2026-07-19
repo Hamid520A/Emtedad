@@ -87,7 +87,7 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
       {/* Header */}
       <header className="p-8 flex items-center gap-4">
         <button 
-          onClick={() => router.push(`/contests/${contestId}?t=${Date.now()}`)}
+          onClick={() => router.push(`/admin/contests/${contestId}?t=${Date.now()}`)}
           className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]"
         >
           <ArrowRight size={20} />
