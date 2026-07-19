@@ -191,20 +191,31 @@ export default function RegisterPage() {
   }
 
   return (
-    // 🌟 حذف flex و ساده‌سازی لایه والد برای جلوگیری از صفر شدن ارتفاع در وب‌ویو
-    <div className="w-full min-h-screen bg-[#faf9f6] block pt-6 pb-12 px-4 font-sans" dir="rtl">
-      <div className="w-full max-w-md mx-auto bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-gray-100">
+    // 🌟 تزریق مستقیم رنگ پس‌زمینه کرم با فرمت HEX برای دور زدن باگ oklch وب‌ویو
+    <div 
+      className="w-full min-h-screen block pt-6 pb-12 px-4 font-sans" 
+      style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
+      dir="rtl"
+    >
+      {/* 🌟 تزریق مستقیم رنگ سفید و مشکی به کارت اصلی فرم */}
+      <div 
+        className="w-full max-w-md mx-auto rounded-[2rem] shadow-sm border border-gray-100 p-6 sm:p-8"
+        style={{ backgroundColor: '#ffffff', color: '#1a2e44' }}
+      >
         
         {/* هدر فرم */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-[#1a2e44] text-[#c5a059] mx-auto rounded-2xl flex items-center justify-center shadow-lg rotate-3 mb-4">
+          <div 
+            className="w-16 h-16 text-[#c5a059] mx-auto rounded-2xl flex items-center justify-center shadow-lg rotate-3 mb-4"
+            style={{ backgroundColor: '#1a2e44' }}
+          >
             <Trophy size={32} />
           </div>
-          <h2 className="text-2xl font-black text-[#1a2e44]">ساخت حساب جدید</h2>
+          <h2 className="text-2xl font-black" style={{ color: '#1a2e44' }}>ساخت حساب جدید</h2>
           <p className="text-gray-500 text-xs mt-1 font-medium">برای شرکت در مسابقات اطلاعات خود را وارد کنید</p>
         </div>
 
-        {/* 🌟 فرم اصلی مستقیم و بدون کادربندی‌های فشرده‌کننده */}
+        {/* فرم اصلی */}
         <form onSubmit={handleSubmit} className="space-y-4">
 
           {/* نام و نام خانوادگی */}
@@ -215,7 +226,8 @@ export default function RegisterPage() {
                 <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="text" required
-                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
+                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]"
+                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
                   placeholder="علی"
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
@@ -228,7 +240,8 @@ export default function RegisterPage() {
                 <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="text" required
-                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
+                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]"
+                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
                   placeholder="احمدی"
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
@@ -245,7 +258,8 @@ export default function RegisterPage() {
                 <CreditCard className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="text" required dir="ltr" maxLength={10}
-                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
+                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
                   placeholder="0012345678"
                   value={formData.national_id}
                   onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
@@ -258,7 +272,8 @@ export default function RegisterPage() {
                 <Phone className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="text" required dir="ltr" maxLength={11}
-                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
+                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
                   placeholder="0912..."
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -317,14 +332,15 @@ export default function RegisterPage() {
             </div>
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">جنسیت</label>
-              <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] rounded-xl">
+              <div className="grid grid-cols-2 gap-1 p-1 rounded-xl" style={{ backgroundColor: '#faf9f6' }}>
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, gender: 'male' })}
                   className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'male'
-                      ? 'bg-white text-[#1a2e44] shadow-sm'
-                      : 'bg-transparent text-gray-400 hover:text-[#1a2e44]'
+                      ? 'bg-white shadow-sm'
+                      : 'bg-transparent text-gray-400'
                     }`}
+                  style={{ color: '#1a2e44' }}
                 >
                   آقا
                 </button>
@@ -332,9 +348,10 @@ export default function RegisterPage() {
                   type="button"
                   onClick={() => setFormData({ ...formData, gender: 'female' })}
                   className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'female'
-                      ? 'bg-white text-[#1a2e44] shadow-sm'
-                      : 'bg-transparent text-gray-400 hover:text-[#1a2e44]'
+                      ? 'bg-white shadow-sm'
+                      : 'bg-transparent text-gray-400'
                     }`}
+                  style={{ color: '#1a2e44' }}
                 >
                   خانم
                 </button>
@@ -358,7 +375,8 @@ export default function RegisterPage() {
                 <Lock className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="password" required dir="ltr"
-                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
+                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -371,7 +389,8 @@ export default function RegisterPage() {
                 <Lock className="absolute right-3 top-3.5 text-[#c5a059]" size={16} />
                 <input
                   type="password" required dir="ltr"
-                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
+                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -382,7 +401,8 @@ export default function RegisterPage() {
 
           <button
             type="submit" disabled={loading}
-            className="w-full bg-[#1a2e44] text-white p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70"
+            className="w-full text-white p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70"
+            style={{ backgroundColor: '#1a2e44' }}
           >
             {loading ? 'در حال ثبت...' : 'ثبت‌نام در سیستم'}
             {!loading && <ArrowRight size={18} className="text-[#c5a059]" />}
