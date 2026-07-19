@@ -273,7 +273,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* لیست مسابقات اخیر */}
+          {/* لیست مسابقات اخیر
           <div className="lg:col-span-2 bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
             <h3 className="font-black text-xl mb-8 flex items-center gap-2">
               <Layout className="text-[#c5a059]" /> مدیریت مسابقات اخیر
@@ -313,7 +313,7 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
 
           {/* ابزارهای مدیریتی سریع */}
           <div className="bg-[#1a2e44] rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
