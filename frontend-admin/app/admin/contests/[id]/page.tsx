@@ -13,9 +13,9 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-export default function ContestLandingPage() { // 🌟 حذف params از ورودی برای جلوگیری از تداخل
+export default function ContestLandingPage() {
   const router = useRouter();
-  const pathParams = useParams(); // 🌟 استخراج مستقیم و هماهنگ با تمام نسخه‌های نکست‌جی‌اس
+  const pathParams = useParams();
   const contestId = pathParams?.id;
 
   const [contest, setContest] = useState<any>(null);
@@ -38,7 +38,6 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
     }
     setMounted(true);
 
-    // 🛑 گارد اول: اگر هنوز هوک مرورگر آیدی را استخراج نکرده، لودینگ را روشن نگه دار و صبر کن
     if (!contestId) {
       console.log("⏳ در انتظار استخراج آیدی از آدرس مرورگر...");
       return;
@@ -52,20 +51,16 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
     }
     
     const fetchData = async () => {
-      console.log(`📡 ارسال درخواست نهایی برای مسابقه شماره: ${cleanId}`);
       try {
-        // ۱. دریافت اطلاعات اصلی مسابقه از روت عمومی
         const contestRes = await api.get(`/contests/${cleanId}?t=${Date.now()}`);
         setContest(contestRes.data);
 
-        // محاسبه زمان معکوس
         if (contestRes.data.status === 'upcoming' && contestRes.data.start_time) {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
           const diffSec = Math.floor(diffMs / 1000);
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
         }
 
-        // ۲. دریافت اطلاعات لیدربرد (ایمن شده)
         try {
           const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
           setLeaderboard(lbRes.data || []);
@@ -73,7 +68,6 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
           console.log("لیدربرد مسابقه هنوز در دسترس نیست.");
         }
 
-        // ۳. دریافت پروفایل (ایمن شده)
         try {
           const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
           setProfile(profileRes.data);
@@ -81,7 +75,6 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
           console.log("پروفایل کاربری در لایه ادمین رد شد.");
         }
 
-        // ۴. دریافت آنالیز اختصاصی ادمین
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
         if (adminStatus) {
           try {
@@ -102,11 +95,9 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
     fetchData();
   }, [contestId]);
 
-  // ۲. 🌟 موتور شمارش معکوس جدید: کاملاً خطی، ضد هک و ایزوله از دستکاری ساعت سیستم
   useEffect(() => {
     if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null || totalSecondsLeft <= 0) {
       if (totalSecondsLeft === 0 && contest?.status === 'upcoming') {
-        // باز شدن خودکار دکمه آزمون به محض به پایان رسیدن ثانیه‌ها
         setContest((prev: any) => ({ ...prev, status: 'active' }));
       }
       return;
@@ -119,7 +110,6 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
     return () => clearInterval(timer);
   }, [totalSecondsLeft, contest, mounted]);
 
-  // ۳. 🌟 افکت کمکی رندر: تبدیل ثانیه‌های زنده به فرمت روز/ساعت/دقیقه/ثانیه برای لایه UI
   useEffect(() => {
     if (totalSecondsLeft === null || totalSecondsLeft <= 0) {
       setTimeLeft(null);
@@ -166,13 +156,11 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
 
     try {
       const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
-      
       setContest({ 
         ...contest, 
         status: response.data.status, 
         start_time: response.data.start_time 
       });
-      
       if (response.data.status === 'active') {
         setTimeLeft(null);
       }
@@ -184,7 +172,6 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
 
   const deleteContest = async () => {
     if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
-
     try {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
@@ -213,8 +200,6 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
   if (!contest) return <div className="p-6 text-center text-[#1a2e44] font-bold">مسابقه یافت نشد.</div>;
 
   const currentUserId = profile?.id || profile?.user_id;
-  
-  // 🌟 اصلاح کلیدی: استفاده از ساختار مقایسه نرم و حذف فضاهای خالی برای حل مشکل عدم تطابق آیدی‌ها
   const leaderboardMatch = currentUserId ? leaderboard.find((user) => String(user.user_id || user.id).trim() == String(currentUserId).trim()) : null;
   
   const historyMatch = profile?.history?.find((h:any) => 
@@ -226,15 +211,12 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
   const hasParticipated = !!myResult;
   const topThree = leaderboard.slice(0, 3);
 
-  // 🌟 اصلاح کلیدی: محاسبه پویای رتبه آنلاین کاربر بدون کاراکتر منفی
   const getLiveRank = () => {
     if (leaderboardMatch?.rank) return leaderboardMatch.rank;
     if (!currentUserId || !leaderboard.length) return '-';
-    
     const indexInLeaderboard = leaderboard.findIndex(
       (u) => String(u.user_id || u.id).trim() == String(currentUserId).trim()
     );
-    
     return indexInLeaderboard !== -1 ? indexInLeaderboard + 1 : '-';
   };
 
@@ -252,7 +234,17 @@ export default function ContestLandingPage() { // 🌟 حذف params از ورو
         )}
         
         <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center gap-3 sm:gap-4 z-20">
-          <button onClick={() => router.back()} className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white">
+          {/* 🌟 اصلاح هوشمند: دکمه بازگشت بر اساس نقش کاربر به دشبورد اختصاصی خودش هدایت می‌شود */}
+          <button 
+            onClick={() => {
+              if (isAdminUser) {
+                router.push('/admin/dashboard');
+              } else {
+                router.push('/dashboard');
+              }
+            }} 
+            className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white"
+          >
             <ArrowRight size={18} />
           </button>
           <div>
