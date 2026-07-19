@@ -4,6 +4,19 @@ import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
+// 🌟 تابع هوشمند پاک‌سازی آدرس‌های لوکال و هماهنگ‌سازی با پروکسی سرور امتداد
+const getCleanImageUrl = (url: string) => {
+  if (!url) return '';
+  let cleanUrl = url
+    .replace('http://localhost:8000', '')
+    .replace('http://127.0.0.1:8000', '');
+  
+  if (!cleanUrl.startsWith('http') && !cleanUrl.startsWith('/')) {
+    cleanUrl = '/' + cleanUrl;
+  }
+  return cleanUrl;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [contests, setContests] = useState([]);
@@ -41,7 +54,7 @@ export default function DashboardPage() {
       } catch (error) {
         console.error("خطا در دریافت اطلاعات جامع دشبورد", error);
       } finally {
-        setLoading(false);
+        loading && setLoading(false);
       }
     };
     fetchDashboardData();
@@ -82,7 +95,6 @@ export default function DashboardPage() {
       {/* هدر اصلاح‌شده بر اساس طرح جدید */}
       <header className="bg-[#faf9f6] p-6 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          {/* 🌟 دکمه جدید پروفایل که جایگزین آیکون مسابقات شد */}
           <button 
             onClick={() => router.push('/profile')}
             className="w-12 h-12 bg-[#1a2e44] rounded-full flex items-center justify-center text-[#c5a059] shadow-sm hover:scale-105 active:scale-95 transition-all"
@@ -155,8 +167,9 @@ export default function DashboardPage() {
                 >
                   {banner.image_url && (
                     <>
+                      {/* 🌟 اصلاح شد: استفاده از تابع پاک‌سازی آدرس تصویر برای بنرها */}
                       <img 
-                        src={banner.image_url.startsWith('/') ? `http://127.0.0.1:8000${banner.image_url}` : banner.image_url} 
+                        src={getCleanImageUrl(banner.image_url)} 
                         alt={banner.title} 
                         className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none" 
                       />
@@ -227,7 +240,12 @@ export default function DashboardPage() {
                 className="bg-white p-4 rounded-3xl border border-gray-100 flex items-center gap-4 shadow-sm active:scale-95 transition cursor-pointer group animate-in fade-in duration-200"
               >
                 <div className="w-16 h-16 bg-[#faf9f6] rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100">
-                  {contest.image_url ? <img src={contest.image_url.startsWith('/') ? `http://127.0.0.1:8000${contest.image_url}` : contest.image_url} className="w-full h-full object-cover" /> : <Trophy className="m-auto mt-5 text-[#c5a059]" size={24} />}
+                  {/* 🌟 اصلاح شد: استفاده از تابع پاک‌سازی آدرس تصویر برای مسابقات */}
+                  {contest.image_url ? (
+                    <img src={getCleanImageUrl(contest.image_url)} className="w-full h-full object-cover" />
+                  ) : (
+                    <Trophy className="m-auto mt-5 text-[#c5a059]" size={24} />
+                  )}
                 </div>
                 
                 <div className="flex-1 min-w-0">
