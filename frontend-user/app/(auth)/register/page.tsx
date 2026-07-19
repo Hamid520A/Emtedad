@@ -191,7 +191,7 @@ export default function RegisterPage() {
   }
 
   return (
-    // 🌟 ایزوله کردن کامل لایه والد با position: absolute برای شکستن حلقه تکرار viewport ایتا
+    // 🌟 اضافه شدن overflowX: 'hidden' برای قفل کردن کامل حرکت افقی صفحه
     <div 
       className="font-sans" 
       style={{ 
@@ -202,8 +202,9 @@ export default function RegisterPage() {
         bottom: 0,
         backgroundColor: '#faf9f6', 
         color: '#1a2e44',
-        overflowY: 'auto', // مدیریت اسکرول داخلی بدون تحریک وب‌ویو
-        WebkitOverflowScrolling: 'touch', // اسکرول روان در گوشی‌های هوشمند
+        overflowY: 'auto',
+        overflowX: 'hidden', // 🌟 جلوی غیب شدن صفحه با کشیدن به چپ و راست را می‌گیرد
+        WebkitOverflowScrolling: 'touch',
         padding: '24px 16px'
       }}
       dir="rtl"
@@ -229,7 +230,7 @@ export default function RegisterPage() {
         {/* فرم اصلی */}
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* نام و نام خانوادگی */}
+          {/* نام و نام خانوادگی - چون کوتاهن می‌تونن تو موبایل هم ۲ ستونه بمونن */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام</label>
@@ -261,8 +262,8 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* کد ملی و شماره موبایل */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* 🌟 اصلاح ریسپانسیو: کد ملی و شماره موبایل (در موبایل زیر هم، در دسکتاپ کنار هم) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">کد ملی</label>
               <div className="relative">
@@ -293,8 +294,8 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* استان و شهرستان */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* 🌟 اصلاح ریسپانسیو: استان و شهرستان */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">استان</label>
               <SearchableDropdown
@@ -318,8 +319,8 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* تاریخ تولد و جنسیت */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* 🌟 اصلاح ریسپانسیو: تاریخ تولد و جنسیت */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">تاریخ تولد</label>
               <div className="relative">
@@ -370,8 +371,8 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* رمز عبور */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* 🌟 اصلاح ریسپانسیو: رمز عبور و تکرار آن */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">رمز عبور</label>
               <div className="relative">
