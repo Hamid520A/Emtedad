@@ -49,11 +49,11 @@ export default function AdminDashboard() {
     if (!window.confirm("آیا می‌خواهید از حساب کاربری خود خارج شوید؟")) return;
     
     try {
-      // ۱. 🚀 پاک‌سازی بمب اتمی: تمام دیتای لوکال استوریج و سشن استوریج را یکجا جارو کن
+      // ۱. پاک‌سازی بمب اتمی: تمام دیتای لوکال استوریج و سشن استوریج را یکجا جارو کن
       localStorage.clear();
       sessionStorage.clear();
       
-      // ۲. 🚀 پاک‌سازی تمام کوکی‌های مرورگر در صورتی که توکن آنجا ذخیره شده باشد
+      // ۲. پاک‌سازی تمام کوکی‌های مرورگر در صورتی که توکن آنجا ذخیره شده باشد
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
@@ -62,14 +62,13 @@ export default function AdminDashboard() {
       
       alert("شما با موفقیت از سیستم خارج شدید.");
       
-      // ۳. 🌟 شاه‌کلید: به جای router.push از window.location.href استفاده می‌کنیم 
-      // تا کل سایت هارد-ریفرش شده و حافظه کاملاً سفید شود
-      window.location.href = '/login';
+      // ۳. 🌟 اصلاح شد: هدایت ادمین پس از خروج به لایه اختصاصی لاگین ادمین بدون تداخل پورت‌ها
+      window.location.href = '/admin/login';
       
     } catch (error) {
       console.error("خطا در فرآیند خروج:", error);
       // اگر باز هم مشکلی بود، انتقال اجباری انجام شود
-      window.location.href = '/login';
+      window.location.href = '/admin/login';
     }
   };
 
@@ -109,8 +108,9 @@ export default function AdminDashboard() {
     const token = localStorage.getItem('accessToken');
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
 
+    // 🌟 اصلاح شد: گارد حفاظتی در صورت نبود توکن، ادمین را به صفحه درست هدایت می‌کند
     if (!token || !isAdmin) {
-      router.push('/login');
+      router.push('/admin/login');
       return; 
     }
 
@@ -128,15 +128,15 @@ export default function AdminDashboard() {
           topProvince: statsRes.data.top_province, 
           growth: statsRes.data.growth_percentage 
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error("Admin Dashboard Error:", error);
 
-        // 🌟 شکستن چرخه: اگر توکن منقضی شده بود، کلیدها را پاک کن و بعد ریدایرکت کن
+        // 🌟 اصلاح شد: اگر توکن منقضی شده بود، هدایت مجدد به لایه امن لاگین ادمین
         if (error.response?.status === 401) {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('isAdmin');
-          router.push('/login');
+          router.push('/admin/login');
         }
       }
     };
@@ -169,7 +169,6 @@ export default function AdminDashboard() {
             <span>مسابقه جدید</span>
           </button>
 
-          {/* 🌟 دکمه کاملاً جدید خروج از حساب کاربری در سمت چپ هدر */}
           <button 
             type="button" 
             onClick={handleLogout}
@@ -215,7 +214,6 @@ export default function AdminDashboard() {
               <TrendingUp className="text-[#c5a059]" /> نمودار رشد شرکت‌کنندگان
             </h3>
 
-            {/* 🌟 اصلاح هوشمند باگ جهت‌نویسی علامت درصد و داینامیک شدن عبارات رشد/کاهش */}
             <span 
               className={`text-[10px] font-black px-3 py-1 rounded-full select-none transition-colors duration-300 ${
                 stats.growth >= 0
@@ -291,7 +289,6 @@ export default function AdminDashboard() {
                       <h4 className="font-bold text-[#1a2e44]">{c.title}</h4>
                       <div className="flex gap-2 items-center mt-1">
                         
-                        {/* 👈 🌟 اصلاح اصلی: ساختار شرطی چندگانه برای تفکیک دقیق تمام وضعیت‌ها */}
                         {(() => {
                           switch (c.status) {
                             case 'active':
