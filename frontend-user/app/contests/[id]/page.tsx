@@ -215,7 +215,11 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
       <div className="relative w-full h-48 sm:h-64 bg-[#1a2e44] rounded-b-[2rem] sm:rounded-b-[2.5rem] overflow-hidden shadow-sm">
         {contest.image_url ? (
           <>
-            <img src={contest.image_url} alt={contest.title} className="w-full h-full object-cover" />
+            <img 
+              src={contest.image_url?.replace('http://localhost:8000', '')} 
+              alt="مسابقه هوش مصنوعی" 
+              className="w-full h-full object-cover" 
+            />
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent"></div>
           </>
         ) : (
