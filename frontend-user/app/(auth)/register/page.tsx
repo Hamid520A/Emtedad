@@ -60,6 +60,13 @@ export default function RegisterPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const globalWindow = window as any;
+      globalWindow.Eitaa = globalWindow.Eitaa || {};
+      globalWindow.Eitaa.WebView = globalWindow.Eitaa.WebView || {};
+      globalWindow.Eitaa.WebView.receiveEvent = globalWindow.Eitaa.WebView.receiveEvent || function() {};
+    }
+
     const fetchProvinces = async () => {
       try {
         const response = await api.get('/cities?parents_only=true');
