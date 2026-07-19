@@ -374,9 +374,9 @@ export default function RegisterPage() {
             {/* <button onClick={() => window.location.href = '/login'} className="text-[#c5a059] hover:underline">
               وارد شوید
             </button> */}
-            <Link href="/login" className="text-[#c5a059] hover:underline">
+            <a href="/login" className="text-[#c5a059] hover:underline">
               وارد شوید
-            </Link>
+            </a>
           </p>
         </div>
 

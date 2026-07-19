@@ -129,9 +129,9 @@ export default function LoginPage() {
           <p className="text-sm font-bold text-gray-500">
             حساب کاربری ندارید؟{' '}
             {/* <button onClick={() => window.location.href = '/register'}>ثبت‌نام کنید</button> */}
-            <Link href="/register" className="text-[#c5a059] hover:underline">
+            <a href="/register" className="text-[#c5a059] hover:underline">
               ثبت‌نام کنید
-            </Link>
+            </a>
           </p>
         </div>
 
