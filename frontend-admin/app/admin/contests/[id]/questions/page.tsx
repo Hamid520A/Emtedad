@@ -85,9 +85,9 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
       {/* Header */}
       <header className="p-8 flex items-center gap-4">
-        {/* 🌟 اصلاح شد: هدایت درست و مستقیم ادمین به دشبورد اصلی مدیریت امتداد */}
+        {/* 🌟 اصلاح نهایی: هدایت دقیق به صفحه جزئیات همان مسابقه در بخش مدیریت (پورت 63001) */}
         <button 
-          onClick={() => router.push('/admin/dashboard')}
+          onClick={() => router.push(`/admin/contests/${contestId}`)}
           className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]"
         >
           <ArrowRight size={20} />
@@ -230,7 +230,7 @@ export default function AdminContestQuestionsPage({ params }: { params: { id: st
 
               {/* انتخاب گزینه صحیح */}
               <div className="pt-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">گزینه صحیح کدام است?</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">گزینه صحیح کدام است؟</label>
                 <select 
                   className="w-full p-3.5 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] outline-none font-bold text-xs"
                   value={editingQuestion.correct_option}
