@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, ChevronDown, Search, Link } from 'lucide-react';
+import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, ChevronDown, Search } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -30,6 +30,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [provinces, setProvinces] = useState<{ id: number; title: string }[]>([]);
   const [availableCities, setAvailableCities] = useState<{ id: number; title: string }[]>([]);
+  const [mounted, setMounted] = useState(false); // 🌟 استیت جدید برای مانیتورینگ پایداری لایوت کلاینت
 
   // تبدیل داینامیک و استاندارد اعداد فارسی/عربی به انگلیسی (اصلاح شده)
   const toEnglishDigits = (str: string) => {
@@ -60,12 +61,17 @@ export default function RegisterPage() {
   };
 
   useEffect(() => {
+    // 🌟 رفع ارور تایپ‌اسکریپت و تعریف سنگر حفاظتی زنده برای رویدادهای تزریقی ایتا
     if (typeof window !== 'undefined') {
       const globalWindow = window as any;
       globalWindow.Eitaa = globalWindow.Eitaa || {};
       globalWindow.Eitaa.WebView = globalWindow.Eitaa.WebView || {};
-      globalWindow.Eitaa.WebView.receiveEvent = globalWindow.Eitaa.WebView.receiveEvent || function() {};
+      globalWindow.Eitaa.WebView.receiveEvent = globalWindow.Eitaa.WebView.receiveEvent || function(event: any, data: any) {
+        console.log('📌 رویداد ایتا در صفحه ثبت نام خنثی شد:', event, data);
+      };
     }
+
+    setMounted(true); // 🌟 تایید پایدار شدن لایوت کلاینت در محیط موبایل
 
     const fetchProvinces = async () => {
       try {
@@ -100,7 +106,7 @@ export default function RegisterPage() {
 
     if (formData.password.length < 6) {
       alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
-      return; // متوقف کردن ارسال فرم
+      return;
     }
 
     const finalPhone = toEnglishDigits(formData.phone || '').trim();
@@ -130,7 +136,6 @@ export default function RegisterPage() {
       : null;
     setLoading(true);
     try {
-      // ارسال داده‌ها چفت شده با ساختار مدل جدید دیتابیس
       await api.post('/register', {
         first_name: formData.first_name,
         last_name: formData.last_name,
@@ -143,7 +148,11 @@ export default function RegisterPage() {
       });
 
       alert("ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.");
-      router.push('/login');
+      if (typeof window !== 'undefined') {
+        window.location.replace('/login');
+      } else {
+        router.push('/login');
+      }
     } catch (error: any) {
       console.error(error.response?.data);
       const detail = error.response?.data?.detail;
@@ -170,8 +179,20 @@ export default function RegisterPage() {
     }
   };
 
+  // 🛑 سنگر امنیتی هیدریشن: تا زمانیکه محیط کلاینت موبایل پایدار نشده المان‌ها را رندر نکن
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-[#faf9f6] flex items-center justify-center font-sans" dir="rtl">
+        <div className="text-center">
+          <p className="text-gray-500 font-bold text-sm">در حال بارگذاری فرم ثبت‌نام امتداد...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col justify-center py-12 px-6 font-sans" dir="rtl">
+    <div className="min-h-screen bg-[#faf9f6] flex flex-col justify-start pt-4 pb-12 px-6 font-sans" dir="rtl">
+      {/* 🌟 تغییر از justify-center به justify-start همراه با پدینگ بالا برای همخوانی با ابعاد زنده وب‌ویو */}
       <div className="max-w-md w-full mx-auto">
 
         <div className="text-center mb-8">
@@ -269,7 +290,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* 🌟 اصلاح شد: تاریخ تولد و جنسیت در یک ردیف دو ستونه متقارن */}
+          {/* تاریخ تولد و جنسیت در یک ردیف دو ستونه متقارن */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
@@ -292,7 +313,7 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-            {/* 🌟 بخش انتخاب جنسیت با تم اختصاصی و هماهنگ با فرم */}
+            {/* بخش انتخاب جنسیت با تم اختصاصی و هماهنگ با فرم */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">جنسیت</label>
               <div className="grid grid-cols-2 gap-2 p-1 bg-[#faf9f6] rounded-2xl">
@@ -371,16 +392,13 @@ export default function RegisterPage() {
         <div className="text-center mt-6">
           <p className="text-sm font-bold text-gray-500">
             قبلاً حساب کاربری ساخته‌اید؟{' '}
-            {/* <button onClick={() => window.location.href = '/login'} className="text-[#c5a059] hover:underline">
-              وارد شوید
-            </button> */}
             <button 
               onClick={() => {
                 if (typeof window !== 'undefined') {
-                  window.location.replace('/login'); // 🌟 این دستور وب‌ویو را مجبور به جابه‌جایی قطعی می‌کند
+                  window.location.replace('/login'); // 🌟 هدایت امن و سازگار با وب‌ویوی لجباز ایتا
                 }
               }} 
-              className="text-[#c5a059] hover:underline bg-transparent border-none cursor-pointer inline"
+              className="text-[#c5a059] hover:underline bg-transparent border-none cursor-pointer inline font-bold"
             >
               وارد شوید
             </button>
