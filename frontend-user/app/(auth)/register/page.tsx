@@ -191,29 +191,31 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col justify-start pt-4 pb-12 px-6 font-sans" dir="rtl">
-      {/* 🌟 تغییر از justify-center به justify-start همراه با پدینگ بالا برای همخوانی با ابعاد زنده وب‌ویو */}
-      <div className="max-w-md w-full mx-auto">
-
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-[#1a2e44] text-[#c5a059] mx-auto rounded-3xl flex items-center justify-center shadow-lg rotate-3 mb-6">
-            <Trophy size={40} />
+    // 🌟 حذف flex و ساده‌سازی لایه والد برای جلوگیری از صفر شدن ارتفاع در وب‌ویو
+    <div className="w-full min-h-screen bg-[#faf9f6] block pt-6 pb-12 px-4 font-sans" dir="rtl">
+      <div className="w-full max-w-md mx-auto bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-gray-100">
+        
+        {/* هدر فرم */}
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-[#1a2e44] text-[#c5a059] mx-auto rounded-2xl flex items-center justify-center shadow-lg rotate-3 mb-4">
+            <Trophy size={32} />
           </div>
-          <h2 className="text-3xl font-black text-[#1a2e44]">ساخت حساب جدید</h2>
-          <p className="text-gray-500 text-sm mt-2 font-medium">برای شرکت در مسابقات اطلاعات خود را وارد کنید</p>
+          <h2 className="text-2xl font-black text-[#1a2e44]">ساخت حساب جدید</h2>
+          <p className="text-gray-500 text-xs mt-1 font-medium">برای شرکت در مسابقات اطلاعات خود را وارد کنید</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 space-y-5">
+        {/* 🌟 فرم اصلی مستقیم و بدون کادربندی‌های فشرده‌کننده */}
+        <form onSubmit={handleSubmit} className="space-y-4">
 
           {/* نام و نام خانوادگی */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">نام</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام</label>
               <div className="relative">
-                <User className="absolute right-4 top-4 text-gray-400" size={18} />
+                <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="text" required
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
+                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
                   placeholder="علی"
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
@@ -221,12 +223,12 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">نام خانوادگی</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام خانوادگی</label>
               <div className="relative">
-                <User className="absolute right-4 top-4 text-gray-400" size={18} />
+                <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="text" required
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
+                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm"
                   placeholder="احمدی"
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
@@ -236,14 +238,14 @@ export default function RegisterPage() {
           </div>
 
           {/* کد ملی و شماره موبایل */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">کد ملی</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">کد ملی</label>
               <div className="relative">
-                <CreditCard className="absolute right-4 top-4 text-gray-400" size={18} />
+                <CreditCard className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="text" required dir="ltr" maxLength={10}
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="0012345678"
                   value={formData.national_id}
                   onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
@@ -251,12 +253,12 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شماره موبایل</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">شماره موبایل</label>
               <div className="relative">
-                <Phone className="absolute right-4 top-4 text-gray-400" size={18} />
+                <Phone className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="text" required dir="ltr" maxLength={11}
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="0912..."
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -265,10 +267,10 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* استان و شهرستان فیکس شده با ساختار رابطه‌ای دیتابیس */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* استان و شهرستان */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">استان</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">استان</label>
               <SearchableDropdown
                 options={provinces}
                 value={formData.province_id}
@@ -278,24 +280,24 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شهرستان</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">شهرستان</label>
               <SearchableDropdown
                 options={availableCities}
                 value={formData.city_id}
                 onChange={(id) => setFormData({ ...formData, city_id: String(id) })}
-                placeholder={formData.province_id ? "انتخاب شهر" : "ابتدا استان را انتخاب کنید"}
+                placeholder={formData.province_id ? "انتخاب شهر" : "ابتدا استان"}
                 icon={MapPin}
                 disabled={!formData.province_id || availableCities.length === 0}
               />
             </div>
           </div>
 
-          {/* تاریخ تولد و جنسیت در یک ردیف دو ستونه متقارن */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
+          {/* تاریخ تولد و جنسیت */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">تاریخ تولد</label>
               <div className="relative">
-                <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                <Calendar className="absolute right-3 top-3.5 text-gray-400 z-10" size={16} />
                 <DatePickerComponent
                   calendar={persian}
                   locale={persian_fa}
@@ -305,35 +307,21 @@ export default function RegisterPage() {
                     setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" });
                   }}
                   containerClassName="w-full"
-                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  inputClass="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="1380/01/01"
                   name="birth_date"
                   id="birth_date"
                   autoComplete="bday"
                 />
               </div>
-            </div> */}
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
-              <div className="relative">
-                <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-                <input
-                  type="text"
-                  placeholder="1380-01-01"
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
-                  value={formData.birth_date}
-                  onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                />
-              </div>
             </div>
-            {/* بخش انتخاب جنسیت با تم اختصاصی و هماهنگ با فرم */}
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">جنسیت</label>
-              <div className="grid grid-cols-2 gap-2 p-1 bg-[#faf9f6] rounded-2xl">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">جنسیت</label>
+              <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] rounded-xl">
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, gender: 'male' })}
-                  className={`py-3.5 text-sm font-black rounded-xl transition-all ${formData.gender === 'male'
+                  className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'male'
                       ? 'bg-white text-[#1a2e44] shadow-sm'
                       : 'bg-transparent text-gray-400 hover:text-[#1a2e44]'
                     }`}
@@ -343,7 +331,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, gender: 'female' })}
-                  className={`py-3.5 text-sm font-black rounded-xl transition-all ${formData.gender === 'female'
+                  className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'female'
                       ? 'bg-white text-[#1a2e44] shadow-sm'
                       : 'bg-transparent text-gray-400 hover:text-[#1a2e44]'
                     }`}
@@ -355,9 +343,9 @@ export default function RegisterPage() {
           </div>
 
           {/* رمز عبور */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">رمز عبور</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">رمز عبور</label>
               <div className="relative">
                 <input
                   type="text"
@@ -367,10 +355,10 @@ export default function RegisterPage() {
                   autoComplete="username"
                   readOnly
                 />
-                <Lock className="absolute right-4 top-4 text-gray-400" size={18} />
+                <Lock className="absolute right-3 top-3.5 text-gray-400" size={16} />
                 <input
                   type="password" required dir="ltr"
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -378,12 +366,12 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تکرار رمز</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">تکرار رمز</label>
               <div className="relative">
-                <Lock className="absolute right-4 top-4 text-[#c5a059]" size={18} />
+                <Lock className="absolute right-3 top-3.5 text-[#c5a059]" size={16} />
                 <input
                   type="password" required dir="ltr"
-                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  className="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -394,21 +382,21 @@ export default function RegisterPage() {
 
           <button
             type="submit" disabled={loading}
-            className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 hover:bg-[#2a405a] transition-all shadow-xl shadow-blue-900/10 active:scale-95 mt-4 disabled:opacity-70"
+            className="w-full bg-[#1a2e44] text-white p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70"
           >
             {loading ? 'در حال ثبت...' : 'ثبت‌نام در سیستم'}
-            {!loading && <ArrowRight size={20} className="text-[#c5a059]" />}
+            {!loading && <ArrowRight size={18} className="text-[#c5a059]" />}
           </button>
 
         </form>
 
-        <div className="text-center mt-6">
-          <p className="text-sm font-bold text-gray-500">
+        <div className="text-center mt-4">
+          <p className="text-xs font-bold text-gray-500">
             قبلاً حساب کاربری ساخته‌اید؟{' '}
             <button 
               onClick={() => {
                 if (typeof window !== 'undefined') {
-                  window.location.replace('/login'); // 🌟 هدایت امن و سازگار با وب‌ویوی لجباز ایتا
+                  window.location.replace('/login');
                 }
               }} 
               className="text-[#c5a059] hover:underline bg-transparent border-none cursor-pointer inline font-bold"
