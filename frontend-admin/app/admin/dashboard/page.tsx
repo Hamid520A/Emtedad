@@ -345,7 +345,7 @@ export default function AdminDashboard() {
               <QuickAction
                 label="تغییر رمز عبور مدیر"
                 icon={<Settings size={18} />}
-                onClick={() => router.push('/profile/change-password')}
+                onClick={() => router.push('/admin/profile/change-password')}
               />
               <QuickAction 
                 label="تنظیم بنر تبلیغاتی جدید" 
