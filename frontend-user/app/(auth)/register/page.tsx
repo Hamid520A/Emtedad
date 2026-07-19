@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, ChevronDown, Search } from 'lucide-react';
+import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, ChevronDown, Search, Link } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -371,9 +371,12 @@ export default function RegisterPage() {
         <div className="text-center mt-6">
           <p className="text-sm font-bold text-gray-500">
             قبلاً حساب کاربری ساخته‌اید؟{' '}
-            <button onClick={() => window.location.href = '/login'} className="text-[#c5a059] hover:underline">
+            {/* <button onClick={() => window.location.href = '/login'} className="text-[#c5a059] hover:underline">
               وارد شوید
-            </button>
+            </button> */}
+            <Link href="/login" className="text-[#c5a059] hover:underline">
+              وارد شوید
+            </Link>
           </p>
         </div>
 
