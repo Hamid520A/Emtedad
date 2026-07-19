@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { Lock, Phone, ArrowRight, Trophy } from 'lucide-react';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -127,9 +128,7 @@ export default function LoginPage() {
         <div className="text-center mt-6">
           <p className="text-sm font-bold text-gray-500">
             حساب کاربری ندارید؟{' '}
-            <button onClick={() => router.push('/register')} className="text-[#c5a059] hover:underline">
-              ثبت‌نام کنید
-            </button>
+            <button onClick={() => window.location.href = '/register'}>ثبت‌نام کنید</button>
           </p>
         </div>
 

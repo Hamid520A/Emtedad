@@ -371,7 +371,7 @@ export default function RegisterPage() {
         <div className="text-center mt-6">
           <p className="text-sm font-bold text-gray-500">
             قبلاً حساب کاربری ساخته‌اید؟{' '}
-            <button onClick={() => router.push('/login')} className="text-[#c5a059] hover:underline">
+            <button onClick={() => window.location.href = '/login'} className="text-[#c5a059] hover:underline">
               وارد شوید
             </button>
           </p>
