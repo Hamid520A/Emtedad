@@ -292,7 +292,7 @@ export default function RegisterPage() {
 
           {/* تاریخ تولد و جنسیت در یک ردیف دو ستونه متقارن */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            {/* <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
               <div className="relative">
                 <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
@@ -310,6 +310,19 @@ export default function RegisterPage() {
                   name="birth_date"
                   id="birth_date"
                   autoComplete="bday"
+                />
+              </div>
+            </div> */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
+              <div className="relative">
+                <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                <input
+                  type="text"
+                  placeholder="1380-01-01"
+                  className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  value={formData.birth_date}
+                  onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
                 />
               </div>
             </div>
