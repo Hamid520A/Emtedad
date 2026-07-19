@@ -374,9 +374,16 @@ export default function RegisterPage() {
             {/* <button onClick={() => window.location.href = '/login'} className="text-[#c5a059] hover:underline">
               وارد شوید
             </button> */}
-            <a href="/login" className="text-[#c5a059] hover:underline">
+            <button 
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.location.replace('/login'); // 🌟 این دستور وب‌ویو را مجبور به جابه‌جایی قطعی می‌کند
+                }
+              }} 
+              className="text-[#c5a059] hover:underline bg-transparent border-none cursor-pointer inline"
+            >
               وارد شوید
-            </a>
+            </button>
           </p>
         </div>
 

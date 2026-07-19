@@ -129,9 +129,16 @@ export default function LoginPage() {
           <p className="text-sm font-bold text-gray-500">
             حساب کاربری ندارید؟{' '}
             {/* <button onClick={() => window.location.href = '/register'}>ثبت‌نام کنید</button> */}
-            <a href="/register" className="text-[#c5a059] hover:underline">
+            <button 
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.location.replace('/register'); // 🌟 این دستور وب‌ویو را مجبور به جابه‌جایی قطعی می‌کند
+                }
+              }} 
+              className="text-[#c5a059] hover:underline bg-transparent border-none cursor-pointer inline"
+            >
               ثبت‌نام کنید
-            </a>
+            </button>
           </p>
         </div>
 
