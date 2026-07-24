@@ -47,7 +47,7 @@ app.add_middleware(
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
-EITAA_API_URL = os.getenv("EITAA_API_URL", "http://10.10.10.4:3000/send")
+EITAA_API_URL = os.getenv("EITAA_API_URL", "http://10.10.20.51:3000/send")
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 LIMIT_WINDOW = 60       # پنجره زمانی بر اساس ثانیه (۱ دقیقه)
@@ -1349,7 +1349,7 @@ def proxy_get_profile_photo(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user) # 🌟 اضافه شدن تاثیری امنیت و دسترسی به کاربر جاری
 ):
-    EITAA_API_URL = "http://10.10.10.4:3000/send" 
+    eitaa_target_url = os.getenv("EITAA_API_URL", EITAA_API_URL) 
     try:
         session_json_str = r_eitaa.get(ACCOUNT_KEY)
         if not session_json_str:
@@ -1366,7 +1366,7 @@ def proxy_get_profile_photo(
         request_data["imei"] = imei
 
         # ارسال درخواست همزمان به سرور آپ‌استریم ایتا
-        response = requests.post(EITAA_API_URL, json=request_data, timeout=25.0)
+        response = requests.post(eitaa_target_url, json=request_data, timeout=25.0)
         response_data = response.json()
 
         # 🌟 لایه هوشمند کش دیتای هویت‌سنجی ایتا در دیتابیس پروژه
