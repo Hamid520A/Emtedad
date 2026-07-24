@@ -19,12 +19,18 @@ from jose import JWTError, jwt
 
 app = FastAPI()
 
-# ACCOUNT_REDIS_HOST = os.getenv("REDIS_HOST", "10.10.10.6")
-ACCOUNT_REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
-ACCOUNT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-ACCOUNT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
+# ۱. اتصال به سرور دیتابیس Redis برای Rate Limiting
+RATELIMIT_REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
+RATELIMIT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+RATELIMIT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
+r = redis.Redis(host=RATELIMIT_REDIS_HOST, port=RATELIMIT_REDIS_PORT, db=RATELIMIT_REDIS_DB, decode_responses=True, socket_timeout=5)
+
+# ۲. اتصال اختصاصی به سرور Redis برای سشن‌های ایتا (پورت ۶۳۸۹)
+EITAA_REDIS_HOST = os.getenv("EITAA_REDIS_HOST", os.getenv("REDIS_HOST", "127.0.0.1"))
+EITAA_REDIS_PORT = int(os.getenv("EITAA_REDIS_PORT", 6389))
+EITAA_REDIS_DB = int(os.getenv("EITAA_REDIS_DB", os.getenv("REDIS_DB", 0)))
 ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989371787445")
-r = redis.Redis(host=ACCOUNT_REDIS_HOST, port=ACCOUNT_REDIS_PORT, db=ACCOUNT_REDIS_DB, decode_responses=True, socket_timeout=5)
+r_eitaa = redis.Redis(host=EITAA_REDIS_HOST, port=EITAA_REDIS_PORT, db=EITAA_REDIS_DB, decode_responses=True, socket_timeout=5)
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_env.split(",")]
@@ -1345,7 +1351,7 @@ def proxy_get_profile_photo(
 ):
     EITAA_API_URL = "http://10.10.10.4:3000/send" 
     try:
-        session_json_str = r.get(ACCOUNT_KEY)
+        session_json_str = r_eitaa.get(ACCOUNT_KEY)
         if not session_json_str:
             return {"status": "error", "message": f"500: کلید سشن {ACCOUNT_KEY} در ردیس یافت نشد."}
         
