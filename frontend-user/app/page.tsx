@@ -103,51 +103,53 @@ export default function DashboardPage() {
             <User size={22} />
           </button>
           <span className="font-black text-2xl text-[#1a2e44] dark:text-[#c5a059]">امتداد امام</span>
-          <div className="relative">
-            <button 
-              onClick={() => setIsNotifOpen(!isNotifOpen)}
-              className={`relative p-3 rounded-full shadow-sm border border-gray-100 dark:border-slate-800 transition-all ${
-                isNotifOpen 
-                ? 'bg-[#1a2e44] text-white dark:bg-[#c5a059] dark:text-[#1a2e44]' 
-                : 'bg-white text-[#1a2e44] dark:bg-[#182234] dark:text-slate-100 hover:bg-[#1a2e44] hover:text-white'
-              }`}
-            >
-              <Bell size={20} />
-              {notifications.length > 0 && (
-                <span className="absolute top-2 right-3 w-2.5 h-2.5 bg-[#c5a059] rounded-full border-2 border-white dark:border-slate-900"></span>
-              )}
-            </button>
+        </div>
 
-            {isNotifOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
-                <div className="absolute top-full left-0 mt-3 w-64 bg-white dark:bg-[#182234] rounded-3xl shadow-xl border border-gray-100 dark:border-slate-800 z-50 p-5 transform origin-top-left transition-all">
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-50 dark:border-slate-800">
-                    <h3 className="text-sm font-black text-[#1a2e44] dark:text-slate-100">اعلان‌های شما</h3>
-                    {notifications.length > 0 && (
-                      <span className="bg-red-50 dark:bg-red-950/40 text-red-500 text-[10px] font-bold px-2 py-0.5 rounded-md">{notifications.length} جدید</span>
-                    )}
-                  </div>
-                  {notifications.length === 0 ? (
-                    <div className="text-center py-6">
-                      <div className="w-12 h-12 bg-gray-50 dark:bg-[#233044] rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Bell size={20} className="text-gray-300 dark:text-slate-500" />
-                      </div>
-                      <p className="text-xs text-gray-400 dark:text-slate-400 font-bold">هیچ اعلانی ندارید.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 max-h-60 overflow-y-auto no-scrollbar">
-                      {notifications.map((notif: any, index: number) => (
-                        <div key={index} className="bg-gray-50 dark:bg-[#233044] p-3 rounded-2xl border border-gray-100 dark:border-slate-800 text-xs text-gray-600 dark:text-slate-300 font-medium leading-relaxed">
-                          {notif.text}
-                        </div>
-                      ))}
-                    </div>
+        <div className="relative">
+          <button 
+            onClick={() => setIsNotifOpen(!isNotifOpen)}
+            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-sm border transition-all hover:scale-105 active:scale-95 ${
+              isNotifOpen 
+              ? 'bg-[#1a2e44] text-white border-[#1a2e44] dark:bg-[#c5a059] dark:text-[#1a2e44] dark:border-[#c5a059]' 
+              : 'bg-white text-[#1a2e44] border-gray-100 dark:bg-[#182234] dark:text-slate-100 dark:border-slate-800'
+            }`}
+            title="اعلان‌ها"
+          >
+            <Bell size={20} />
+            {notifications.length > 0 && (
+              <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-[#c5a059] rounded-full border-2 border-white dark:border-slate-900"></span>
+            )}
+          </button>
+
+          {isNotifOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
+              <div className="absolute top-full left-0 mt-3 w-64 bg-white dark:bg-[#182234] rounded-3xl shadow-xl border border-gray-100 dark:border-slate-800 z-50 p-5 transform origin-top-left transition-all">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-50 dark:border-slate-800">
+                  <h3 className="text-sm font-black text-[#1a2e44] dark:text-slate-100">اعلان‌های شما</h3>
+                  {notifications.length > 0 && (
+                    <span className="bg-red-50 dark:bg-red-950/40 text-red-500 text-[10px] font-bold px-2 py-0.5 rounded-md">{notifications.length} جدید</span>
                   )}
                 </div>
-              </>
-            )}
-          </div>
+                {notifications.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="w-12 h-12 bg-gray-50 dark:bg-[#233044] rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Bell size={20} className="text-gray-300 dark:text-slate-500" />
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-slate-400 font-bold">هیچ اعلانی ندارید.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-60 overflow-y-auto no-scrollbar">
+                    {notifications.map((notif: any, index: number) => (
+                      <div key={index} className="bg-gray-50 dark:bg-[#233044] p-3 rounded-2xl border border-gray-100 dark:border-slate-800 text-xs text-gray-600 dark:text-slate-300 font-medium leading-relaxed">
+                        {notif.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </header>
 
