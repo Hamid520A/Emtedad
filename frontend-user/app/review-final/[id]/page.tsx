@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { ArrowRight, HelpCircle, Loader2, AlertCircle, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
-import ThemeToggle from '../../../app/components/ThemeToggle';
 
 export default function FinalReviewPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -46,19 +45,16 @@ export default function FinalReviewPage({ params }: { params: { id: string } }) 
   return (
     <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 font-sans pb-12 transition-colors duration-200" dir="rtl">
       {/* Header */}
-      <header className="p-6 flex items-center justify-between bg-white dark:bg-[#182234] shadow-sm sticky top-0 z-10 rounded-b-3xl border-b border-gray-50 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
-            <ArrowRight size={20} />
-          </button>
-          <div>
-            <h1 className="font-black text-xl flex items-center gap-2 text-[#1a2e44] dark:text-slate-100">
-              <HelpCircle className="text-[#c5a059]" /> مرور پاسخنامه مسابقه #{toPersianDigits(contestId)}
-            </h1>
-            <p className="text-gray-400 dark:text-slate-400 text-[10px] font-bold mt-0.5">بررسی وضعیت سوالات و گزینه‌های ثبت شده</p>
-          </div>
+      <header className="p-6 flex items-center gap-3 bg-white dark:bg-[#182234] shadow-sm sticky top-0 z-10 rounded-b-3xl border-b border-gray-50 dark:border-slate-800">
+        <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
+          <ArrowRight size={20} />
+        </button>
+        <div>
+          <h1 className="font-black text-xl flex items-center gap-2 text-[#1a2e44] dark:text-slate-100">
+            <HelpCircle className="text-[#c5a059]" /> مرور پاسخنامه مسابقه #{toPersianDigits(contestId)}
+          </h1>
+          <p className="text-gray-400 dark:text-slate-400 text-[10px] font-bold mt-0.5">بررسی وضعیت سوالات و گزینه‌های ثبت شده</p>
         </div>
-        <ThemeToggle />
       </header>
 
       <main className="p-6 max-w-md mx-auto space-y-4">

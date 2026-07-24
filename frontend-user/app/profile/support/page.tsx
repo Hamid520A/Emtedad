@@ -2,21 +2,17 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, HelpCircle, Phone, MessageCircle, Mail } from 'lucide-react';
-import ThemeToggle from '../../../app/components/ThemeToggle';
 
 export default function SupportPage() {
   const router = useRouter();
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100 transition-colors duration-200" dir="rtl">
-      <header className="p-6 flex items-center justify-between bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
-            <ArrowRight size={20} />
-          </button>
-          <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">ارتباط با پشتیبانی</span>
-        </div>
-        <ThemeToggle />
+      <header className="p-6 flex items-center gap-3 bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10">
+        <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
+          <ArrowRight size={20} />
+        </button>
+        <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">ارتباط با پشتیبانی</span>
       </header>
 
       <main className="p-6 space-y-6">

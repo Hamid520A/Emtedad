@@ -7,7 +7,6 @@ import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import { SearchableDropdown } from './SearchableDropdown';
-import ThemeToggle from '../../components/ThemeToggle';
 
 const DatePickerComponent = DatePicker as any;
 
@@ -197,10 +196,6 @@ export default function RegisterPage() {
       className="font-sans min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 overflow-y-auto overflow-x-hidden p-6 relative transition-colors duration-200"
       dir="rtl"
     >
-      <div className="absolute top-6 left-6 z-10">
-        <ThemeToggle />
-      </div>
-
       {/* کارت اصلی فرم */}
       <div className="w-full max-w-md mx-auto bg-white dark:bg-[#182234] rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 p-6 sm:p-8 text-[#1a2e44] dark:text-slate-100 transition-colors duration-200">
         

@@ -8,7 +8,6 @@ import {
   Crown, Trash2, Award, BarChart3, HelpCircle, X
 } from 'lucide-react';
 
-import ThemeToggle from '../../../app/components/ThemeToggle';
 
 import { 
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
@@ -235,10 +234,8 @@ export default function ContestLandingPage({ params }: { params: { id: string } 
             </button>
             <div>
               <h1 className="font-black text-lg sm:text-2xl text-white drop-shadow-md">جزئیات و مشخصات مسابقه</h1>
-              <p className="text-white/70 text-[10px] sm:text-xs font-bold mt-0.5">نمای جامع ادمین و شرکت‌کنندگان</p>
             </div>
           </div>
-          <ThemeToggle />
         </header>
       </div>
 

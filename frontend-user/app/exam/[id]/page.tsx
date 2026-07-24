@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import ThemeToggle from '../../../app/components/ThemeToggle';
+
 
 const getAnalysis = (score: number, totalQuestions: number = 3, certificateType: string = 'none') => {
   const s = parseFloat(score.toString());
@@ -313,7 +313,6 @@ export default function ExamPage({ params }: { params: { id: string } }) {
               </span>
             </div>
           )}
-          <ThemeToggle />
         </div>
       </header>
 

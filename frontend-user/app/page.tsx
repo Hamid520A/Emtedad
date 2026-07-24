@@ -4,8 +4,6 @@ import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
-import ThemeToggle from './components/ThemeToggle';
-
 // 🌟 تابع هوشمند پاک‌سازی آدرس‌های لوکال و هماهنگ‌سازی با پروکسی سرور امتداد
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
@@ -105,11 +103,6 @@ export default function DashboardPage() {
             <User size={22} />
           </button>
           <span className="font-black text-2xl text-[#1a2e44] dark:text-[#c5a059]">امتداد امام</span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-
           <div className="relative">
             <button 
               onClick={() => setIsNotifOpen(!isNotifOpen)}

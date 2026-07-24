@@ -5,8 +5,6 @@ import api from '../../../lib/api';
 import { Lock, Phone, ArrowRight, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
-import ThemeToggle from '../../components/ThemeToggle';
-
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ phone: '', password: '' });
@@ -67,10 +65,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] flex flex-col justify-center py-12 px-6 font-sans transition-colors duration-200" dir="rtl">
-      <div className="absolute top-6 left-6 z-10">
-        <ThemeToggle />
-      </div>
-
       <div className="max-w-md w-full mx-auto">
         
         <div className="text-center mb-8">

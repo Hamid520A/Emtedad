@@ -2,17 +2,11 @@
 import { useRouter } from 'next/navigation';
 import { HelpCircle, ArrowRight } from 'lucide-react';
 
-import ThemeToggle from './components/ThemeToggle';
-
 export default function NotFound() {
   const router = useRouter();
 
   return (
     <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] flex flex-col items-center justify-center p-6 text-center text-[#1a2e44] dark:text-slate-100 relative transition-colors duration-200" dir="rtl">
-      <div className="absolute top-6 left-6 z-20">
-        <ThemeToggle />
-      </div>
-
       <div className="bg-white dark:bg-[#182234] p-10 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-slate-800 max-w-sm w-full space-y-6 animate-in fade-in zoom-in-95 duration-200">
         
         {/* آیکون و المان گرافیکی ۴۰۴ */}

@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Phone, ArrowRight, ShieldAlert, ArrowLeft } from 'lucide-react';
-import ThemeToggle from '../components/ThemeToggle';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -37,8 +36,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 flex flex-col justify-center py-12 px-6 font-sans relative transition-colors duration-200" dir="rtl">
       
-      <div className="absolute top-6 left-6 z-20 flex items-center gap-2">
-        <ThemeToggle />
+      <div className="absolute top-6 left-6 z-20">
         {/* دکمه بازگشت به عقب */}
         <button 
           onClick={() => router.back()}

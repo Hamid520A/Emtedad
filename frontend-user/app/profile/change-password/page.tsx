@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { ArrowRight, Save, Lock, Loader2, ShieldAlert } from 'lucide-react';
-import ThemeToggle from '../../components/ThemeToggle';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -48,14 +47,11 @@ export default function ChangePasswordPage() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100 transition-colors duration-200" dir="rtl">
       {/* Header */}
-      <header className="p-6 flex items-center justify-between bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10 rounded-b-3xl shadow-sm">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
-            <ArrowRight size={20} />
-          </button>
-          <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">تغییر رمز عبور</span>
-        </div>
-        <ThemeToggle />
+      <header className="p-6 flex items-center gap-3 bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10 rounded-b-3xl shadow-sm">
+        <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
+          <ArrowRight size={20} />
+        </button>
+        <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">تغییر رمز عبور</span>
       </header>
 
       {/* Form */}
