@@ -25,10 +25,10 @@ RATELIMIT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 RATELIMIT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
 r = redis.Redis(host=RATELIMIT_REDIS_HOST, port=RATELIMIT_REDIS_PORT, db=RATELIMIT_REDIS_DB, decode_responses=True, socket_timeout=5)
 
-# ۲. اتصال اختصاصی به سرور Redis برای سشن‌های ایتا (پورت ۶۳۸۹)
-EITAA_REDIS_HOST = os.getenv("EITAA_REDIS_HOST", os.getenv("REDIS_HOST", "127.0.0.1"))
+# ۲. اتصال اختصاصی به سرور Redis برای سشن‌های ایتا (پورت ۶۳۸۹ و آی‌پِی ۱۰.۱۰.۲۰.۵۱)
+EITAA_REDIS_HOST = os.getenv("EITAA_REDIS_HOST", "10.10.20.51")
 EITAA_REDIS_PORT = int(os.getenv("EITAA_REDIS_PORT", 6389))
-EITAA_REDIS_DB = int(os.getenv("EITAA_REDIS_DB", os.getenv("REDIS_DB", 0)))
+EITAA_REDIS_DB = int(os.getenv("EITAA_REDIS_DB", 0))
 ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989371787445")
 r_eitaa = redis.Redis(host=EITAA_REDIS_HOST, port=EITAA_REDIS_PORT, db=EITAA_REDIS_DB, decode_responses=True, socket_timeout=5)
 
