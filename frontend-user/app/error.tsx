@@ -3,6 +3,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, ServerCrash, RefreshCw, ShieldAlert } from 'lucide-react';
 
+import ThemeToggle from './components/ThemeToggle';
+
 export default function GlobalError({
   error,
   reset,
@@ -22,11 +24,15 @@ export default function GlobalError({
   const is403 = error.message?.includes('403') || error.message?.includes('Security');
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center justify-center p-6 text-center text-[#1a2e44]" dir="rtl">
-      <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-gray-100 max-w-sm w-full space-y-6 animate-in fade-in zoom-in-95 duration-200">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] flex flex-col items-center justify-center p-6 text-center text-[#1a2e44] dark:text-slate-100 relative transition-colors duration-200" dir="rtl">
+      <div className="absolute top-6 left-6 z-20">
+        <ThemeToggle />
+      </div>
+
+      <div className="bg-white dark:bg-[#182234] p-10 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-slate-800 max-w-sm w-full space-y-6 animate-in fade-in zoom-in-95 duration-200">
         
         {/* رندر داینامیک آیکون بر اساس نوع خطا */}
-        <div className="w-16 h-16 bg-[#faf9f6] rounded-2xl mx-auto flex items-center justify-center shadow-inner text-[#c5a059]">
+        <div className="w-16 h-16 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl mx-auto flex items-center justify-center shadow-inner text-[#c5a059]">
           {is403 ? (
             <ShieldAlert size={32} className="text-rose-500" />
           ) : is503 ? (
@@ -38,10 +44,10 @@ export default function GlobalError({
 
         {/* رندر داینامیک متون خطا */}
         <div className="space-y-2">
-          <h2 className="text-xl font-black">
+          <h2 className="text-xl font-black text-[#1a2e44] dark:text-slate-100">
             {is403 ? "عدم دسترسی (403)" : is503 ? "سرور در دسترس نیست (503)" : "خطای داخلی سرور (500)"}
           </h2>
-          <p className="text-xs text-gray-400 font-bold leading-relaxed">
+          <p className="text-xs text-gray-400 dark:text-slate-400 font-bold leading-relaxed">
             {is403 
               ? "شما مجوزهای لازم برای ورود یا مشاهده این بخش امنیتی را ندارید." 
               : is503 
@@ -54,14 +60,14 @@ export default function GlobalError({
         <div className="flex flex-col gap-2 pt-2">
           <button
             onClick={() => reset()}
-            className="w-full py-4 bg-[#1a2e44] text-white hover:bg-[#2a405a] rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            className="w-full py-4 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           >
-            <RefreshCw size={14} className="text-[#c5a059]" /> تلاش مجدد بارگذاری
+            <RefreshCw size={14} className="text-[#c5a059] dark:text-[#1a2e44]" /> تلاش مجدد بارگذاری
           </button>
           
           <button
             onClick={() => router.push('/')}
-            className="w-full py-3.5 bg-gray-50 text-gray-500 hover:bg-gray-100 rounded-2xl text-xs font-bold transition-all"
+            className="w-full py-3.5 bg-gray-50 dark:bg-[#0b0f19] text-gray-500 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#233044] rounded-2xl text-xs font-bold transition-all"
           >
             هدایت به صفحه اصلی
           </button>

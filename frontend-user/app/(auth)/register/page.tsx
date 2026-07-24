@@ -7,6 +7,7 @@ import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import { SearchableDropdown } from './SearchableDropdown';
+import ThemeToggle from '../../components/ThemeToggle';
 
 const DatePickerComponent = DatePicker as any;
 
@@ -180,9 +181,6 @@ export default function RegisterPage() {
   };
 
   // 🛑 سنگر امنیتی هیدریشن: تا زمانیکه محیط کلاینت موبایل پایدار نشده المان‌ها را رندر نکن
-import ThemeToggle from '../../components/ThemeToggle';
-
-// ... (code up to mounted)
 
   if (!mounted) {
     return (

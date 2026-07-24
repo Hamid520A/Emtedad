@@ -3,8 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { ArrowRight, Save, Lock, Loader2, ShieldAlert } from 'lucide-react';
-
-import ThemeToggle from '../../../app/components/ThemeToggle';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -20,8 +19,8 @@ export default function ChangePasswordPage() {
     e.preventDefault();
 
     if (formData.new_password.length < 6) {
-    alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
-    return;
+      alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
+      return;
     }
     
     if (formData.new_password !== formData.confirm_password) {
@@ -49,7 +48,7 @@ export default function ChangePasswordPage() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100 transition-colors duration-200" dir="rtl">
       {/* Header */}
-      <header className="p-6 flex items-center justify-between bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10">
+      <header className="p-6 flex items-center justify-between bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10 rounded-b-3xl shadow-sm">
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
             <ArrowRight size={20} />
@@ -122,16 +121,6 @@ export default function ChangePasswordPage() {
           </button>
           
           <button type="button" onClick={() => router.back()} className="w-full bg-white dark:bg-[#182234] text-gray-500 dark:text-slate-300 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-[#233044] transition-all">
-            انصراف و بازگشت
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}�غییر رمز عبور'}
-          </button>
-          
-          <button type="button" onClick={() => router.back()} className="w-full bg-white text-gray-500 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 hover:bg-gray-50 transition-all">
             انصراف و بازگشت
           </button>
         </div>

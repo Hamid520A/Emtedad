@@ -10,7 +10,7 @@ import {
   X, CheckCircle2, XCircle, FileText
 } from 'lucide-react';
 
-import ThemeToggle from '../../components/ThemeToggle';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function ProfilePage() {
   const router = useRouter();
