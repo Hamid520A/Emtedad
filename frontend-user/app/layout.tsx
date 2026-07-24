@@ -1,3 +1,4 @@
+import { ThemeProvider } from './providers';
 import './globals.css';
 
 export const metadata = {
@@ -11,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fa" dir="rtl"> 
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
       <head>
         {/* 🌟 سنگر امنیتی بومی و ۱۰۰٪ سازگار با جاوااسکریپت بدون وابستگی به نکست‌جی‌اس */}
         <script
@@ -27,7 +28,9 @@ export default function RootLayout({
         />
       </head>
       <body>
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

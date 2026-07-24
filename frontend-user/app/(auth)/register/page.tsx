@@ -180,66 +180,53 @@ export default function RegisterPage() {
   };
 
   // 🛑 سنگر امنیتی هیدریشن: تا زمانیکه محیط کلاینت موبایل پایدار نشده المان‌ها را رندر نکن
+import ThemeToggle from '../../components/ThemeToggle';
+
+// ... (code up to mounted)
+
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-[#faf9f6] flex items-center justify-center font-sans" dir="rtl">
+      <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 flex items-center justify-center font-sans" dir="rtl">
         <div className="text-center">
-          <p className="text-gray-500 font-bold text-sm">در حال بارگذاری فرم ثبت‌نام امتداد...</p>
+          <p className="text-gray-500 dark:text-slate-400 font-bold text-sm">در حال بارگذاری فرم ثبت‌نام امتداد...</p>
         </div>
       </div>
     );
   }
 
   return (
-    // 🌟 اضافه شدن overflowX: 'hidden' برای قفل کردن کامل حرکت افقی صفحه
     <div 
-      className="font-sans" 
-      style={{ 
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: '#faf9f6', 
-        color: '#1a2e44',
-        overflowY: 'auto',
-        overflowX: 'hidden', // 🌟 جلوی غیب شدن صفحه با کشیدن به چپ و راست را می‌گیرد
-        WebkitOverflowScrolling: 'touch',
-        padding: '24px 16px'
-      }}
+      className="font-sans min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 overflow-y-auto overflow-x-hidden p-6 relative transition-colors duration-200"
       dir="rtl"
     >
+      <div className="absolute top-6 left-6 z-10">
+        <ThemeToggle />
+      </div>
+
       {/* کارت اصلی فرم */}
-      <div 
-        className="w-full max-w-md mx-auto rounded-[2rem] shadow-sm border border-gray-100 p-6 sm:p-8"
-        style={{ backgroundColor: '#ffffff', color: '#1a2e44' }}
-      >
+      <div className="w-full max-w-md mx-auto bg-white dark:bg-[#182234] rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 p-6 sm:p-8 text-[#1a2e44] dark:text-slate-100 transition-colors duration-200">
         
         {/* هدر فرم */}
         <div className="text-center mb-6">
-          <div 
-            className="w-16 h-16 text-[#c5a059] mx-auto rounded-2xl flex items-center justify-center shadow-lg rotate-3 mb-4"
-            style={{ backgroundColor: '#1a2e44' }}
-          >
+          <div className="w-16 h-16 bg-[#1a2e44] dark:bg-[#0b0f19] text-[#c5a059] mx-auto rounded-2xl flex items-center justify-center shadow-lg rotate-3 mb-4 border border-transparent dark:border-slate-800">
             <Trophy size={32} />
           </div>
-          <h2 className="text-2xl font-black" style={{ color: '#1a2e44' }}>ساخت حساب جدید</h2>
-          <p className="text-gray-500 text-xs mt-1 font-medium">برای شرکت در مسابقات اطلاعات خود را وارد کنید</p>
+          <h2 className="text-2xl font-black text-[#1a2e44] dark:text-slate-100">ساخت حساب جدید</h2>
+          <p className="text-gray-500 dark:text-slate-400 text-xs mt-1 font-medium">برای شرکت در مسابقات اطلاعات خود را وارد کنید</p>
         </div>
 
         {/* فرم اصلی */}
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* نام و نام خانوادگی - چون کوتاهن می‌تونن تو موبایل هم ۲ ستونه بمونن */}
+          {/* نام و نام خانوادگی */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">نام</label>
               <div className="relative">
-                <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                <User className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
                 <input
                   type="text" required
-                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
+                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]"
                   placeholder="علی"
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
@@ -247,13 +234,12 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام خانوادگی</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">نام خانوادگی</label>
               <div className="relative">
-                <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                <User className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
                 <input
                   type="text" required
-                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
+                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]"
                   placeholder="احمدی"
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
@@ -262,16 +248,15 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* 🌟 اصلاح ریسپانسیو: کد ملی و شماره موبایل (در موبایل زیر هم، در دسکتاپ کنار هم) */}
+          {/* کد ملی و شماره موبایل */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">کد ملی</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">کد ملی</label>
               <div className="relative">
-                <CreditCard className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                <CreditCard className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
                 <input
                   type="text" required dir="ltr" maxLength={10}
-                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
+                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
                   placeholder="0012345678"
                   value={formData.national_id}
                   onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
@@ -279,13 +264,12 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">شماره موبایل</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">شماره موبایل</label>
               <div className="relative">
-                <Phone className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                <Phone className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
                 <input
                   type="text" required dir="ltr" maxLength={11}
-                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
+                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
                   placeholder="0912..."
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -294,10 +278,10 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* 🌟 اصلاح ریسپانسیو: استان و شهرستان */}
+          {/* استان و شهرستان */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">استان</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">استان</label>
               <SearchableDropdown
                 options={provinces}
                 value={formData.province_id}
@@ -307,7 +291,7 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">شهرستان</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">شهرستان</label>
               <SearchableDropdown
                 options={availableCities}
                 value={formData.city_id}
@@ -319,12 +303,12 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* 🌟 اصلاح ریسپانسیو: تاریخ تولد و جنسیت */}
+          {/* تاریخ تولد و جنسیت */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">تاریخ تولد</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">تاریخ تولد</label>
               <div className="relative">
-                <Calendar className="absolute right-3 top-3.5 text-gray-400 z-10" size={16} />
+                <Calendar className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500 z-10" size={16} />
                 <DatePickerComponent
                   calendar={persian}
                   locale={persian_fa}
@@ -334,7 +318,7 @@ export default function RegisterPage() {
                     setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" });
                   }}
                   containerClassName="w-full"
-                  inputClass="w-full p-3 pr-10 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                  inputClass="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left focus:ring-2 focus:ring-[#c5a059] outline-none"
                   placeholder="1380/01/01"
                   name="birth_date"
                   id="birth_date"
@@ -343,16 +327,15 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">جنسیت</label>
-              <div className="grid grid-cols-2 gap-1 p-1 rounded-xl" style={{ backgroundColor: '#faf9f6' }}>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">جنسیت</label>
+              <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-xl border border-transparent dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, gender: 'male' })}
                   className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'male'
-                      ? 'bg-white shadow-sm'
-                      : 'bg-transparent text-gray-400'
+                      ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm'
+                      : 'bg-transparent text-gray-400 dark:text-slate-500'
                     }`}
-                  style={{ color: '#1a2e44' }}
                 >
                   آقا
                 </button>
@@ -360,10 +343,9 @@ export default function RegisterPage() {
                   type="button"
                   onClick={() => setFormData({ ...formData, gender: 'female' })}
                   className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'female'
-                      ? 'bg-white shadow-sm'
-                      : 'bg-transparent text-gray-400'
+                      ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm'
+                      : 'bg-transparent text-gray-400 dark:text-slate-500'
                     }`}
-                  style={{ color: '#1a2e44' }}
                 >
                   خانم
                 </button>
@@ -371,10 +353,10 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* 🌟 اصلاح ریسپانسیو: رمز عبور و تکرار آن */}
+          {/* رمز عبور و تکرار آن */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">رمز عبور</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">رمز عبور</label>
               <div className="relative">
                 <input
                   type="text"
@@ -384,11 +366,10 @@ export default function RegisterPage() {
                   autoComplete="username"
                   readOnly
                 />
-                <Lock className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                <Lock className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
                 <input
                   type="password" required dir="ltr"
-                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
+                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -396,13 +377,12 @@ export default function RegisterPage() {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">تکرار رمز</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">تکرار رمز</label>
               <div className="relative">
                 <Lock className="absolute right-3 top-3.5 text-[#c5a059]" size={16} />
                 <input
                   type="password" required dir="ltr"
-                  className="w-full p-3 pr-10 border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  style={{ backgroundColor: '#faf9f6', color: '#1a2e44' }}
+                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -413,17 +393,16 @@ export default function RegisterPage() {
 
           <button
             type="submit" disabled={loading}
-            className="w-full text-white p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70"
-            style={{ backgroundColor: '#1a2e44' }}
+            className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70"
           >
             {loading ? 'در حال ثبت...' : 'ثبت‌نام در سیستم'}
-            {!loading && <ArrowRight size={18} className="text-[#c5a059]" />}
+            {!loading && <ArrowRight size={18} className="text-[#c5a059] dark:text-[#1a2e44]" />}
           </button>
 
         </form>
 
         <div className="text-center mt-4">
-          <p className="text-xs font-bold text-gray-500">
+          <p className="text-xs font-bold text-gray-500 dark:text-slate-400">
             قبلاً حساب کاربری ساخته‌اید؟{' '}
             <button 
               onClick={() => {

@@ -9,6 +9,8 @@ import persian_fa from "react-date-object/locales/persian_fa";
 import { iranProvinces, iranCities } from '../../../lib/utils/iranCities';
 import { SearchableDropdown } from '../../(auth)/register/SearchableDropdown';
 
+import ThemeToggle from '../../../app/components/ThemeToggle';
+
 const DatePickerComponent = DatePicker as any;
 
 export default function EditProfilePage() {
@@ -77,8 +79,8 @@ export default function EditProfilePage() {
   };
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-[#faf9f6]">
-      <Loader2 className="animate-spin text-[#1a2e44]" size={40} />
+    <div className="h-screen flex items-center justify-center bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100">
+      <Loader2 className="animate-spin text-[#1a2e44] dark:text-[#c5a059]" size={40} />
     </div>
   );
 
@@ -89,61 +91,64 @@ export default function EditProfilePage() {
   const selectedCityId = cityOptions.find(c => c.title === formData.city)?.id ?? '';
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] font-sans text-[#1a2e44]" dir="rtl">
-      <header className="p-6 flex items-center gap-3 bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-10 rounded-b-3xl shadow-sm">
-        <button onClick={() => router.back()} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
-          <ArrowRight size={20} />
-        </button>
-        <span className="font-black text-xl">ویرایش پروفایل</span>
+    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100 transition-colors duration-200" dir="rtl">
+      <header className="p-6 flex items-center justify-between bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10 rounded-b-3xl shadow-sm">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
+            <ArrowRight size={20} />
+          </button>
+          <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">ویرایش پروفایل</span>
+        </div>
+        <ThemeToggle />
       </header>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-5 pb-12">
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+        <div className="bg-white dark:bg-[#182234] p-6 rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">نام</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">نام</label>
               <div className="relative">
-                <User className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input type="text" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm" required />
+                <User className="absolute right-4 top-4 text-gray-400 dark:text-slate-500" size={18} />
+                <input type="text" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm" required />
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">نام خانوادگی</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">نام خانوادگی</label>
               <div className="relative">
-                <User className="absolute right-4 top-4 text-gray-400" size={18} />
-                <input type="text" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm" required />
+                <User className="absolute right-4 top-4 text-gray-400 dark:text-slate-500" size={18} />
+                <input type="text" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm" required />
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">کد ملی (غیرقابل تغییر)</label>
+            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">کد ملی (غیرقابل تغییر)</label>
             <div className="relative opacity-70">
-              <CreditCard className="absolute right-4 top-4 text-gray-400" size={18} />
-              <input type="text" value={formData.national_id} disabled dir="ltr" className="w-full p-4 pr-12 bg-gray-100 rounded-2xl outline-none font-bold text-sm text-left text-gray-500 cursor-not-allowed" />
+              <CreditCard className="absolute right-4 top-4 text-gray-400 dark:text-slate-500" size={18} />
+              <input type="text" value={formData.national_id} disabled dir="ltr" className="w-full p-4 pr-12 bg-gray-100 dark:bg-[#0b0f19]/80 rounded-2xl outline-none font-bold text-sm text-left text-gray-500 dark:text-slate-400 cursor-not-allowed border border-transparent dark:border-slate-800" />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شماره موبایل (غیرقابل تغییر)</label>
+            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">شماره موبایل (غیرقابل تغییر)</label>
             <div className="relative opacity-70">
-              <Phone className="absolute right-4 top-4 text-gray-400" size={18} />
-              <input type="text" value={formData.phone} disabled dir="ltr" className="w-full p-4 pr-12 bg-gray-100 rounded-2xl outline-none font-bold text-sm text-left text-gray-500 cursor-not-allowed" />
+              <Phone className="absolute right-4 top-4 text-gray-400 dark:text-slate-500" size={18} />
+              <input type="text" value={formData.phone} disabled dir="ltr" className="w-full p-4 pr-12 bg-gray-100 dark:bg-[#0b0f19]/80 rounded-2xl outline-none font-bold text-sm text-left text-gray-500 dark:text-slate-400 cursor-not-allowed border border-transparent dark:border-slate-800" />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
+            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">تاریخ تولد</label>
             <div className="relative">
-              <Calendar className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+              <Calendar className="absolute right-4 top-4 text-gray-400 dark:text-slate-500 z-10" size={18} />
               <DatePickerComponent
                 calendar={persian}
                 locale={persian_fa}
                 value={formData.birth_date}
                 onChange={(date: any) => setFormData({ ...formData, birth_date: date?.format?.() || "" })}
                 containerClassName="w-full"
-                inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                inputClass="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#0b0f19] border-none dark:border dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                 placeholder="انتخاب تاریخ"
               />
             </div>
@@ -151,7 +156,7 @@ export default function EditProfilePage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">استان</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">استان</label>
               <SearchableDropdown 
                 options={provinceOptions}
                 value={selectedProvinceId}
@@ -161,7 +166,7 @@ export default function EditProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">شهرستان</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">شهرستان</label>
               <SearchableDropdown 
                 options={cityOptions}
                 value={selectedCityId}
@@ -176,12 +181,12 @@ export default function EditProfilePage() {
         </div>
 
         <div className="space-y-3">
-          <button type="submit" disabled={saving} className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-2 hover:bg-[#2a405a] active:scale-95 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70">
-            {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} className="text-[#c5a059]" />}
+          <button type="submit" disabled={saving} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] active:scale-95 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70">
+            {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} className="text-[#c5a059] dark:text-[#1a2e44]" />}
             {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
           </button>
           
-          <button type="button" onClick={() => router.back()} className="w-full bg-white text-gray-500 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 hover:bg-gray-50 transition-all">
+          <button type="button" onClick={() => router.back()} className="w-full bg-white dark:bg-[#182234] text-gray-500 dark:text-slate-300 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-[#233044] transition-all">
             انصراف و بازگشت
           </button>
         </div>

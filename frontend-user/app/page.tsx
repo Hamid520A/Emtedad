@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
+import ThemeToggle from './components/ThemeToggle';
+
 // 🌟 تابع هوشمند پاک‌سازی آدرس‌های لوکال و هماهنگ‌سازی با پروکسی سرور امتداد
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
@@ -85,7 +87,7 @@ export default function DashboardPage() {
   };
           
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] pb-12 font-sans no-scrollbar" dir="rtl">
+    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 pb-12 font-sans no-scrollbar transition-colors duration-200" dir="rtl">
       
       <style dangerouslySetInnerHTML={{__html: `
         ::-webkit-scrollbar { display: none; }
@@ -93,55 +95,57 @@ export default function DashboardPage() {
       `}} />
 
       {/* هدر اصلاح‌شده بر اساس طرح جدید */}
-      <header className="bg-[#faf9f6] p-6 flex justify-between items-center sticky top-0 z-40">
+      <header className="bg-[#faf9f6] dark:bg-[#0b0f19] p-6 flex justify-between items-center sticky top-0 z-40 transition-colors duration-200">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => router.push('/profile')}
-            className="w-12 h-12 bg-[#1a2e44] rounded-full flex items-center justify-center text-[#c5a059] shadow-sm hover:scale-105 active:scale-95 transition-all"
+            className="w-12 h-12 bg-[#1a2e44] dark:bg-[#182234] rounded-full flex items-center justify-center text-[#c5a059] shadow-sm hover:scale-105 active:scale-95 transition-all border border-transparent dark:border-slate-700"
             title="مشاهده پروفایل کاربری"
           >
             <User size={22} />
           </button>
-          <span className="font-black text-2xl text-[#1a2e44]">امتداد امام</span>
+          <span className="font-black text-2xl text-[#1a2e44] dark:text-[#c5a059]">امتداد امام</span>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+
           <div className="relative">
             <button 
               onClick={() => setIsNotifOpen(!isNotifOpen)}
-              className={`relative p-3 rounded-full shadow-sm border border-gray-100 transition-all ${
+              className={`relative p-3 rounded-full shadow-sm border border-gray-100 dark:border-slate-800 transition-all ${
                 isNotifOpen 
-                ? 'bg-[#1a2e44] text-white' 
-                : 'bg-white text-[#1a2e44] hover:bg-[#1a2e44] hover:text-white'
+                ? 'bg-[#1a2e44] text-white dark:bg-[#c5a059] dark:text-[#1a2e44]' 
+                : 'bg-white text-[#1a2e44] dark:bg-[#182234] dark:text-slate-100 hover:bg-[#1a2e44] hover:text-white'
               }`}
             >
               <Bell size={20} />
               {notifications.length > 0 && (
-                <span className="absolute top-2 right-3 w-2.5 h-2.5 bg-[#c5a059] rounded-full border-2 border-white"></span>
+                <span className="absolute top-2 right-3 w-2.5 h-2.5 bg-[#c5a059] rounded-full border-2 border-white dark:border-slate-900"></span>
               )}
             </button>
 
             {isNotifOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
-                <div className="absolute top-full left-0 mt-3 w-64 bg-white rounded-3xl shadow-xl border border-gray-100 z-50 p-5 transform origin-top-left transition-all">
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-50">
-                    <h3 className="text-sm font-black text-[#1a2e44]">اعلان‌های شما</h3>
+                <div className="absolute top-full left-0 mt-3 w-64 bg-white dark:bg-[#182234] rounded-3xl shadow-xl border border-gray-100 dark:border-slate-800 z-50 p-5 transform origin-top-left transition-all">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-50 dark:border-slate-800">
+                    <h3 className="text-sm font-black text-[#1a2e44] dark:text-slate-100">اعلان‌های شما</h3>
                     {notifications.length > 0 && (
-                      <span className="bg-red-50 text-red-500 text-[10px] font-bold px-2 py-0.5 rounded-md">{notifications.length} جدید</span>
+                      <span className="bg-red-50 dark:bg-red-950/40 text-red-500 text-[10px] font-bold px-2 py-0.5 rounded-md">{notifications.length} جدید</span>
                     )}
                   </div>
                   {notifications.length === 0 ? (
                     <div className="text-center py-6">
-                      <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Bell size={20} className="text-gray-300" />
+                      <div className="w-12 h-12 bg-gray-50 dark:bg-[#233044] rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Bell size={20} className="text-gray-300 dark:text-slate-500" />
                       </div>
-                      <p className="text-xs text-gray-400 font-bold">هیچ اعلانی ندارید.</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-400 font-bold">هیچ اعلانی ندارید.</p>
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-60 overflow-y-auto no-scrollbar">
                       {notifications.map((notif: any, index: number) => (
-                        <div key={index} className="bg-gray-50 p-3 rounded-2xl border border-gray-100 text-xs text-gray-600 font-medium leading-relaxed">
+                        <div key={index} className="bg-gray-50 dark:bg-[#233044] p-3 rounded-2xl border border-gray-100 dark:border-slate-800 text-xs text-gray-600 dark:text-slate-300 font-medium leading-relaxed">
                           {notif.text}
                         </div>
                       ))}
@@ -214,12 +218,12 @@ export default function DashboardPage() {
 
         {/* بخش تب‌ها و لیست مسابقات */}
         <section>
-          <div className="flex bg-white p-1.5 rounded-full shadow-sm border border-gray-100 mb-6">
+          <div className="flex bg-white dark:bg-[#182234] p-1.5 rounded-full shadow-sm border border-gray-100 dark:border-slate-800 mb-6">
             {['active', 'upcoming', 'finished'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setFilter(tab)}
-                className={`flex-1 py-3 rounded-full text-sm font-bold transition-all ${filter === tab ? 'bg-[#1a2e44] text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+                className={`flex-1 py-3 rounded-full text-sm font-bold transition-all ${filter === tab ? 'bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-[#233044]'}`}
               >
                 {tab === 'active' ? 'در حال اجرا' : tab === 'upcoming' ? 'به زودی' : 'پایان یافته'}
               </button>
@@ -227,19 +231,19 @@ export default function DashboardPage() {
           </div>
           
           <div className="space-y-4">
-            {loading ? <Loader2 className="animate-spin mx-auto text-[#1a2e44] my-10" /> : 
+            {loading ? <Loader2 className="animate-spin mx-auto text-[#1a2e44] dark:text-[#c5a059] my-10" /> : 
              filteredContests.length === 0 ? (
-               <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
-                 <p className="text-gray-400 text-sm">موردی در این دسته وجود ندارد.</p>
+               <div className="text-center py-12 bg-white dark:bg-[#182234] rounded-3xl border border-dashed border-gray-200 dark:border-slate-800">
+                 <p className="text-gray-400 dark:text-slate-400 text-sm">موردی در این دسته وجود ندارد.</p>
                </div>
              ) : (
               filteredContests.map((contest: any) => (
               <div 
                 key={contest.id}
                 onClick={() => router.push(`/contests/${contest.id}`)}
-                className="bg-white p-4 rounded-3xl border border-gray-100 flex items-center gap-4 shadow-sm active:scale-95 transition cursor-pointer group animate-in fade-in duration-200"
+                className="bg-white dark:bg-[#182234] p-4 rounded-3xl border border-gray-100 dark:border-slate-800 flex items-center gap-4 shadow-sm active:scale-95 transition cursor-pointer group animate-in fade-in duration-200"
               >
-                <div className="w-16 h-16 bg-[#faf9f6] rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100">
+                <div className="w-16 h-16 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100 dark:border-slate-800">
                   {/* 🌟 اصلاح شد: استفاده از تابع پاک‌سازی آدرس تصویر برای مسابقات */}
                   {contest.image_url ? (
                     <img src={getCleanImageUrl(contest.image_url)} className="w-full h-full object-cover" />
@@ -249,13 +253,13 @@ export default function DashboardPage() {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-[#1a2e44] text-base mb-0.5 truncate">{contest.title}</h4>
-                  <p className="text-[11px] text-gray-400 font-medium line-clamp-2 leading-relaxed text-justify">
+                  <h4 className="font-bold text-[#1a2e44] dark:text-slate-100 text-base mb-0.5 truncate">{contest.title}</h4>
+                  <p className="text-[11px] text-gray-400 dark:text-slate-400 font-medium line-clamp-2 leading-relaxed text-justify">
                     {contest.description || 'توضیحات و مشخصاتی برای این مسابقه از طرف مدیر ثبت نشده است.'}
                   </p>
                 </div>
 
-                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 group-hover:bg-[#1a2e44] group-hover:text-white transition-colors text-gray-400">
+                <div className="w-10 h-10 rounded-full bg-gray-50 dark:bg-[#233044] flex items-center justify-center flex-shrink-0 group-hover:bg-[#1a2e44] dark:group-hover:bg-[#c5a059] group-hover:text-white dark:group-hover:text-[#1a2e44] transition-colors text-gray-400 dark:text-slate-400">
                   <PlayCircle size={20} />
                 </div>
               </div>

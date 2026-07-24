@@ -41,23 +41,23 @@ export const SearchableDropdown = ({
   return (
     <div className="relative" ref={dropdownRef}>
       <div 
-        className={`w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl flex items-center justify-between cursor-pointer border-none focus-within:ring-2 focus-within:ring-[#c5a059] ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl flex items-center justify-between cursor-pointer border-none dark:border dark:border-slate-800 focus-within:ring-2 focus-within:ring-[#c5a059] ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
-        <Icon className="absolute right-4 top-4 text-gray-400" size={18} />
-        <span className={`text-sm font-bold ${value ? 'text-[#1a2e44]' : 'text-gray-400'}`}>
+        <Icon className="absolute right-4 top-4 text-gray-400 dark:text-slate-500" size={18} />
+        <span className={`text-sm font-bold ${value ? 'text-[#1a2e44] dark:text-slate-100' : 'text-gray-400 dark:text-slate-500'}`}>
           {selectedDisplay || placeholder}
         </span>
-        <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={18} className={`text-gray-400 dark:text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-gray-50 flex items-center bg-gray-50">
-            <Search size={14} className="text-gray-400 mr-2 ml-2" />
+        <div className="absolute z-50 w-full mt-2 bg-white dark:bg-[#182234] border border-gray-100 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-gray-50 dark:border-slate-800 flex items-center bg-gray-50 dark:bg-[#0b0f19]">
+            <Search size={14} className="text-gray-400 dark:text-slate-500 mr-2 ml-2" />
             <input 
               type="text" 
-              className="w-full bg-transparent border-none text-sm outline-none placeholder-gray-400 text-[#1a2e44] font-bold"
+              className="w-full bg-transparent border-none text-sm outline-none placeholder-gray-400 dark:placeholder-slate-500 text-[#1a2e44] dark:text-slate-100 font-bold"
               placeholder="جستجو..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -70,7 +70,7 @@ export const SearchableDropdown = ({
               filteredOptions.map((option) => (
                 <div 
                   key={option.id}
-                  className={`p-3 text-sm font-bold cursor-pointer hover:bg-gray-50 transition-colors ${Number(value) === option.id ? 'bg-blue-50 text-blue-600' : 'text-[#1a2e44]'}`}
+                  className={`p-3 text-sm font-bold cursor-pointer hover:bg-gray-50 dark:hover:bg-[#233044] transition-colors ${Number(value) === option.id ? 'bg-blue-50 dark:bg-[#2a405a] text-blue-600 dark:text-[#c5a059]' : 'text-[#1a2e44] dark:text-slate-100'}`}
                   onClick={() => {
                     onChange(option.id, option.title);
                     setIsOpen(false);
@@ -81,7 +81,7 @@ export const SearchableDropdown = ({
                 </div>
               ))
             ) : (
-              <div className="p-3 text-sm text-gray-400 text-center font-bold">موردی یافت نشد</div>
+              <div className="p-3 text-sm text-gray-400 dark:text-slate-500 text-center font-bold">موردی یافت نشد</div>
             )}
           </div>
         </div>

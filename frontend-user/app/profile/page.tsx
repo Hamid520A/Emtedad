@@ -10,6 +10,8 @@ import {
   X, CheckCircle2, XCircle, FileText
 } from 'lucide-react';
 
+import ThemeToggle from '../../components/ThemeToggle';
+
 export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
@@ -120,6 +122,7 @@ export default function ProfilePage() {
         questions: response.data || []
       });
     } catch (error) {
+      console.error("Error fetching answer sheet:", error);
       alert("خطا در دریافت جزئیات پاسخنامه.");
       setAnswerModalOpen(false);
     } finally {
@@ -166,142 +169,146 @@ export default function ProfilePage() {
   };
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#faf9f6]">
-      <Loader2 className="animate-spin text-[#1a2e44]" size={40} />
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100">
+      <Loader2 className="animate-spin text-[#1a2e44] dark:text-[#c5a059]" size={40} />
     </div>
   );
 
   if (!profile) return null;
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] font-sans text-[#1a2e44]" dir="rtl">
-      <div className="max-w-md mx-auto bg-white min-h-screen shadow-2xl relative flex flex-col">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100 transition-colors duration-200" dir="rtl">
+      <div className="max-w-md mx-auto bg-white dark:bg-[#182234] min-h-screen shadow-2xl relative flex flex-col border-x border-gray-100 dark:border-slate-800">
         
         {/* Header */}
-        <header className="p-6 flex items-center justify-between border-b border-gray-50">
+        <header className="p-6 flex items-center justify-between border-b border-gray-50 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
+            <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
               <ArrowRight size={20} />
             </button>
-            <span className="font-black text-xl">حساب کاربری</span>
+            <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">حساب کاربری</span>
           </div>
-          <button onClick={handleLogout} className="p-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors">
-            <LogOut size={20} />
-          </button>
+          
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button onClick={handleLogout} className="p-2 text-red-500 bg-red-50 dark:bg-red-950/40 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/60 transition-colors" title="خروج از حساب">
+              <LogOut size={20} />
+            </button>
+          </div>
         </header>
 
         <main className="p-6 flex-1 space-y-8 pb-24">
           
           {/* User Info Card */}
           <div className="text-center space-y-6">
-            <div className="w-24 h-24 bg-[#faf9f6] rounded-full mx-auto flex items-center justify-center border-4 border-white shadow-lg overflow-hidden relative group">
+            <div className="w-24 h-24 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-full mx-auto flex items-center justify-center border-4 border-white dark:border-slate-700 shadow-lg overflow-hidden relative group">
               {profileImg ? (
                 <img src={profileImg} alt="Profile" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
               ) : (
-                <div className="bg-gray-100 w-full h-full flex items-center justify-center text-[#c5a059]">
+                <div className="bg-gray-100 dark:bg-[#233044] w-full h-full flex items-center justify-center text-[#c5a059]">
                    <User size={48} />
                 </div>
               )}
             </div>
             
             <div>
-              <h2 className="text-2xl font-black">{profile.first_name} {profile.last_name}</h2>
-              <p className="text-gray-400 font-medium" dir="ltr">{profile.phone_number || profile.phone}</p>
+              <h2 className="text-2xl font-black text-[#1a2e44] dark:text-slate-100">{profile.first_name} {profile.last_name}</h2>
+              <p className="text-gray-400 dark:text-slate-400 font-medium" dir="ltr">{profile.phone_number || profile.phone}</p>
             </div>
 
             {/* اطلاعات تکمیلی */}
-            <div className="grid grid-cols-2 gap-4 text-center bg-gray-50/50 p-4 rounded-3xl border border-gray-100 shadow-inner">
+            <div className="grid grid-cols-2 gap-4 text-center bg-gray-50/50 dark:bg-[#0b0f19]/50 p-4 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-inner">
               <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">کد ملی</p>
-                <p className="font-black text-xs text-[#1a2e44] mt-1">{profile.national_id || "---"}</p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase">کد ملی</p>
+                <p className="font-black text-xs text-[#1a2e44] dark:text-slate-200 mt-1">{profile.national_id || "---"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">تاریخ تولد</p>
-                <p className="font-black text-xs text-[#1a2e44] mt-1">{profile.birth_date || "---"}</p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase">تاریخ تولد</p>
+                <p className="font-black text-xs text-[#1a2e44] dark:text-slate-200 mt-1">{profile.birth_date || "---"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">استان</p>
-                <p className="font-black text-xs text-[#1a2e44] mt-1">{profile.province_title || profile.province || "---"}</p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase">استان</p>
+                <p className="font-black text-xs text-[#1a2e44] dark:text-slate-200 mt-1">{profile.province_title || profile.province || "---"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">شهرستان</p>
-                <p className="font-black text-xs text-[#1a2e44] mt-1">{profile.city_title || profile.city || "---"}</p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase">شهرستان</p>
+                <p className="font-black text-xs text-[#1a2e44] dark:text-slate-200 mt-1">{profile.city_title || profile.city || "---"}</p>
               </div>
             </div>
           </div>
 
           {/* تنظیمات حساب */}
           <section className="space-y-4">
-            <h3 className="font-black text-base px-2 flex items-center gap-2">
+            <h3 className="font-black text-base px-2 flex items-center gap-2 text-[#1a2e44] dark:text-slate-100">
               <Settings size={18} className="text-[#c5a059]" /> تنظیمات حساب
             </h3>
             <div className="grid grid-cols-1 gap-3">
-              <button onClick={() => router.push('/profile/edit')} className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
+              <button onClick={() => router.push('/profile/edit')} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-[#faf9f6] rounded-2xl text-blue-500 group-hover:bg-blue-50 transition-colors"><User size={22} /></div>
-                  <span className="font-bold text-[#1a2e44]">ویرایش اطلاعات پروفایل</span>
+                  <div className="p-3 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl text-blue-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/30 transition-colors"><User size={22} /></div>
+                  <span className="font-bold text-[#1a2e44] dark:text-slate-100">ویرایش اطلاعات پروفایل</span>
                 </div>
-                <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
+                <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
 
-              <button onClick={openCertificateModal} className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
+              <button onClick={openCertificateModal} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-amber-50 text-[#c5a059] rounded-2xl group-hover:scale-105 transition-transform"><Award size={22} /></div>
-                  <span className="font-black text-[#1a2e44]">گواهی‌های دوره امتداد</span>
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/30 text-[#c5a059] rounded-2xl group-hover:scale-105 transition-transform"><Award size={22} /></div>
+                  <span className="font-black text-[#1a2e44] dark:text-slate-100">گواهی‌های دوره امتداد</span>
                 </div>
-                <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
+                <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
 
-              <button onClick={() => router.push('/profile/change-password')} className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
+              <button onClick={() => router.push('/profile/change-password')} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-[#faf9f6] rounded-2xl text-orange-500 group-hover:bg-orange-50 transition-colors"><ShieldCheck size={22} /></div>
-                  <span className="font-bold text-[#1a2e44]">تغییر رمز عبور</span>
+                  <div className="p-3 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl text-orange-500 group-hover:bg-orange-50 dark:group-hover:bg-orange-950/30 transition-colors"><ShieldCheck size={22} /></div>
+                  <span className="font-bold text-[#1a2e44] dark:text-slate-100">تغییر رمز عبور</span>
                 </div>
-                <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
+                <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
 
-              <button onClick={() => router.push('/profile/support')} className="w-full bg-white p-5 rounded-[2rem] border border-gray-100 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
+              <button onClick={() => router.push('/profile/support')} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-[#faf9f6] rounded-2xl text-green-500 group-hover:bg-green-50 transition-colors"><HelpCircle size={22} /></div>
-                  <span className="font-bold text-[#1a2e44]">ارتباط با پشتیبانی</span>
+                  <div className="p-3 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl text-green-500 group-hover:bg-green-50 dark:group-hover:bg-green-950/30 transition-colors"><HelpCircle size={22} /></div>
+                  <span className="font-bold text-[#1a2e44] dark:text-slate-100">ارتباط با پشتیبانی</span>
                 </div>
-                <ChevronLeft size={20} className="text-gray-300 group-hover:text-[#c5a059]" />
+                <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
             </div>
           </section>
 
           {/* History Section */}
           <section className="space-y-4">
-            <h3 className="font-black text-base px-2 flex items-center gap-2">
+            <h3 className="font-black text-base px-2 flex items-center gap-2 text-[#1a2e44] dark:text-slate-100">
               <History size={18} className="text-[#c5a059]" /> تاریخچه افتخارات
             </h3>
 
             <div className="space-y-4">
               {profile.history?.length === 0 ? (
-                <div className="text-center py-10 bg-white rounded-[2rem] border border-dashed border-gray-200">
-                    <Star className="mx-auto text-gray-200 mb-2" size={32} />
-                    <p className="text-gray-400 text-sm italic">هنوز رکوردی ثبت نشده است...</p>
+                <div className="text-center py-10 bg-white dark:bg-[#182234] rounded-[2rem] border border-dashed border-gray-200 dark:border-slate-800">
+                    <Star className="mx-auto text-gray-200 dark:text-slate-600 mb-2" size={32} />
+                    <p className="text-gray-400 dark:text-slate-400 text-sm italic">هنوز رکوردی ثبت نشده است...</p>
                 </div>
               ) : (
                 profile.history?.map((item: any, index: number) => (
                   <div 
                     key={index} 
                     onClick={() => handleViewMyAnswers(item.contest_id, item.contest_title, item.status)}
-                    className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between group hover:border-[#c5a059] cursor-pointer transition-all active:scale-[0.99]"
+                    className="bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:border-[#c5a059] cursor-pointer transition-all active:scale-[0.99]"
                     title="جهت بررسی و مرور پاسخنامه کلیک کنید"
                   >
                     <div>
-                      <h4 className="font-bold text-base mb-1 group-hover:text-[#c5a059] transition-colors">{item.contest_title}</h4>
-                      <div className="flex gap-2 text-[10px] font-bold text-gray-400">
-                        <span className="bg-gray-50 px-2 py-0.5 rounded-md">زمان: {toPersianDigits(item.time_taken)} ثانیه</span>
+                      <h4 className="font-bold text-base mb-1 text-[#1a2e44] dark:text-slate-100 group-hover:text-[#c5a059] transition-colors">{item.contest_title}</h4>
+                      <div className="flex gap-2 text-[10px] font-bold text-gray-400 dark:text-slate-400">
+                        <span className="bg-gray-50 dark:bg-[#0b0f19] px-2 py-0.5 rounded-md">زمان: {toPersianDigits(item.time_taken)} ثانیه</span>
                         <span className={item.status === 'active' ? 'text-green-500' : ''}>
                           {item.status === 'active' ? '● در حال برگزاری' : 'پایان یافته'}
                         </span>
                       </div>
                     </div>
-                    <div className="text-center bg-[#faf9f6] py-2 px-4 rounded-2xl group-hover:bg-[#1a2e44] transition-colors">
-                      <span className="block text-[9px] font-bold text-gray-400 group-hover:text-gray-300">نمره</span>
-                      <span className="text-lg font-black text-[#c5a059]">{toPersianDigits(item.score)}</span>
+                    <div className="text-center bg-[#faf9f6] dark:bg-[#0b0f19] py-2 px-4 rounded-2xl group-hover:bg-[#1a2e44] dark:group-hover:bg-[#c5a059] transition-colors">
+                      <span className="block text-[9px] font-bold text-gray-400 dark:text-slate-400 group-hover:text-gray-300 dark:group-hover:text-[#1a2e44]">نمره</span>
+                      <span className="text-lg font-black text-[#c5a059] dark:group-hover:text-[#1a2e44]">{toPersianDigits(item.score)}</span>
                     </div>
                   </div>
                 ))
@@ -314,30 +321,30 @@ export default function ProfilePage() {
       {/* مُدال نمایش و دانلود تصاویر گواهی‌ها */}
       {certModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl border border-gray-100 p-6 flex flex-col text-right">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
+          <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-sm shadow-2xl border border-gray-100 dark:border-slate-800 p-6 flex flex-col text-right">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4 mb-4">
               <div className="flex items-center gap-2">
                 <Award className="text-[#c5a059]" size={20} />
-                <h4 className="font-black text-base text-[#1a2e44]">لوح‌ها و گواهی‌های شما</h4>
+                <h4 className="font-black text-base text-[#1a2e44] dark:text-slate-100">لوح‌ها و گواهی‌های شما</h4>
               </div>
-              <button onClick={() => setCertModalOpen(false)} className="p-1.5 bg-gray-50 hover:bg-gray-100 text-gray-400 rounded-full"><X size={16} /></button>
+              <button onClick={() => setCertModalOpen(false)} className="p-1.5 bg-gray-50 dark:bg-[#0b0f19] hover:bg-gray-100 dark:hover:bg-[#233044] text-gray-400 dark:text-slate-400 rounded-full"><X size={16} /></button>
             </div>
             <div className="space-y-3 max-h-[45vh] overflow-y-auto">
               {myCertificates.length === 0 ? (
-                <p className="text-center text-xs text-gray-400 font-bold py-8">شما هنوز گواهی فعالی در سیستم ندارید.</p>
+                <p className="text-center text-xs text-gray-400 dark:text-slate-400 font-bold py-8">شما هنوز گواهی فعالی در سیستم ندارید.</p>
               ) : (
                 myCertificates.map((cert: any, idx: number) => {
                   const s = typeof cert.score === 'string' ? parseFloat(cert.score.replace('%', '')) : cert.score;
                   const rankLabel = s >= 85 ? 'رتبه عالی' : s >= 70 ? 'رتبه خیلی خوب' : 'رتبه خوب';
                   const isCurrentDownloading = downloadingId === (cert.contest_id || cert.id);
                   return (
-                    <div key={idx} className="p-4 bg-[#faf9f6] rounded-2xl border border-gray-100 flex items-center justify-between gap-3 shadow-inner">
+                    <div key={idx} className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3 shadow-inner">
                       <div>
-                        <h5 className="font-black text-xs text-[#1a2e44] leading-tight">{cert.contest_title}</h5>
-                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded mt-1.5 inline-block">سطح: {rankLabel} ({toPersianDigits(s)}%)</span>
+                        <h5 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 leading-tight">{cert.contest_title}</h5>
+                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded mt-1.5 inline-block">سطح: {rankLabel} ({toPersianDigits(s)}%)</span>
                       </div>
-                      <button disabled={isCurrentDownloading} onClick={() => handleDownloadCertificate(cert.contest_id || cert.id, cert.contest_title)} className="p-2.5 bg-[#1a2e44] text-white hover:bg-[#2a405a] rounded-xl text-[10px] font-black flex items-center gap-1 transition-all shadow-md shrink-0 disabled:opacity-50 min-w-[105px] justify-center">
-                        {isCurrentDownloading ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span><span>در حال دانلود...</span></> : <><Download size={12} className="text-[#c5a059]" /> دانلود تصویر لوح</>}
+                      <button disabled={isCurrentDownloading} onClick={() => handleDownloadCertificate(cert.contest_id || cert.id, cert.contest_title)} className="p-2.5 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-xl text-[10px] font-black flex items-center gap-1 transition-all shadow-md shrink-0 disabled:opacity-50 min-w-[105px] justify-center">
+                        {isCurrentDownloading ? <><span className="w-3 h-3 border-2 border-white dark:border-[#1a2e44] border-t-transparent rounded-full animate-spin"></span><span>در حال دانلود...</span></> : <><Download size={12} className="text-[#c5a059] dark:text-[#1a2e44]" /> دانلود تصویر لوح</>}
                       </button>
                     </div>
                   );
@@ -351,49 +358,48 @@ export default function ProfilePage() {
       {/* مُدال هوشمند نمایش پاسخنامه‌ها */}
       {answerModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl border border-gray-100 max-h-[75vh] overflow-hidden flex flex-col text-right animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-md shadow-2xl border border-gray-100 dark:border-slate-800 max-h-[75vh] overflow-hidden flex flex-col text-right animate-in zoom-in-95 duration-200">
             
             {/* هدر مدال */}
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-[#faf9f6]">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-[#faf9f6] dark:bg-[#0b0f19]">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-[#1a2e44] text-[#c5a059] rounded-xl flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 bg-[#1a2e44] dark:bg-[#182234] text-[#c5a059] rounded-xl flex items-center justify-center shadow-sm">
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm text-[#1a2e44]">مرور و تحلیل سوالات آزمون</h3>
-                  <p className="text-[10px] text-gray-400 font-bold mt-0.5 truncate max-w-[200px]">{answerSheet?.contest_title || "در حال لود..."}</p>
+                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">مرور و تحلیل سوالات آزمون</h3>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold mt-0.5 truncate max-w-[200px]">{answerSheet?.contest_title || "در حال لود..."}</p>
                 </div>
               </div>
               <button 
                 onClick={() => { setAnswerModalOpen(false); setAnswerSheet(null); }}
-                className="p-1.5 bg-white border border-gray-100 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all shadow-sm"
+                className="p-1.5 bg-white dark:bg-[#182234] border border-gray-100 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-[#233044] text-gray-400 dark:text-slate-400 hover:text-red-500 rounded-full transition-all shadow-sm"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* لیست سوالات و کارنامه کاربر */}
-            <div className="p-5 overflow-y-auto space-y-4 flex-1 bg-gray-50/30">
+            <div className="p-5 overflow-y-auto space-y-4 flex-1 bg-gray-50/30 dark:bg-[#0b0f19]/30">
               {answerLoading ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-2 text-gray-400 font-bold text-xs">
-                  <span className="w-5 h-5 border-2 border-[#1a2e44] border-t-transparent rounded-full animate-spin"></span>
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-gray-400 dark:text-slate-400 font-bold text-xs">
+                  <span className="w-5 h-5 border-2 border-[#1a2e44] dark:border-[#c5a059] border-t-transparent rounded-full animate-spin"></span>
                   <span>در حال استخراج کارنامه...</span>
                 </div>
               ) : answerSheet?.questions?.length === 0 ? (
-                <p className="text-center text-xs text-gray-400 italic py-6">پاسخنامه‌ای برای این مسابقه ثبت نشده است.</p>
+                <p className="text-center text-xs text-gray-400 dark:text-slate-400 italic py-6">پاسخنامه‌ای برای این مسابقه ثبت نشده است.</p>
               ) : (
                 answerSheet?.questions.map((q: any, qIdx: number) => {
-                  // 🌟 چک کردن داینامیک وضعیت در حال برگزاری از روی استیت کلید خورده
                   const isOngoing = answerSheet?.contest_status === 'active';
                   const isCorrect = q.selected_option === q.correct_answer;
 
                   return (
-                    <div key={qIdx} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+                    <div key={qIdx} className="bg-white dark:bg-[#182234] p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
                       <div className="flex items-start gap-2">
-                        <span className="w-5 h-5 rounded-md bg-[#1a2e44] text-[#c5a059] text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="w-5 h-5 rounded-md bg-[#1a2e44] dark:bg-[#0b0f19] text-[#c5a059] text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">
                           {toPersianDigits(qIdx + 1)}
                         </span>
-                        <p className="text-xs font-black text-[#1a2e44] leading-relaxed text-justify">{q.title}</p>
+                        <p className="text-xs font-black text-[#1a2e44] dark:text-slate-100 leading-relaxed text-justify">{q.title}</p>
                       </div>
 
                       <div className="grid grid-cols-1 gap-1.5">
@@ -402,23 +408,20 @@ export default function ProfilePage() {
                           const isUserSelected = q.selected_option === currentOptNum;
                           const isKeyOption = q.correct_answer === currentOptNum;
 
-                          // 🌟 لایه استایل‌دهی داینامیک و شرطی متقارن بر اساس در حال اجرا بودن مسابقه
-                          let cardStyle = "bg-[#faf9f6] border-gray-50 text-gray-600";
-                          let badgeStyle = "bg-gray-200 text-gray-400";
+                          let cardStyle = "bg-[#faf9f6] dark:bg-[#0b0f19] border-gray-50 dark:border-slate-800 text-gray-600 dark:text-slate-300";
+                          let badgeStyle = "bg-gray-200 dark:bg-slate-700 text-gray-400 dark:text-slate-300";
 
                           if (isOngoing) {
-                            // فیکس مدنظر شما: استایل خنثی و بدون اسپویل پاسخ صحیح در زمان برگزاری مسابقه
                             if (isUserSelected) {
-                              cardStyle = "bg-slate-100 border-slate-300 text-[#1a2e44] font-bold shadow-inner";
-                              badgeStyle = "bg-[#1a2e44] text-white";
+                              cardStyle = "bg-slate-100 dark:bg-[#233044] border-slate-300 dark:border-slate-700 text-[#1a2e44] dark:text-slate-100 font-bold shadow-inner";
+                              badgeStyle = "bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44]";
                             }
                           } else {
-                            // حالت سنتی قرمز و سبز برای مسابقات پایان یافته
                             if (isKeyOption) {
-                              cardStyle = "bg-emerald-50 border-emerald-100 text-emerald-900";
+                              cardStyle = "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-300";
                               badgeStyle = "bg-emerald-500 text-white";
                             } else if (isUserSelected) {
-                              cardStyle = "bg-rose-50 border-rose-100 text-rose-900";
+                              cardStyle = "bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-900/40 text-rose-900 dark:text-rose-300";
                               badgeStyle = "bg-rose-500 text-white";
                             }
                           }
@@ -433,15 +436,13 @@ export default function ProfilePage() {
                               </span>
 
                               <div className="flex items-center gap-1 shrink-0 font-black text-[8px]">
-                                {/* تگ پاسخ صحیح فقط برای مسابقات پایان‌یافته رندر می‌شود */}
-                                {!isOngoing && isKeyOption && <span className="text-emerald-600 bg-emerald-100/50 px-1.5 py-0.5 rounded flex items-center gap-0.5">پاسخ صحیح</span>}
+                                {!isOngoing && isKeyOption && <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-100/50 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded flex items-center gap-0.5">پاسخ صحیح</span>}
                                 
-                                {/* تگ داینامیک انتخاب شما بر اساس وضعیت مسابقه */}
                                 {isUserSelected && (
                                   <span className={
                                     isOngoing 
-                                      ? "text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded" 
-                                      : `${isCorrect ? 'text-emerald-700 bg-emerald-200/50' : 'text-rose-600 bg-rose-100'} px-1.5 py-0.5 rounded flex items-center gap-0.5`
+                                      ? "text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded" 
+                                      : `${isCorrect ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-200/50 dark:bg-emerald-900/50' : 'text-rose-600 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/50'} px-1.5 py-0.5 rounded flex items-center gap-0.5`
                                   }>
                                     انتخاب شما
                                   </span>
