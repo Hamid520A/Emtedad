@@ -27,6 +27,8 @@ r = redis.Redis(host=RATELIMIT_REDIS_HOST, port=RATELIMIT_REDIS_PORT, db=RATELIM
 
 # ۲. اتصال اختصاصی به سرور Redis برای سشن‌های ایتا (پورت ۶۳۸۹ و آی‌پِی ۱۰.۱۰.۲۰.۵۱)
 EITAA_REDIS_HOST = os.getenv("EITAA_REDIS_HOST", "10.10.20.51")
+if EITAA_REDIS_HOST in ["127.0.0.1", "localhost", "redis", ""]:
+    EITAA_REDIS_HOST = "10.10.20.51"
 EITAA_REDIS_PORT = int(os.getenv("EITAA_REDIS_PORT", 6389))
 EITAA_REDIS_DB = int(os.getenv("EITAA_REDIS_DB", 0))
 ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989371787445")
@@ -48,6 +50,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_developm
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 EITAA_API_URL = os.getenv("EITAA_API_URL", "http://10.10.20.51:3000/send")
+if "10.10.10.4" in EITAA_API_URL:
+    EITAA_API_URL = "http://10.10.20.51:3000/send"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 LIMIT_WINDOW = 60       # پنجره زمانی بر اساس ثانیه (۱ دقیقه)
@@ -1350,6 +1354,8 @@ def proxy_get_profile_photo(
     current_user: models.User = Depends(auth.get_current_user) # 🌟 اضافه شدن تاثیری امنیت و دسترسی به کاربر جاری
 ):
     eitaa_target_url = os.getenv("EITAA_API_URL", EITAA_API_URL) 
+    if "10.10.10.4" in eitaa_target_url:
+        eitaa_target_url = "http://10.10.20.51:3000/send" 
     try:
         session_json_str = r_eitaa.get(ACCOUNT_KEY)
         if not session_json_str:
