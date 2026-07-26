@@ -16,6 +16,7 @@ services:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "${FRONTEND_USER_PORT:-63000}:3000" # 🌟 پورت ۶۳۰۰۰ برای برنامک ایتا
+    restart: unless-stopped 
     networks:
       - emtedad_network
     depends_on:
@@ -30,6 +31,7 @@ services:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "${FRONTEND_ADMIN_PORT:-63001}:3000" # 🌟 پورت ۶۳۰۰۱ برای پنل ادمین
+    restart: unless-stopped
     networks:
       - emtedad_network
     depends_on:
@@ -44,10 +46,10 @@ services:
     ports:
       - "${BACKEND_HOST_PORT:-8000}:8000"
     volumes:
-      # 🌟 خط ./backend:/app را پاک کن و فقط خط آپلودها رو بذار بمونه
       - ./backend/static/uploads:/app/static/uploads 
     env_file:
       - ./backend/.env
+    restart: unless-stopped
     depends_on:
       - db
       - redis
@@ -65,6 +67,7 @@ services:
       - POSTGRES_DB=emtedad_db
     ports:
       - "${DB_HOST_PORT:-5432}:5432"
+    restart: unless-stopped 
     networks:
       - emtedad_network
 
@@ -75,5 +78,6 @@ services:
       - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped 
     networks:
       - emtedad_network
