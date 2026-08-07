@@ -14,11 +14,12 @@ from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse
 from jose import JWTError, jwt
-from .main import SECRET_KEY, ALGORITHM
 
 app = FastAPI()
 
 # ۱. اتصال به سرور دیتابیس Redis برای Rate Limiting
+SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
 RATELIMIT_REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 RATELIMIT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 RATELIMIT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
