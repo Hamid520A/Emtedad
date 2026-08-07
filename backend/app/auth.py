@@ -6,8 +6,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from . import schemas, models, database
 from sqlalchemy.orm import Session
-from .main import SECRET_KEY, ALGORITHM
 
+SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 def get_password_hash(password: str) -> str:

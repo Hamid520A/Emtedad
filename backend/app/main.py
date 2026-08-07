@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse
 from jose import JWTError, jwt
+from .main import SECRET_KEY, ALGORITHM
 
 app = FastAPI()
 
@@ -45,8 +46,6 @@ app.add_middleware(
 )
 
 # ۲. هماهنگ‌سازی کلیدهای JWT با فایل auth
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 EITAA_API_URL = os.getenv("EITAA_API_URL", "http://10.10.20.51:3000/send")
 if "10.10.10.4" in EITAA_API_URL:

@@ -1,7 +1,12 @@
 # backend/seed_cities.py
 from app.database import SessionLocal, engine
 from app import models
-
+import os
+from dotenv import load_dotenv
+# 🌟 لود کردن اجباری فایل .env از پوشه اصلی پروژه
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+# یا اگر .env داخل پوشه backend است:
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 # 🌟 انتقال و تبدیل کامل دیتای فایل iranCities.ts به دیکشنری پایتون
 IRAN_DATA = {
     "اردبیل": ["اردبیل","اصلاندوز","بیله سوار","خلخال","سرعین","مشگین شهر","نمین","نیر","پارس آباد","کوثر","گرمی"],
