@@ -1,3 +1,4 @@
+// frontend-user/app/(auth)/register/SearchableDropdown.tsx
 'use client';
 import { ChevronDown, Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';

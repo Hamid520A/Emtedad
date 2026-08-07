@@ -1,4 +1,4 @@
-// frontend/lib/get-profile-api.ts
+// frontend-admin/app/lib/get-profile-api.ts
 import api from './api';
 
 export const getProfilePicture = async (photoLocation: any, userData: any) => {

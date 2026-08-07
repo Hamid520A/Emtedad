@@ -1,20 +1,27 @@
+// frontend-user/app/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
-// 🌟 تابع هوشمند پاک‌سازی آدرس‌های لوکال و هماهنگ‌سازی با پروکسی سرور امتداد
+// 🌟 تابع هوشمند پاک‌سازی کامل هر نوع آدرس مطلق به آدرس نسبی پروکسی شده
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
-  let cleanUrl = url
-    .replace('http://localhost:8000', '')
-    .replace('http://127.0.0.1:8000', '');
-  
-  if (!cleanUrl.startsWith('http') && !cleanUrl.startsWith('/')) {
-    cleanUrl = '/' + cleanUrl;
+  try {
+    // اگر آدرس کامل URL بود، فقط مسیر (path) اون رو استخراج کن
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const parsedUrl = new URL(url);
+      return parsedUrl.pathname;
+    }
+  } catch (e) {
+    console.error("Error parsing image URL", e);
   }
-  return cleanUrl;
+  
+  if (!url.startsWith('/')) {
+    return '/' + url;
+  }
+  return url;
 };
 
 export default function DashboardPage() {

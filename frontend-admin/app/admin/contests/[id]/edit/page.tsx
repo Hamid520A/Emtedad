@@ -1,3 +1,4 @@
+// frontend-admin/app/admin/contests/[id]/edit/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';

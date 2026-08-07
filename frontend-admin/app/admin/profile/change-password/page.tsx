@@ -1,3 +1,4 @@
+// frontend-admin/app/admin/profile/change-password/page.tsx
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';

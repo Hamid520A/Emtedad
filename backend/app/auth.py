@@ -1,16 +1,12 @@
 # backend/app/auth.py
-import bcrypt
+import bcrypt, os
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from . import schemas, models, database
 from sqlalchemy.orm import Session
-import os
-
-# 🌟 اصلاح کلیدی: خواندن داینامیک از فایل env با مقدار پیش‌فرض امن
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development") 
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
+from .main import SECRET_KEY, ALGORITHM
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -50,10 +46,19 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
         raise credentials_exception
     return user
 
-def require_admin(current_user: models.User = Depends(get_current_user)):
-    if not getattr(current_user, "id", None) == 1:
+def require_admin(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """بررسی سطح دسترسی مدیر در سنگر نهایی بک‌ند بر اساس جدول جدید admins"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="ابتدا وارد حساب کاربری خود شوید")
+        
+    if not getattr(current_user, "is_active", 1):
+        raise HTTPException(status_code=403, detail="حساب کاربری شما غیرفعال است")
+    
+    # 🌟 سنگر نهایی تفکیک چند ادمینه: بررسی وجود رکورد متصل در جدول مستقل admins
+    if not current_user.admin or current_user.admin.is_active == 0:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="دسترسی غیرمجاز: این بخش مخصوص مدیران سیستم است."
+            status_code=403, 
+            detail="خطای امنیتی: شما دسترسی لازم برای این بخش را ندارید!"
         )
+        
     return current_user

@@ -1,8 +1,6 @@
 # =====================================================================
 # بخش اول فایل main.py: ایمپورت‌ها، کانفیگ‌ها و موتورهای گرافیکی پروژه
 # =====================================================================
-import traceback
-
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, UploadFile, File, Request
@@ -10,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional, Dict, Any
 from . import crud, schemas, models, auth, database
-import shutil, os, random, httpx, base64, redis, json, io, requests, textwrap
+import shutil, os, random, httpx, base64, redis, json, io, requests, textwrap, traceback, uuid
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
@@ -36,6 +34,7 @@ r_eitaa = redis.Redis(host=EITAA_REDIS_HOST, port=EITAA_REDIS_PORT, db=EITAA_RED
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_env.split(",")]
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -586,13 +585,13 @@ def get_contest_detail(
 def get_questions_list(
     contest_id: int, 
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_user) # 🌟 تزریق یوزر جاری برای بررسی هویت
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
         
-    # 🌟 سنگر اول فرانت‌ند: بررسی سخت‌گیرانه در دیتابیس قبل از تحویل سوالات
+    # ۱. گارد امنیتی: بررسی شرکت قبلی کاربر
     existing_subscription = db.query(models.Subscription).filter(
         models.Subscription.user_id == current_user.id,
         models.Subscription.contest_id == contest_id
@@ -604,18 +603,28 @@ def get_questions_list(
             detail="شما قبلاً در این آزمون شرکت کرده‌اید و مجاز به ورود مجدد نیستید!"
         )
         
-    # واکشی سوالات حذف نشده مسابقه
+    # ۲. واکشی سوالات حذف‌نشده و فعال
     all_questions = db.query(models.Question).filter(
         models.Question.contest_id == contest_id, 
         models.Question.is_active == 1,
         models.Question.deleted_at == None
     ).all()
     
-    selected_questions = random.sample(all_questions, min(len(all_questions), 15))
+    # انتخاب تصادفی سوالات بر اساس حد مجاز مسابقه
+    limit = contest.question_limit or 15
+    selected_questions = random.sample(all_questions, min(len(all_questions), limit))
     processed_questions = []
     
     for q in selected_questions:
-        options = [{"id": ans.id, "title": ans.title} for ans in q.answers if ans.deleted_at == None]
+        # 🌟 شاه‌کلید امنیت: پاکسازی و خالص‌سازی گزینه‌ها
+        # فقط ID و Title استخراج می‌شوند و فیلد is_correct به هیچ‌عنوان پاس داده نمی‌شود.
+        options = [
+            {"id": ans.id, "title": ans.title} 
+            for ans in q.answers 
+            if ans.deleted_at is None
+        ]
+        
+        # برهم زدن چیدمان گزینه‌ها برای هر کاربر
         random.shuffle(options)
         
         processed_questions.append({
@@ -624,10 +633,11 @@ def get_questions_list(
             "description": q.description,
             "shuffled_options": options
         })
+        
     return processed_questions
 
 @app.post("/contests", response_model=schemas.Contest)
-def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(database.get_db)):
+def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     minutes = contest.time_limit or 10
     max_time_obj = time(hour=minutes // 60, minute=minutes % 60)
 
@@ -691,7 +701,8 @@ def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(dat
 def add_question_to_contest(
     contest_id: int, 
     payload: dict, # 🌟 ورودی منعطف برای هضم فرمت فرانت‌ند و شکستن قفل ۴۲۲
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin)
 ):
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
@@ -748,11 +759,29 @@ def add_question_to_contest(
     return db_question
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    return {"url": f"{BACKEND_URL}/static/uploads/{file.filename}"}
+async def upload_file(
+    file: UploadFile = File(...),
+    current_admin: models.User = Depends(require_admin)
+):
+    # 🌟 ۲. استخراج و بررسی پسوند فایل
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"فرمت فایل غیرمجاز است! فرمت‌های مجاز: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+    
+    # 🌟 ۳. ساخت نام یکتا برای فایل جهت جلوگیری از اوررایت و حملات Path Traversal
+    unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="خطا در ذخیره‌سازی فایل روی سرور")
+        
+    return {"url": f"{BACKEND_URL}/static/uploads/{unique_filename}"}
 
 @app.get("/contests/{contest_id}/leaderboard")
 def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
@@ -1190,7 +1219,7 @@ def submit_exam(subscription: schemas.SubscriptionCreate, db: Session = Depends(
  
 
 @app.patch("/contests/{contest_id}/status")
-def update_contest_status(contest_id: str, status_update: StatusUpdate, db: Session = Depends(database.get_db)):
+def update_contest_status(contest_id: str, status_update: StatusUpdate, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
@@ -1710,7 +1739,7 @@ def get_admin_user_answers(
     return results
 
 @app.put("/admin/contests/{contest_id}/certificate-template")
-def update_certificate_template(contest_id: int, data: dict, db: Session = Depends(database.get_db)):
+def update_certificate_template(contest_id: int, data: dict, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه مورد نظر یافت نشد")

@@ -1,15 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://10.10.20.51:64000/:path*',
+        destination: `${backendUrl}/:path*`,
       },
-      // 🌟 سنگر جدید: پروکسی کردن مسیر تصاویر استاتیک به بک‌ند واقعی سرور امتداد
       {
         source: '/static/:path*',
-        destination: 'http://10.10.20.51:64000/static/:path*',
+        destination: `${backendUrl}/static/:path*`,
       },
     ];
   },

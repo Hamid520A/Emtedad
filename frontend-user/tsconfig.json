@@ -1,3 +1,4 @@
+// frontend-user/tsconfig.json
 {
   "compilerOptions": {
     "target": "ES2017",

@@ -1,6 +1,7 @@
+// frontend-user/app/exam/[id]/page.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -55,9 +56,10 @@ const getAnalysis = (score: number, totalQuestions: number = 3, certificateType:
   };
 };
 
-export default function ExamPage({ params }: { params: { id: string } }) {
+export default function ExamPage() {
   const router = useRouter();
-  const contestId = params.id;
+  const pathParams = useParams();
+  const contestId = pathParams?.id as string;
 
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
 
     const fetchData = async () => {
       try {
-        const cleanId = parseInt(params.id);
+        const cleanId = parseInt(contestId);
 
         if (isUrlReviewMode || showReview) {
           // 🔒 سنگر مرور پاسخنامه‌ها: واکشی امن دیتای ثبت شده بدون برخورد به گواهی مسدودی ۴۰۳ سوالات
@@ -125,7 +127,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
 
         if (error.response && error.response.status === 403) {
           alert("شما قبلاً در این مسابقه شرکت کرده‌اید و پاسخنامه شما ثبت شده است.");
-          router.replace(`/contests/${params.id}`); 
+          router.replace(`/contests/${contestId}`); 
         } else {
           console.error("خطا در دریافت اطلاعات آزمون", error);
         }
@@ -136,7 +138,7 @@ export default function ExamPage({ params }: { params: { id: string } }) {
 
     fetchData();
     return () => { isCurrent = false; };
-  }, [params.id, router, showReview]);
+  }, [contestId, router, showReview]);
 
   useEffect(() => {
     if (isSubmitted || timeLeft <= 0 || loading || questions.length === 0 || showReview) return;

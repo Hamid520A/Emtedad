@@ -1,3 +1,4 @@
+// frontend-admin/app/admin/contests/[id]/participants/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -598,7 +599,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
             </div>
 
             <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-gray-50/30">
-              {/* بخش رندر سوالات کارنامه تشریحی */}
               {answerLoading ? (
                 <div className="py-16 flex flex-col items-center justify-center gap-2.5 text-gray-400 font-bold text-xs">
                   <span className="w-6 h-6 border-3 border-[#1a2e44] border-t-transparent rounded-full animate-spin"></span>
@@ -610,7 +610,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                 answerSheet?.questions.map((q: any, qIdx: number) => {
                   return (
                     <div key={qIdx} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                      {/* صورت سوال */}
                       <div className="flex items-start gap-2.5">
                         <span className="w-6 h-6 rounded-lg bg-[#1a2e44] text-[#c5a059] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
                           {toPersianDigits(qIdx + 1)}
@@ -618,15 +617,11 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                         <p className="text-xs font-black text-[#1a2e44] leading-relaxed text-justify">{q.title}</p>
                       </div>
 
-                      {/* گزینه‌ها */}
                       <div className="grid grid-cols-1 gap-2">
-                        {q.options?.map((opt: string, optIdx: number) => {
-                          const currentOptNum = optIdx + 1;
-
-                          // 🎯 محاسبات و تطابق کاملاً شفاف عددی ۱ تا ۴
-                          const isUserSelected = q.selected_option !== undefined && q.selected_option !== null && Number(q.selected_option) === currentOptNum;
-                          const isKeyOption = q.correct_answer !== undefined && q.correct_answer !== null && Number(q.correct_answer) === currentOptNum;
-                          const isCorrect = Number(q.selected_option) === Number(q.correct_answer);
+                        {q.options?.map((opt: any, optIdx: number) => {
+                          const isUserSelected = String(q.selected_option_id) === String(opt.id);
+                          const isKeyOption = String(q.correct_option_id) === String(opt.id);
+                          const isCorrect = String(q.selected_option_id) === String(q.correct_option_id);
 
                           let cardStyle = "bg-[#faf9f6] border-gray-50 text-gray-600";
                           if (isKeyOption) cardStyle = "bg-emerald-50 border-emerald-200 text-emerald-900";
@@ -636,14 +631,13 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                             <div key={optIdx} className={`p-3 rounded-xl border text-[11px] font-bold flex items-center justify-between ${cardStyle}`}>
                               <span className="flex items-center gap-2">
                                 <span className={`w-5 h-5 rounded-md text-[9px] font-black flex items-center justify-center ${isKeyOption ? 'bg-emerald-500 text-white' : isUserSelected ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                                  {toPersianDigits(currentOptNum)}
+                                  {toPersianDigits(optIdx + 1)}
                                 </span>
-                                {/* رندر مستقیم متن استرینگ بدون خطای آبجکت ری‌آکت */}
-                                <span>{opt}</span> 
+                                <span>{opt.title}</span> 
                               </span>
 
                               <div className="flex items-center gap-1 shrink-0 font-black text-[9px]">
-                                {isKeyOption && <span className="text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded flex items-center gap-0.5"><CheckCircle2 size={10} />پاسخ صحیح</span>}
+                                {isKeyOption && <span className="text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded flex items-center gap-0.5"><CheckCircle2 size={10} />پاسخ صحیح (کلید)</span>}
                                 {isUserSelected && <span className={`text-[#1a2e44] ${isCorrect ? 'text-emerald-700 bg-emerald-200/50' : 'text-rose-600 bg-rose-100'} px-2 py-0.5 rounded flex items-center gap-0.5`}>{!isCorrect && <XCircle size={10} />}انتخاب کاربر</span>}
                               </div>
                             </div>
@@ -652,7 +646,7 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                       </div>
                     </div>
                   );
-                })
+                }) 
               )}
             </div>
 

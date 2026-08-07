@@ -1,6 +1,7 @@
+// frontend-user/app/contests/[id]/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { 
   ArrowRight, Download, Gift, FileText, Clock, 
@@ -14,9 +15,10 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-export default function ContestLandingPage({ params }: { params: { id: string } }) {
+export default function ContestLandingPage() {
   const router = useRouter();
-  const contestId = params.id;
+  const pathParams = useParams();
+  const contestId = pathParams?.id as string;
   const [contest, setContest] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);

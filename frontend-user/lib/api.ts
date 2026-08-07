@@ -1,9 +1,4 @@
-// frontend/lib/api.ts
-
 import axios from 'axios';
-
-// 🌟 اصلاح اول: خواندن آدرس اصلی بک‌ند از فایل env
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: '/api',
@@ -37,8 +32,8 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        // 🌟 اصلاح دوم: جایگزینی آدرس هاردکد شده با متغیر داینامیک env
-        const response = await axios.post(`${apiUrl}/auth/refresh`, {
+        // 🌟 استفاده از پروکسی یکدست به جای شلیک مستقیم
+        const response = await axios.post('/api/auth/refresh', {
           refresh_token: refreshToken
         });
 

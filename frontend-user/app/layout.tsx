@@ -1,3 +1,4 @@
+// frontend-user/app/layout.tsx
 import { ThemeProvider } from './providers';
 import './globals.css';
 

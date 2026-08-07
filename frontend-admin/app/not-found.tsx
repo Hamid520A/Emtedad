@@ -20,16 +20,16 @@ export default function NotFound() {
         <div className="space-y-2">
           <h2 className="text-xl font-black">صفحه مورد نظر یافت نشد!</h2>
           <p className="text-xs text-gray-400 font-bold leading-relaxed">
-            آدرسی که وارد کرده‌اید وجود ندارد یا این مسابقه ممکن است تغییر کرده باشد.
+            آدرسی که وارد کرده‌اید وجود ندارد یا این بخش منتقل شده است.
           </p>
         </div>
 
-        {/* دکمه بازگشت */}
+        {/* 🌟 اصلاح شد: هدایت درست ادمین به دشبورد اصلی مدیریت روی پورت 63001 */}
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/admin/dashboard')}
           className="w-full py-4 bg-[#1a2e44] text-white hover:bg-[#2a405a] rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-md"
         >
-          <ArrowRight size={16} className="text-[#c5a059]" /> بازگشت به صفحه اصلی
+          <ArrowRight size={16} className="text-[#c5a059]" /> بازگشت به دشبورد مدیریت
         </button>
       </div>
     </div>

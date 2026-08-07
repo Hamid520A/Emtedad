@@ -1,4 +1,4 @@
-// frontend/lib/api.ts
+// frontend-admin/lib/api.ts
 
 import axios from 'axios';
 

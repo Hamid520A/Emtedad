@@ -1,3 +1,4 @@
+// frontend-admin/app/admin/dashboard/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -47,27 +48,33 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     if (!window.confirm("آیا می‌خواهید از حساب کاربری خود خارج شوید؟")) return;
-    
+
     try {
-      // ۱. پاک‌سازی بمب اتمی: تمام دیتای لوکال استوریج و سشن استوریج را یکجا جارو کن
+      // ۱. پاک‌سازی کامل حافظه‌ محلی و سشن مرورگر
       localStorage.clear();
       sessionStorage.clear();
-      
-      // ۲. پاک‌سازی تمام کوکی‌های مرورگر در صورتی که توکن آنجا ذخیره شده باشد
-      document.cookie.split(";").forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, "")
-          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      });
-      
+
+      // ۲. پاک‌سازی ایزوله و استاندارد تمام کوکی‌ها براساس مسیرهای اصلی
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i];
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+
+        if (name) {
+          // منقضی کردن کوکی برای مسیر ریشه و مسیر ادمین
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/admin;`;
+        }
+      }
+
       alert("شما با موفقیت از سیستم خارج شدید.");
-      
-      // ۳. 🌟 اصلاح شد: هدایت ادمین پس از خروج به لایه اختصاصی لاگین ادمین بدون تداخل پورت‌ها
+
+      // ۳. هدایت قطعی به صفحه لاگین ادمین و بازنشانی کامل حافظه مرورگر
       window.location.href = '/admin/login';
-      
+
     } catch (error) {
       console.error("خطا در فرآیند خروج:", error);
-      // اگر باز هم مشکلی بود، انتقال اجباری انجام شود
       window.location.href = '/admin/login';
     }
   };
