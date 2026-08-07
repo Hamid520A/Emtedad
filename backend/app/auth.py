@@ -3,6 +3,7 @@ import bcrypt, os
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from httpx import auth
 from jose import JWTError, jwt
 from . import schemas, models, database
 from sqlalchemy.orm import Session
