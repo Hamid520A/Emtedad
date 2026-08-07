@@ -1,13 +1,12 @@
-# backend/app/auth.py
 import bcrypt, os
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from httpx import auth
 from jose import JWTError, jwt
 from . import schemas, models, database
 from sqlalchemy.orm import Session
 
+# 🌟 خواندن مستقیم کلیدها از فایل env
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -48,7 +47,8 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
         raise credentials_exception
     return user
 
-def require_admin(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+# 🌟 فیکس اصلی: اصلاح auth.get_current_user به get_current_user
+def require_admin(current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
     """بررسی سطح دسترسی مدیر در سنگر نهایی بک‌ند بر اساس جدول جدید admins"""
     if not current_user:
         raise HTTPException(status_code=401, detail="ابتدا وارد حساب کاربری خود شوید")
@@ -56,7 +56,7 @@ def require_admin(current_user: models.User = Depends(auth.get_current_user), db
     if not getattr(current_user, "is_active", 1):
         raise HTTPException(status_code=403, detail="حساب کاربری شما غیرفعال است")
     
-    # 🌟 سنگر نهایی تفکیک چند ادمینه: بررسی وجود رکورد متصل در جدول مستقل admins
+    # بررسی وجود رکورد متصل در جدول مستقل admins
     if not current_user.admin or current_user.admin.is_active == 0:
         raise HTTPException(
             status_code=403, 
