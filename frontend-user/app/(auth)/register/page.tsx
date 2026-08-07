@@ -76,7 +76,7 @@ export default function RegisterPage() {
 
     const fetchProvinces = async () => {
       try {
-        const response = await api.get('/cities?parents_only=true');
+        const response = await api.get('/api/cities?parents_only=true');
         setProvinces(response.data || []);
       } catch (error) {
         console.error("خطا در فراخوانی اطلاعات لوکیشن‌ها از دیتابیس سرور", error);
@@ -89,7 +89,7 @@ export default function RegisterPage() {
     if (formData.province_id) {
       const fetchCities = async () => {
         try {
-          const response = await api.get(`/cities?parent_id=${formData.province_id}`);
+          const response = await api.get(`/api/cities?parent_id=${formData.province_id}`);
           setAvailableCities(response.data || []);
           setFormData(prev => ({ ...prev, city_id: '' }));
         } catch (error) {
