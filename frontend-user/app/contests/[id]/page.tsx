@@ -182,7 +182,7 @@ export default function ContestLandingPage() {
     if (!url) return null;
     const match = url.match(/(?:v\/|videohash\/|frame\/v\/|embed\/v\/|v=)([a-zA-Z0-9]+)/);
     if (match && match[1]) {
-      return `https://www.aparat.com/video/video/embed/videohash/${match[1]}/vt/frame`;
+      return `https://www.aparat.com/video/video/embed/videohash/${match[1]}/vt/frame?recreate=true`;
     }
     return null;
   };
@@ -426,14 +426,14 @@ export default function ContestLandingPage() {
             </div>
 
             {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
-              <div className="w-full overflow-hidden rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video mt-2">
+              <div className="w-full rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video mt-2">
                 <iframe 
                   src={getAparatEmbedUrl(contest.video_url)} 
                   allowFullScreen={true}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; full-screen; fullscreen"
-                  className="w-full h-full border-0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; full-screen; display-capture"
+                  className="w-full h-full rounded-xl sm:rounded-2xl border-0" 
                   title="Aparat Video Player"
-                  {...({ webkitallowfullscreen: "true", mozallowfullscreen: "true" } as any)}
+                  {...({ webkitallowfullscreen: "true", mozallowfullscreen: "true", allowfullscreen: "true" } as any)}
                 />
               </div>
             )}
