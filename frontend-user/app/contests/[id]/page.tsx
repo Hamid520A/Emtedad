@@ -425,14 +425,23 @@ export default function ContestLandingPage() {
             </div>
 
             {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
-              <div className="w-full overflow-hidden rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video mt-2">
-                <iframe 
-                  src={getAparatEmbedUrl(contest.video_url)} 
-                  allowFullScreen={true}
-                  allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className="w-full h-full border-0" 
-                  title="Aparat Video Player"
-                />
+              <div className="space-y-2 mt-2">
+                <div className="w-full overflow-hidden rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video">
+                  <iframe 
+                    src={getAparatEmbedUrl(contest.video_url)} 
+                    allowFullScreen={true}
+                    allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    className="w-full h-full border-0" 
+                    title="Aparat Video Player"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openExternalLink(contest.video_url)}
+                  className="w-full bg-[#1a2e44] dark:bg-[#182234] text-[#c5a059] py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 border border-gray-200 dark:border-slate-800 hover:bg-[#2a405a] transition active:scale-95 shadow-sm"
+                >
+                  <PlayCircle size={18} /> مشاهده و پخش تمام‌صفحه ویدیو در آپارات
+                </button>
               </div>
             )}
           </div>

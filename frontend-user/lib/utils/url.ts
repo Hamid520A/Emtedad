@@ -77,7 +77,7 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
     ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
     : cleanPath;
 
-  // ۱. سعی در دریافت همان منبع (Same-origin fetch) جهت جلوگیری از خطای CORS و IP
+  // ۱. سعی در دریافت هم‌منبع (Same-origin fetch)
   try {
     const response = await fetch(cleanPath);
     if (response.ok) {
@@ -100,7 +100,7 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
     console.warn("Same-origin fetch blob failed", err);
   }
 
-  // ۲. هدایت از طریق باز کردن آدرس کامل در مرورگر نیتیو یا دانلود تگ a
+  // ۲. هدایت از طریق باز کردن آدرس کامل در مرورگر نیتیو یا تگ <a>
   openExternalLink(fullUrl);
 };
 
@@ -139,8 +139,8 @@ export const openExternalLink = (rawUrl: string): void => {
     return;
   }
 
-  // ۲. سعی در باز کردن با SDK مینی‌اپ ایتا بدون محدودیت Instant View
-  if (tgWebApp && typeof tgWebApp.openLink === 'function') {
+  // ۲. برای آدرس‌های HTTPS استفاده از SDK مینی‌اپ ایتا
+  if (fullUrl.startsWith('https://') && tgWebApp && typeof tgWebApp.openLink === 'function') {
     try {
       tgWebApp.openLink(fullUrl);
       return;
@@ -149,17 +149,16 @@ export const openExternalLink = (rawUrl: string): void => {
     }
   }
 
-  // ۳. روش‌های چندگانه مرورگر برای باز کردن لینک‌های خارجی در WebView اندروید
+  // ۳. روش جایگزین مرورگر برای آدرس‌های HTTP یا سرورهای محلی
   try {
-    const w = window.open(fullUrl, '_system');
-    if (w) return;
-  } catch (e) {}
-
-  try {
-    const w2 = window.open(fullUrl, '_blank');
-    if (w2) return;
-  } catch (e) {}
-
-  // ۴. هدایت مستقیم آدرس
-  window.location.href = fullUrl;
+    const a = document.createElement('a');
+    a.href = fullUrl;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (e) {
+    window.location.href = fullUrl;
+  }
 };
