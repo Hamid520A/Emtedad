@@ -444,8 +444,12 @@ export default function ContestLandingPage() {
               ) : (
                 <button 
                   onClick={() => {
-                    // هدایت مستقیم به سامانه فرانت‌ند کاربران روی پورت 63000
-                    window.open(`http://10.10.20.51:63000/exam/${contest.id}`, '_blank');
+                    const token = localStorage.getItem('accessToken') || '';
+                    const refreshToken = localStorage.getItem('refreshToken') || '';
+                    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+                    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+                    const userAppUrl = `${protocol}//${host}:63000/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
+                    window.open(userAppUrl, '_blank');
                   }} 
                   className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"
                 >

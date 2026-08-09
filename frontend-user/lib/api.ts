@@ -6,6 +6,30 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('token');
+      const refreshTokenFromUrl = urlParams.get('refreshToken');
+      const isAdminFromUrl = urlParams.get('isAdmin');
+
+      if (tokenFromUrl) {
+        localStorage.setItem('accessToken', tokenFromUrl);
+        if (refreshTokenFromUrl) {
+          localStorage.setItem('refreshToken', refreshTokenFromUrl);
+        }
+        if (isAdminFromUrl) {
+          localStorage.setItem('isAdmin', isAdminFromUrl);
+        }
+
+        urlParams.delete('token');
+        urlParams.delete('refreshToken');
+        urlParams.delete('isAdmin');
+        const newSearch = urlParams.toString();
+        const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+        window.history.replaceState(null, '', newUrl);
+      }
+    }
+
     const token = localStorage.getItem('accessToken');
     if (token && config.headers) {
       config.headers['Authorization'] = `Bearer ${token}`;
