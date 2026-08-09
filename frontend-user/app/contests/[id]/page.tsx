@@ -430,8 +430,6 @@ export default function ContestLandingPage() {
                   src={getAparatEmbedUrl(contest.video_url)} 
                   allowFullScreen={true}
                   allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  webkitallowfullscreen="true"
-                  mozallowfullscreen="true"
                   className="w-full h-full border-0" 
                   title="Aparat Video Player"
                 />
