@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { openExternalLink } from '../../../lib/utils/url';
 
 
 const getAnalysis = (score: number, totalQuestions: number = 3, certificateType: string = 'none') => {
@@ -279,8 +280,8 @@ export default function ExamPage() {
         </div>
 
         <div className="w-full flex flex-col gap-2.5 mb-6">
-          <a href="https://eitaa.com/emtedadeemam" target="_blank" rel="noopener noreferrer" className="w-full text-center bg-orange-50 dark:bg-amber-950/40 hover:bg-orange-100 dark:hover:bg-amber-900/60 text-orange-700 dark:text-amber-300 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-orange-100 dark:border-amber-800">📢 عضویت در کانال امتداد</a>
-          <a href="https://emtedad.com" target="_blank" rel="noopener noreferrer" className="w-full text-center bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-amber-100 dark:border-amber-800">🌐 ورود به وب‌سایت امتداد امام</a>
+          <button type="button" onClick={() => openExternalLink("https://eitaa.com/emtedadeemam")} className="w-full text-center bg-orange-50 dark:bg-amber-950/40 hover:bg-orange-100 dark:hover:bg-amber-900/60 text-orange-700 dark:text-amber-300 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-orange-100 dark:border-amber-800">📢 عضویت در کانال امتداد</button>
+          <button type="button" onClick={() => openExternalLink("https://emtedad.com")} className="w-full text-center bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-amber-100 dark:border-amber-800">🌐 ورود به وب‌سایت امتداد امام</button>
         </div>
 
         <div className="w-full space-y-3">

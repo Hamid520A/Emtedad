@@ -16,7 +16,8 @@ export default function RootLayout({
     <html lang="fa" dir="rtl" suppressHydrationWarning>
       <head>
         {/* فونت وزیرمتن */}
-        <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+        {/* اسکریپت مینی‌اپ ایتا و تلگرام جهت پشتیبانی از باز کردن لینک‌ها و فایل‌ها در مرورگر نیتیو گوشی */}
+        <script src="https://telegram.org/js/telegram-web-app.js" async></script>
         {/* 🌟 سنگر امنیتی بومی و ۱۰۰٪ سازگار با جاوااسکریپت بدون وابستگی به نکست‌جی‌اس */}
         <script
           dangerouslySetInnerHTML={{

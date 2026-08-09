@@ -6,35 +6,7 @@ import api from '../lib/api';
 import { getProfilePicture } from '../lib/get-profile-api';
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
-// 🌟 تابع هوشمند پاک‌سازی آدرس‌های مطلق داخلی به نسبی برای سازگاری با مینی‌اپ ایتا
-const getCleanImageUrl = (url: string) => {
-  if (!url) return '';
-  try {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      const parsedUrl = new URL(url);
-      // فقط اگر دامین مربوط به لوکال‌هاست یا پورت‌های داخلی بود، دامنه رو حذف کن
-      if (
-        parsedUrl.hostname === 'localhost' ||
-        parsedUrl.hostname === '127.0.0.1' ||
-        parsedUrl.hostname === 'backend' ||
-        parsedUrl.port === '8000' ||
-        parsedUrl.port === '64000' ||
-        parsedUrl.pathname.startsWith('/static/') ||
-        parsedUrl.pathname.startsWith('/api/')
-      ) {
-        return parsedUrl.pathname + parsedUrl.search;
-      }
-      return url; // لینک‌های خارجی به همان صورت باقی می‌مانند
-    }
-  } catch (e) {
-    console.error("Error parsing URL", e);
-  }
-  
-  if (!url.startsWith('/') && !url.startsWith('http')) {
-    return '/' + url;
-  }
-  return url;
-};
+import { getCleanImageUrl, openExternalLink } from '../lib/utils/url';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -145,15 +117,15 @@ export default function DashboardPage() {
   const handleBannerClick = (linkUrl: string) => {
     if (!linkUrl) return;
     const cleanUrl = getCleanImageUrl(linkUrl);
-    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-      window.open(cleanUrl, '_blank');
-    } else if (cleanUrl.startsWith('/static/') || cleanUrl.match(/\.(pdf|doc|docx|png|jpg|jpeg|zip|rar)$/i)) {
-      window.open(cleanUrl, '_blank');
-    } else if (cleanUrl.startsWith('/')) {
+    
+    // اگر آدرس به مسیر مسابقه یا صفحات داخلی فرانت‌ند اشاره داشت
+    if (cleanUrl.startsWith('/contests/') || cleanUrl.startsWith('/exam/') || (cleanUrl.startsWith('/') && !cleanUrl.startsWith('/static/'))) {
       router.push(cleanUrl);
-    } else {
-      router.push('/' + cleanUrl);
+      return;
     }
+
+    // برای سایر لینک‌های خارجی یا فایل‌ها از تابع نیتیو مینی‌اپ ایتا استفاده کن
+    openExternalLink(linkUrl);
   };
           
   return (
@@ -231,9 +203,9 @@ export default function DashboardPage() {
 
       <main className="p-6 space-y-8">
         
-        {/* اسلایدر بنرهای تبلیغاتی */}
-        <section className="relative">
-          <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4">
+        {/* اسلایدر بنرهای تبلیغاتی لبه-به-لبه تا کناره‌های گوشی */}
+        <section className="-mx-6 relative">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory px-6 pb-4">
             {activeBanners.length > 0 ? (
               activeBanners.map((banner: any) => (
                 <div 
