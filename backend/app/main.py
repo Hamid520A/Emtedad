@@ -480,7 +480,7 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
         "token_type": "bearer"
     }
 
-@app.get("/contests", response_model=List[schemas.Contest])
+@app.get("/contests", response_model=List[schemas.ContestListItem])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)):
     """دریافت لیست مسابقات - فیلتر کامل و قطعی مسابقات حذف شده (Soft Deleted)"""
     # 🌟 فیکس: فیلتر سخت‌گیرانه برای عدم نمایش مسابقات حذف شده
@@ -1317,7 +1317,7 @@ def delete_question(
     db.commit()
     return {"message": "سوال با موفقیت (به صورت نرم) حذف شد"}
 
-@app.get("/admin/contests", response_model=List[schemas.Contest])
+@app.get("/admin/contests", response_model=List[schemas.ContestListItem])
 def get_admin_contests_list(
     db: Session = Depends(database.get_db), 
     current_admin: models.User = Depends(require_admin)

@@ -188,6 +188,12 @@ class ContestCreate(ContestBase):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
 
+class ContestListItem(ContestBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
 class Contest(ContestBase):
     id: int
     questions: List[Question] = []
