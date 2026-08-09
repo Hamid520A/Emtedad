@@ -689,56 +689,95 @@ export default function ContestLandingPage() {
         </div>
       )}
 
-      {/* 🌟 مودال هوشمند نمایش و دانلود جزوه راهنمای دوره */}
-      {showPdfModal && contest?.file_url && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" dir="rtl">
-          <div className="bg-white dark:bg-[#182234] w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 dark:border-slate-800 flex flex-col max-h-[90vh]">
-            
-            {/* هدر مودال */}
-            <div className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText size={20} className="text-[#c5a059]" />
-                <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">جزوه و منبع راهنمای مسابقه</h3>
+      {/* 🌟 مودال هوشمند پیش‌نمایش و دانلود جزوه راهنمای دوره */}
+      {showPdfModal && contest?.file_url && (() => {
+        const cleanPath = getCleanImageUrl(contest.file_url);
+        const fullUrl = cleanPath.startsWith('/') 
+          ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
+          : cleanPath;
+        const fileName = cleanPath.split('/').pop() || 'منبع و جزوه مسابقه.pdf';
+        
+        const handleCopyLink = () => {
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(fullUrl);
+            alert("لینک مستقیم دانلود فایل با موفقیت کپی شد.");
+          }
+        };
+
+        const googleDocsViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" dir="rtl">
+            <div className="bg-white dark:bg-[#182234] w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 dark:border-slate-800 flex flex-col max-h-[92vh]">
+              
+              {/* هدر مودال */}
+              <div className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText size={20} className="text-[#c5a059]" />
+                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">جزوه و منبع راهنمای مسابقه</h3>
+                </div>
+                <button 
+                  onClick={() => setShowPdfModal(false)}
+                  className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-500 transition"
+                >
+                  <X size={20} />
+                </button>
               </div>
-              <button 
-                onClick={() => setShowPdfModal(false)}
-                className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-500 transition"
-              >
-                <X size={20} />
-              </button>
+
+              {/* کارت مشخصات فایل و دکمه‌های عملیاتی */}
+              <div className="p-4 bg-gray-50 dark:bg-[#111827] border-b border-gray-100 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between gap-2 bg-white dark:bg-[#182234] p-3 rounded-2xl border border-gray-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-2 bg-amber-50 dark:bg-amber-950/50 text-[#c5a059] rounded-xl shrink-0">
+                      <FileText size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-[#1a2e44] dark:text-slate-100 truncate">{fileName}</p>
+                      <p className="text-[10px] text-gray-400 font-bold">فایل ضمیمه آموزشی (PDF)</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="text-[11px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition shrink-0"
+                  >
+                    کپی لینک دانلود
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => downloadAttachmentFile(contest.file_url)}
+                    className="bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition active:scale-95"
+                  >
+                    <Download size={16} /> دانلود مستقیم فایل
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => openExternalLink(contest.file_url)}
+                    className="bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-700 text-[#1a2e44] dark:text-slate-200 p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition active:scale-95"
+                  >
+                    <ExternalLink size={16} /> باز کردن در مرورگر
+                  </button>
+                </div>
+              </div>
+
+              {/* پیش‌نمایش زنده فایل PDF در محیط مینی‌اپ با Google Viewer */}
+              <div className="flex-1 bg-gray-100 dark:bg-[#0b0f19] p-2 overflow-hidden flex items-center justify-center relative min-h-[300px]">
+                <iframe 
+                  src={googleDocsViewerUrl} 
+                  className="w-full h-[50vh] rounded-xl border-0 bg-white shadow-inner"
+                  title="PDF Document Viewer"
+                />
+              </div>
+
             </div>
-
-            {/* نوار ابزار: دانلود مستقیم و باز کردن در مرورگر */}
-            <div className="p-3 bg-gray-50 dark:bg-[#111827] flex items-center justify-between gap-2 border-b border-gray-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => downloadAttachmentFile(contest.file_url)}
-                className="bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm hover:opacity-90 transition active:scale-95"
-              >
-                <Download size={14} /> دانلود مستقیم فایل
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openExternalLink(contest.file_url)}
-                className="bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-700 text-[#1a2e44] dark:text-slate-200 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 hover:bg-gray-100 transition active:scale-95"
-              >
-                <ExternalLink size={14} /> باز کردن در مرورگر اصلی
-              </button>
-            </div>
-
-            {/* پیش‌نمایش زنده فایل PDF در محیط مینی‌اپ */}
-            <div className="flex-1 bg-gray-100 dark:bg-[#0b0f19] p-2 overflow-hidden flex items-center justify-center">
-              <iframe 
-                src={getCleanImageUrl(contest.file_url)} 
-                className="w-full h-[60vh] rounded-xl border-0 bg-white"
-                title="PDF Document"
-              />
-            </div>
-
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

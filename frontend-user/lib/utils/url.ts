@@ -67,25 +67,19 @@ export const parseBannerUrl = (url: string) => {
 };
 
 /**
- * دانلود مستقیم فایل‌های ضمیمه با استفاده از Blob و Fallback به هدایت مستقیم مرورگر
+ * دانلود مستقیم فایل‌های ضمیمه با استفاده از Same-Origin Fetch و Blob با Fallback کامل
  */
 export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: string) => {
   if (!rawUrl) return;
 
   const cleanPath = getCleanImageUrl(rawUrl);
-  let fullUrl = cleanPath;
-  
-  if (typeof window !== 'undefined') {
-    if (cleanPath.startsWith('/')) {
-      fullUrl = window.location.origin + cleanPath;
-    } else if (!cleanPath.startsWith('http://') && !cleanPath.startsWith('https://')) {
-      fullUrl = 'https://' + cleanPath;
-    }
-  }
+  const fullUrl = cleanPath.startsWith('/') 
+    ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
+    : cleanPath;
 
-  // ۱. تلاش برای دانلود Blob در فرانت‌ند
+  // ۱. سعی در دریافت همان منبع (Same-origin fetch) جهت جلوگیری از خطای CORS و IP
   try {
-    const response = await fetch(fullUrl);
+    const response = await fetch(cleanPath);
     if (response.ok) {
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
@@ -99,15 +93,23 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
       link.click();
       document.body.removeChild(link);
       
-      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
-      return;
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+      return true;
     }
   } catch (err) {
-    console.warn("Fetch blob failed, fallback to location", err);
+    console.warn("Same-origin fetch blob failed", err);
   }
 
-  // ۲. هدایت مستقیم آدرس جهت دانلود توسط Download Manager اندروید/ایتا
-  if (typeof window !== 'undefined') {
+  // ۲. هدایت از طریق ساخت تگ <a> پویا
+  try {
+    const link = document.createElement('a');
+    link.href = fullUrl;
+    link.download = fallbackFileName || cleanPath.split('/').pop() || 'file.pdf';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (e) {
     window.location.href = fullUrl;
   }
 };
@@ -147,30 +149,29 @@ export const openExternalLink = (rawUrl: string): void => {
     return;
   }
 
-  // ۲. لینک‌های وب عمومی
+  // ۲. سعی در باز کردن با SDK مینی‌اپ ایتا
+  let openedBySdk = false;
   if (tgWebApp && typeof tgWebApp.openLink === 'function') {
     try {
       tgWebApp.openLink(fullUrl, { try_instant_view: true });
-      return;
-    } catch (e) {}
+      openedBySdk = true;
+    } catch (e) {
+      console.warn("openLink failed", e);
+    }
   }
 
-  // ۳. ارسال مستقیم رویداد نیتیو ایتا
-  const webView = windowObj.Eitaa?.WebView || windowObj.Telegram?.WebView;
-  if (webView && typeof webView.postEvent === 'function') {
+  // ۳. اگر SDK عمل نکرد یا لینک لوکال/HTTP بود، کلیک پویا روی تگ a و هدایت مستقیم
+  if (!openedBySdk || fullUrl.startsWith('http://')) {
     try {
-      webView.postEvent('web_app_open_link', { url: fullUrl });
-      return;
-    } catch (e) {}
-  }
-
-  // ۴. هدایت مستقیم مرورگر
-  try {
-    const opened = window.open(fullUrl, '_blank');
-    if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+      const a = document.createElement('a');
+      a.href = fullUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {
       window.location.href = fullUrl;
     }
-  } catch (e) {
-    window.location.href = fullUrl;
   }
 };
