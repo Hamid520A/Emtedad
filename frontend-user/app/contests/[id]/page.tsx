@@ -15,18 +15,29 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-// تابع پاک‌سازی URL های مطلق به نسبی برای سازگاری با مینی‌اپ ایتا
+// تابع پاک‌سازی URL های مطلق داخلی به نسبی برای سازگاری با مینی‌اپ ایتا
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
   try {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       const parsedUrl = new URL(url);
-      return parsedUrl.pathname;
+      if (
+        parsedUrl.hostname === 'localhost' ||
+        parsedUrl.hostname === '127.0.0.1' ||
+        parsedUrl.hostname === 'backend' ||
+        parsedUrl.port === '8000' ||
+        parsedUrl.port === '64000' ||
+        parsedUrl.pathname.startsWith('/static/') ||
+        parsedUrl.pathname.startsWith('/api/')
+      ) {
+        return parsedUrl.pathname + parsedUrl.search;
+      }
+      return url;
     }
   } catch (e) {
     console.error("Error parsing URL", e);
   }
-  if (!url.startsWith('/')) {
+  if (!url.startsWith('/') && !url.startsWith('http')) {
     return '/' + url;
   }
   return url;
@@ -412,7 +423,7 @@ export default function ContestLandingPage() {
                 <div className="flex flex-col text-right min-w-0 w-full">
                   <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold">منبع و جزوه دوره</span>
                   {contest.file_url ? (
-                    <a href={getCleanImageUrl(contest.file_url)} target="_blank" rel="noopener noreferrer" className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block">دانلود فایل ضمیمه</a>
+                    <a href={getCleanImageUrl(contest.file_url)} target="_blank" rel="noopener noreferrer" download className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block">دانلود فایل ضمیمه</a>
                   ) : (
                     <span className="font-black text-xs text-gray-400 dark:text-slate-500 mt-0.5">بدون فایل ضمیمه</span>
                   )}
