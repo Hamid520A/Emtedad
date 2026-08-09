@@ -204,7 +204,7 @@ export default function ContestLandingPage() {
     try {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
-      router.push('/'); 
+      router.push('/admin/dashboard'); 
     } catch (error) {
       console.error(error);
       alert("خطا در حذف مسابقه. لطفاً دوباره تلاش کنید.");
