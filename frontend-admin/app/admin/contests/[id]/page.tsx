@@ -448,7 +448,15 @@ export default function ContestLandingPage() {
 
             {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
               <div className="w-full overflow-hidden rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 bg-black aspect-video mt-2">
-                <iframe src={getAparatEmbedUrl(contest.video_url)} allowFullScreen className="w-full h-full border-0" title="Aparat Video Player"></iframe>
+                <iframe 
+                  src={getAparatEmbedUrl(contest.video_url)} 
+                  allowFullScreen={true}
+                  allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  webkitallowfullscreen="true"
+                  mozallowfullscreen="true"
+                  className="w-full h-full border-0" 
+                  title="Aparat Video Player"
+                />
               </div>
             )}
           </div>
