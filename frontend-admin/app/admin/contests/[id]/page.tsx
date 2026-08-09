@@ -14,6 +14,34 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
+// تابع پاک‌سازی آدرس‌های مطلق داخلی به نسبی برای لود صحیح تصاویر
+const getCleanImageUrl = (url: string) => {
+  if (!url) return '';
+  try {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const parsedUrl = new URL(url);
+      if (
+        parsedUrl.hostname === 'localhost' ||
+        parsedUrl.hostname === '127.0.0.1' ||
+        parsedUrl.hostname === 'backend' ||
+        parsedUrl.port === '8000' ||
+        parsedUrl.port === '64000' ||
+        parsedUrl.pathname.startsWith('/static/') ||
+        parsedUrl.pathname.startsWith('/api/')
+      ) {
+        return parsedUrl.pathname + parsedUrl.search;
+      }
+      return url;
+    }
+  } catch (e) {
+    console.error("Error parsing URL", e);
+  }
+  if (!url.startsWith('/') && !url.startsWith('http')) {
+    return '/' + url;
+  }
+  return url;
+};
+
 export default function ContestLandingPage() {
   const router = useRouter();
   const pathParams = useParams();
@@ -227,7 +255,7 @@ export default function ContestLandingPage() {
       <div className="relative w-full h-48 sm:h-64 bg-[#1a2e44] rounded-b-[2rem] sm:rounded-b-[2.5rem] overflow-hidden shadow-sm">
         {contest.image_url ? (
           <>
-            <img src={contest.image_url} alt={contest.title} className="w-full h-full object-cover" />
+            <img src={getCleanImageUrl(contest.image_url)} alt={contest.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent"></div>
           </>
         ) : (

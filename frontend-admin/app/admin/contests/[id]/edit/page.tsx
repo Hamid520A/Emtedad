@@ -147,6 +147,33 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
     }
   };
 
+  const getCleanImageUrl = (url: string) => {
+    if (!url) return '';
+    try {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        const parsedUrl = new URL(url);
+        if (
+          parsedUrl.hostname === 'localhost' ||
+          parsedUrl.hostname === '127.0.0.1' ||
+          parsedUrl.hostname === 'backend' ||
+          parsedUrl.port === '8000' ||
+          parsedUrl.port === '64000' ||
+          parsedUrl.pathname.startsWith('/static/') ||
+          parsedUrl.pathname.startsWith('/api/')
+        ) {
+          return parsedUrl.pathname + parsedUrl.search;
+        }
+        return url;
+      }
+    } catch (e) {
+      console.error("Error parsing URL", e);
+    }
+    if (!url.startsWith('/') && !url.startsWith('http')) {
+      return '/' + url;
+    }
+    return url;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: string, isCertField: boolean = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,10 +183,11 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
     setUploading(targetField);
     try {
       const response = await api.post('/upload', uploadData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const cleanUrl = getCleanImageUrl(response.data.url);
       if (isCertField) {
-        setCertData((prev: any) => ({ ...prev, [targetField]: response.data.url }));
+        setCertData((prev: any) => ({ ...prev, [targetField]: cleanUrl }));
       } else {
-        setFormData((prev: any) => ({ ...prev, [targetField]: response.data.url }));
+        setFormData((prev: any) => ({ ...prev, [targetField]: cleanUrl }));
       }
     } catch (error) {
       alert("خطا در آپلود");
@@ -305,12 +333,12 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
             <div>
               <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><ImageIcon size={14} /> تصویر بنر مسابقه {uploading === 'image_url' && '⏳'}</label>
               <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl text-xs cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />
-              {formData.image_url && (<div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 shadow-sm max-h-40 bg-gray-50 flex items-center justify-center p-2"><img src={formData.image_url} alt="Banner Preview" className="max-w-full max-h-32 object-contain rounded-lg" /></div>)}
+              {formData.image_url && (<div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 shadow-sm max-h-40 bg-gray-50 flex items-center justify-center p-2"><img src={getCleanImageUrl(formData.image_url)} alt="Banner Preview" className="max-w-full max-h-32 object-contain rounded-lg" /></div>)}
             </div>
             <div>
               <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> فایل پیوست جزوه (PDF) {uploading === 'file_url' && '⏳'}</label>
               <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl text-xs cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
-              {formData.file_url && <a href={formData.file_url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 font-bold underline mt-1 block">مشاهده فایل PDF جاری</a>}
+              {formData.file_url && <a href={getCleanImageUrl(formData.file_url)} target="_blank" rel="noreferrer" download className="text-[10px] text-blue-500 font-bold underline mt-1 block">مشاهده فایل PDF جاری</a>}
             </div>
           </div>
 

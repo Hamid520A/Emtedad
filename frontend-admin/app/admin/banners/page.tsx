@@ -18,13 +18,32 @@ export default function AdminBannersPage() {
     status: 'active' // active یا inactive
   });
 
-  // تابع تبدیل آدرس‌های نسبی یا 127.0.0.1 به آدرس واقعی و قابل دسترس بک‌اند
-  const getFullImageUrl = (url: string) => {
+  // تابع پاک‌سازی آدرس‌های مطلق داخلی به نسبی برای لود صحیح تصاویر
+  const getCleanImageUrl = (url: string) => {
     if (!url) return '';
-    if (url.startsWith('http')) {
-      return url.replace('http://127.0.0.1:8000', 'http://10.10.20.51:64000');
+    try {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        const parsedUrl = new URL(url);
+        if (
+          parsedUrl.hostname === 'localhost' ||
+          parsedUrl.hostname === '127.0.0.1' ||
+          parsedUrl.hostname === 'backend' ||
+          parsedUrl.port === '8000' ||
+          parsedUrl.port === '64000' ||
+          parsedUrl.pathname.startsWith('/static/') ||
+          parsedUrl.pathname.startsWith('/api/')
+        ) {
+          return parsedUrl.pathname + parsedUrl.search;
+        }
+        return url;
+      }
+    } catch (e) {
+      console.error("Error parsing URL", e);
     }
-    return `http://10.10.20.51:64000${url.startsWith('/') ? '' : '/'}${url}`;
+    if (!url.startsWith('/') && !url.startsWith('http')) {
+      return '/' + url;
+    }
+    return url;
   };
 
   // تابع آپلود تصویر بنر
@@ -42,7 +61,7 @@ export default function AdminBannersPage() {
       });
       
       const rawUrl = response.data.url;
-      const validUrl = getFullImageUrl(rawUrl);
+      const validUrl = getCleanImageUrl(rawUrl);
       
       setFormData((prev) => ({ ...prev, image_url: validUrl }));
       alert("تصویر بنر با موفقیت آپلود شد.");
@@ -168,12 +187,9 @@ export default function AdminBannersPage() {
               {formData.image_url ? (
                 <>
                   <img 
-                    src={getFullImageUrl(formData.image_url)} 
+                    src={getCleanImageUrl(formData.image_url)} 
                     alt="Preview" 
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x300?text=Image+Load+Error';
-                    }}
                   />
                   <div className="absolute inset-0 bg-black/40 flex items-end p-4 text-right">
                     <p className="text-white font-black text-sm drop-shadow-md leading-tight line-clamp-2">

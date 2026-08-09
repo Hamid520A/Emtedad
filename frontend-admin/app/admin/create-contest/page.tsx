@@ -102,6 +102,33 @@ export default function CreateContestPage() {
     }
   };
 
+  const getCleanImageUrl = (url: string) => {
+    if (!url) return '';
+    try {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        const parsedUrl = new URL(url);
+        if (
+          parsedUrl.hostname === 'localhost' ||
+          parsedUrl.hostname === '127.0.0.1' ||
+          parsedUrl.hostname === 'backend' ||
+          parsedUrl.port === '8000' ||
+          parsedUrl.port === '64000' ||
+          parsedUrl.pathname.startsWith('/static/') ||
+          parsedUrl.pathname.startsWith('/api/')
+        ) {
+          return parsedUrl.pathname + parsedUrl.search;
+        }
+        return url;
+      }
+    } catch (e) {
+      console.error("Error parsing URL", e);
+    }
+    if (!url.startsWith('/') && !url.startsWith('http')) {
+      return '/' + url;
+    }
+    return url;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -111,7 +138,8 @@ export default function CreateContestPage() {
       const response = await api.post('/upload', uploadData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setFormData((prev: any) => ({ ...prev, [fieldName]: response.data.url }));
+      const cleanUrl = getCleanImageUrl(response.data.url);
+      setFormData((prev: any) => ({ ...prev, [fieldName]: cleanUrl }));
       alert("فایل با موفقیت آپلود شد");
     } catch (error) {
       alert("خطا در آپلود فایل");
