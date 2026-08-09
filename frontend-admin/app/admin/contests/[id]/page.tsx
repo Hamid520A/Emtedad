@@ -432,37 +432,25 @@ export default function ContestLandingPage() {
                   <CheckCircle size={32} className="text-green-500 mx-auto mb-2" />
                   <h3 className="font-black text-[#1a2e44] text-sm sm:text-base mb-0.5">{profile?.first_name} {profile?.last_name}</h3>
                   <p className="text-green-700 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
-                  <div className="grid grid-cols-3 gap-1.5 sm:gap-3 max-w-md mx-auto">
-                    <div className="bg-white p-2 sm:p-3 rounded-xl border border-green-100 text-center">
-                      <span className="block text-[8px] sm:text-[9px] text-gray-400 font-bold mb-0.5">امتیاز</span>
-                      <span className="font-black text-sm sm:text-base text-[#1a2e44]">
-                        {toPersianDigits(myResult.score?.toString().replace('%', ''))}%
-                      </span>
-                    </div>
-                    <div className="bg-white p-2 sm:p-3 rounded-xl border border-green-100 text-center">
-                      <span className="block text-[8px] sm:text-[9px] text-gray-400 font-bold mb-0.5">رتبه فعلی</span>
-                      <span className="font-black text-sm sm:text-base text-[#c5a059]">
-                        #{toPersianDigits(getLiveRank())}
-                      </span>
-                    </div>
-                    <div className="bg-white p-2 sm:p-3 rounded-xl border border-green-100 text-center">
-                      <span className="block text-[8px] sm:text-[9px] text-gray-400 font-bold mb-0.5">زمان مصرفی</span>
-                      <span className="font-black text-xs sm:text-base text-blue-600 truncate block">
-                        {toPersianDigits(myResult.time || myResult.time_taken || 0)} ثانیه
-                      </span>
-                    </div>
-                  </div>
-
+                  
                   <button 
-                    onClick={() => router.push(`/review-final/${contest.id}`)}
+                    onClick={() => alert("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
                     className="w-full mt-4 bg-white hover:bg-gray-50 text-[#1a2e44] py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 shadow-sm"
                   >
                     <FileText size={15} className="text-[#c5a059]" />
-                    مشاهده پاسخنامه و مرور مجدد سوالات
+                    مشاهده پاسخنامه
                   </button>
                 </div>
               ) : (
-                <button onClick={() => router.push(`/exam/${contest.id}`)} className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"><PlayCircle size={20} className="text-[#c5a059]" /> ورود به محیط رقابت و شروع آزمون</button>
+                <button 
+                  onClick={() => {
+                    // هدایت مستقیم به سامانه فرانت‌ند کاربران روی پورت 63000
+                    window.open(`http://10.10.20.51:63000/exam/${contest.id}`, '_blank');
+                  }} 
+                  className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"
+                >
+                  <PlayCircle size={20} className="text-[#c5a059]" /> تست آزمون در سامانه کاربران
+                </button>
               )}
             </div>
           )}
