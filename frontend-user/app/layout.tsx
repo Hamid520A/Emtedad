@@ -27,6 +27,20 @@ export default function RootLayout({
               window.Eitaa.WebView.receiveEvent = window.Eitaa.WebView.receiveEvent || function(event, data) {
                 console.log('📌 پیام ایتا بدون کرش دریافت شد:', event, data);
               };
+              document.addEventListener('DOMContentLoaded', function() {
+                try {
+                  if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.ready();
+                    window.Telegram.WebApp.expand();
+                  }
+                  if (window.Eitaa && window.Eitaa.WebApp) {
+                    window.Eitaa.WebApp.ready();
+                    window.Eitaa.WebApp.expand();
+                  }
+                } catch (e) {
+                  console.warn('WebApp init error:', e);
+                }
+              });
             `,
           }}
         />

@@ -59,7 +59,18 @@ export default function LoginPage() {
       router.push('/');
     } catch (error: any) {
       console.error("جزئیات خطا:", error.response?.data);
-      alert("خطا در ورود: شماره موبایل یا رمز عبور اشتباه است.");
+      const serverDetail = error.response?.data?.detail;
+      const status = error.response?.status;
+
+      if (status === 429) {
+        alert(serverDetail || "⚠️ تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً پس از مدتی دوباره تلاش کنید.");
+      } else if (status === 403) {
+        alert(serverDetail || "⛔ دسترسی یا حساب کاربری شما مسدود شده است.");
+      } else if (typeof serverDetail === 'string' && serverDetail.trim().length > 0) {
+        alert(serverDetail);
+      } else {
+        alert("خطا در ورود: شماره موبایل یا رمز عبور اشتباه است.");
+      }
     } finally {
       // تحت هر شرایطی لودینگ متوقف می‌شود تا دکمه قفل نکند
       setLoading(false);

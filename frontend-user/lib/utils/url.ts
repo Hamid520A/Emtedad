@@ -100,18 +100,8 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
     console.warn("Same-origin fetch blob failed", err);
   }
 
-  // ۲. هدایت از طریق ساخت تگ <a> پویا
-  try {
-    const link = document.createElement('a');
-    link.href = fullUrl;
-    link.download = fallbackFileName || cleanPath.split('/').pop() || 'file.pdf';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } catch (e) {
-    window.location.href = fullUrl;
-  }
+  // ۲. هدایت از طریق باز کردن آدرس کامل در مرورگر نیتیو یا دانلود تگ a
+  openExternalLink(fullUrl);
 };
 
 /**
@@ -149,29 +139,27 @@ export const openExternalLink = (rawUrl: string): void => {
     return;
   }
 
-  // ۲. سعی در باز کردن با SDK مینی‌اپ ایتا
-  let openedBySdk = false;
+  // ۲. سعی در باز کردن با SDK مینی‌اپ ایتا بدون محدودیت Instant View
   if (tgWebApp && typeof tgWebApp.openLink === 'function') {
     try {
-      tgWebApp.openLink(fullUrl, { try_instant_view: true });
-      openedBySdk = true;
+      tgWebApp.openLink(fullUrl);
+      return;
     } catch (e) {
       console.warn("openLink failed", e);
     }
   }
 
-  // ۳. اگر SDK عمل نکرد یا لینک لوکال/HTTP بود، کلیک پویا روی تگ a و هدایت مستقیم
-  if (!openedBySdk || fullUrl.startsWith('http://')) {
-    try {
-      const a = document.createElement('a');
-      a.href = fullUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (e) {
-      window.location.href = fullUrl;
-    }
-  }
+  // ۳. روش‌های چندگانه مرورگر برای باز کردن لینک‌های خارجی در WebView اندروید
+  try {
+    const w = window.open(fullUrl, '_system');
+    if (w) return;
+  } catch (e) {}
+
+  try {
+    const w2 = window.open(fullUrl, '_blank');
+    if (w2) return;
+  } catch (e) {}
+
+  // ۴. هدایت مستقیم آدرس
+  window.location.href = fullUrl;
 };
