@@ -35,17 +35,12 @@ ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989371787445")
 r_eitaa = redis.Redis(host=EITAA_REDIS_HOST, port=EITAA_REDIS_PORT, db=EITAA_REDIS_DB, decode_responses=True, socket_timeout=5)
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://10.10.20.51:63001",
-    "http://10.10.20.51:64000",
-]
+ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_env.split(",")]
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"http://10\.10\.20\.\d+:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

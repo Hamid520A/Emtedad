@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 
+import { getProfilePicture } from '../lib/get-profile-api';
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
 // 🌟 تابع هوشمند پاک‌سازی کامل هر نوع آدرس مطلق به آدرس نسبی پروکسی شده
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   const [banners, setBanners] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('active'); 
+  const [profileImg, setProfileImg] = useState<string | null>(null);
 
   // === استیت‌های مربوط به اعلان‌ها ===
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -65,6 +67,51 @@ export default function DashboardPage() {
       }
     };
     fetchDashboardData();
+
+    // لود تصویر پروفایل کاربر از ایتا
+    const fetchProfileImage = async () => {
+      try {
+        const res = await api.get('/users/me/profile');
+        const myProfile = res.data;
+
+        const contactRes = await api.post('/proxy-upload', {
+          method: "contacts.importContacts",
+          param: {
+            contacts: [{
+              "_": "inputPhoneContact",
+              "phone": myProfile.phone_number || myProfile.phone,
+              "first_name": myProfile.first_name
+            }]
+          }
+        });
+
+        const eitaaUsers = contactRes.data?.users;
+
+        if (eitaaUsers && eitaaUsers.length > 0) {
+          const eitaaUser = eitaaUsers[0];
+
+          if (eitaaUser.photo && eitaaUser.photo.photo_small) {
+            const photoLocation = {
+              photo_id: eitaaUser.photo.photo_id,
+              local_id: eitaaUser.photo.photo_small.local_id,
+              volume_id: eitaaUser.photo.photo_small.volume_id
+            };
+
+            const imgData = await getProfilePicture(photoLocation, {
+              id: eitaaUser.id,
+              access_hash: eitaaUser.access_hash
+            });
+
+            if (imgData) {
+              setProfileImg(imgData);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("Dashboard: Eitaa profile picture load skipped.", error);
+      }
+    };
+    fetchProfileImage();
   }, [router]);
 
   // فیلتر کردن لیست پایینی دشبورد کاربری
@@ -104,10 +151,14 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => router.push('/profile')}
-            className="w-12 h-12 bg-[#1a2e44] dark:bg-[#182234] rounded-full flex items-center justify-center text-[#c5a059] shadow-sm hover:scale-105 active:scale-95 transition-all border border-transparent dark:border-slate-700"
+            className="w-12 h-12 bg-[#1a2e44] dark:bg-[#182234] rounded-full flex items-center justify-center text-[#c5a059] shadow-sm hover:scale-105 active:scale-95 transition-all border border-transparent dark:border-slate-700 overflow-hidden"
             title="مشاهده پروفایل کاربری"
           >
-            <User size={22} />
+            {profileImg ? (
+              <img src={profileImg} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <User size={22} />
+            )}
           </button>
           <span className="font-black text-2xl text-[#1a2e44] dark:text-[#c5a059]">امتداد امام</span>
         </div>
