@@ -802,6 +802,8 @@ export default function ContestLandingPage() {
             </div>
           </div>
         );
+      })()}
+
       {/* 🎬 مودال سینمایی پخش تمام‌صفحه ویدیو در درون برنامه */}
       {isFullVideoModal && contest.video_url && getAparatEmbedUrl(contest.video_url) && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col justify-between p-4 backdrop-blur-md animate-fade-in" dir="rtl">

@@ -14,7 +14,7 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-import { getCleanImageUrl, openExternalLink } from '../../../lib/utils/url';
+import { getCleanImageUrl, openExternalLink } from '@/lib/utils/url';
 
 export default function ContestLandingPage() {
   const router = useRouter();
@@ -696,6 +696,8 @@ export default function ContestLandingPage() {
 
           </div>
         </div>
+      )}
+
       {/* 🎬 مودال سینمایی پخش تمام‌صفحه ویدیو در درون برنامه */}
       {isFullVideoModal && contest.video_url && getAparatEmbedUrl(contest.video_url) && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col justify-between p-4 backdrop-blur-md animate-fade-in" dir="rtl">
