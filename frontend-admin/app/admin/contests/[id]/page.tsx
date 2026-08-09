@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 
 import { getCleanImageUrl, openExternalLink } from '@/lib/utils/url';
+import AparatVideoPlayer from '@/components/AparatVideoPlayer';
 
 export default function ContestLandingPage() {
   const router = useRouter();
@@ -421,17 +422,8 @@ export default function ContestLandingPage() {
               </div>
             </div>
 
-            {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
-              <div className="w-full rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 bg-black aspect-video mt-2">
-                <iframe 
-                  src={getAparatEmbedUrl(contest.video_url)} 
-                  allowFullScreen={true}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; full-screen; display-capture"
-                  className="w-full h-full rounded-xl sm:rounded-2xl border-0" 
-                  title="Aparat Video Player"
-                  {...({ webkitallowfullscreen: "true", mozallowfullscreen: "true", allowfullscreen: "true" } as any)}
-                />
-              </div>
+            {contest.video_url && (
+              <AparatVideoPlayer videoUrl={contest.video_url} title={contest.title} />
             )}
           </div>
 
