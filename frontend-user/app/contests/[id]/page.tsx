@@ -15,7 +15,7 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-import { getCleanImageUrl, openExternalLink } from '../../../lib/utils/url';
+import { getCleanImageUrl, openExternalLink, downloadAttachmentFile } from '../../../lib/utils/url';
 
 export default function ContestLandingPage() {
   const router = useRouter();
@@ -411,7 +411,7 @@ export default function ContestLandingPage() {
                   {contest.file_url ? (
                     <button 
                       type="button"
-                      onClick={() => openExternalLink(contest.file_url)}
+                      onClick={() => downloadAttachmentFile(contest.file_url)}
                       className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block text-right"
                     >
                       دانلود فایل ضمیمه

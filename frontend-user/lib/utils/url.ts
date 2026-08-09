@@ -32,7 +32,41 @@ export const getCleanImageUrl = (url: string): string => {
 };
 
 /**
- * باز کردن لینک‌های خارجی و فایل‌های ضمیمه به صورت سازگار با مینی‌اپ ایتا و تلگرام (WebView)
+ * دانلود مستقیم فایل‌های ضمیمه با استفاده از Blob برای سازگاری کامل با WebView ایتا و اندروید
+ */
+export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: string) => {
+  if (!rawUrl) return;
+
+  const cleanPath = getCleanImageUrl(rawUrl);
+  const fullUrl = cleanPath.startsWith('/') 
+    ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
+    : cleanPath;
+
+  try {
+    const response = await fetch(fullUrl);
+    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+    
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    
+    const extractedFileName = cleanPath.split('/').pop() || 'file.pdf';
+    link.download = fallbackFileName || extractedFileName;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 3000);
+  } catch (err) {
+    console.warn("Blob fetch download failed, fallback to openExternalLink", err);
+    openExternalLink(rawUrl);
+  }
+};
+
+/**
+ * باز کردن لینک‌های خارجی و ارجاعات به صورت ۱۰۰٪ سازگار با مینی‌اپ ایتا و تلگرام
  */
 export const openExternalLink = (rawUrl: string): void => {
   if (!rawUrl) return;
@@ -51,20 +85,45 @@ export const openExternalLink = (rawUrl: string): void => {
     }
   }
 
-  // بررسی وجود SDK مینی‌اپ ایتا یا تلگرام
   const windowObj = typeof window !== 'undefined' ? (window as any) : {};
+  
+  // ۱. تست SDK رسمی ایتا و تلگرام
   const tgWebApp = windowObj.Telegram?.WebApp || windowObj.Eitaa?.WebApp;
-
   if (tgWebApp && typeof tgWebApp.openLink === 'function') {
     try {
       tgWebApp.openLink(fullUrl);
       return;
-    } catch (err) {
-      console.warn("Eitaa/Telegram openLink SDK error, falling back to window.open", err);
+    } catch (e) {
+      console.warn("openLink failed", e);
     }
   }
 
-  // روش جایگزین استاندارد مرورگر
+  // ۲. ارسال مستقیم Event به WebView ایتا / تلگرام
+  const webView = windowObj.Eitaa?.WebView || windowObj.Telegram?.WebView;
+  if (webView && typeof webView.postEvent === 'function') {
+    try {
+      webView.postEvent('web_app_open_link', { url: fullUrl });
+      return;
+    } catch (e) {
+      console.warn("postEvent failed", e);
+    }
+  }
+
+  // ۳. پروکسی بومی اندروید ایتا
+  if (windowObj.TelegramWebviewProxy?.postEvent) {
+    try {
+      windowObj.TelegramWebviewProxy.postEvent('web_app_open_link', JSON.stringify({ url: fullUrl }));
+      return;
+    } catch (e) {}
+  }
+  if (windowObj.EitaaWebviewProxy?.postEvent) {
+    try {
+      windowObj.EitaaWebviewProxy.postEvent('web_app_open_link', JSON.stringify({ url: fullUrl }));
+      return;
+    } catch (e) {}
+  }
+
+  // ۴. روش استاندارد مرورگر
   try {
     const opened = window.open(fullUrl, '_blank');
     if (!opened || opened.closed || typeof opened.closed === 'undefined') {

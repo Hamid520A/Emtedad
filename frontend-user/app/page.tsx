@@ -6,7 +6,7 @@ import api from '../lib/api';
 import { getProfilePicture } from '../lib/get-profile-api';
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
-import { getCleanImageUrl, openExternalLink } from '../lib/utils/url';
+import { getCleanImageUrl, openExternalLink, downloadAttachmentFile } from '../lib/utils/url';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -118,13 +118,19 @@ export default function DashboardPage() {
     if (!linkUrl) return;
     const cleanUrl = getCleanImageUrl(linkUrl);
     
-    // اگر آدرس به مسیر مسابقه یا صفحات داخلی فرانت‌ند اشاره داشت
+    // ۱. اگر لینک مربوط به فایل‌های استاتیک یا پسوندهای دانلودی باشد
+    if (cleanUrl.startsWith('/static/') || cleanUrl.match(/\.(pdf|doc|docx|png|jpg|jpeg|zip|rar)$/i)) {
+      downloadAttachmentFile(linkUrl);
+      return;
+    }
+
+    // ۲. اگر آدرس به مسیر مسابقه یا صفحات داخلی فرانت‌ند اشاره داشته باشد
     if (cleanUrl.startsWith('/contests/') || cleanUrl.startsWith('/exam/') || (cleanUrl.startsWith('/') && !cleanUrl.startsWith('/static/'))) {
       router.push(cleanUrl);
       return;
     }
 
-    // برای سایر لینک‌های خارجی یا فایل‌ها از تابع نیتیو مینی‌اپ ایتا استفاده کن
+    // ۳. برای سایر لینک‌های خارجی از تابع نیتیو مینی‌اپ ایتا استفاده کن
     openExternalLink(linkUrl);
   };
           
