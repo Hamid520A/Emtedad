@@ -284,9 +284,21 @@ export default function ContestLandingPage() {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <button onClick={() => router.push(`/admin/contests/${contest.id}/edit`)} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
-                  <button onClick={() => router.push(`/admin/contests/${contest.id}/questions`)} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
-                  <button onClick={() => router.push(`/admin/contest/${contest.id}/participants`)} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
+                  <button onClick={() => {
+                    const host = window.location.hostname;
+                    const protocol = window.location.protocol;
+                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/edit`;
+                  }} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
+                  <button onClick={() => {
+                    const host = window.location.hostname;
+                    const protocol = window.location.protocol;
+                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/questions`;
+                  }} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
+                  <button onClick={() => {
+                    const host = window.location.hostname;
+                    const protocol = window.location.protocol;
+                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/participants`;
+                  }} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
                   <button onClick={deleteContest} className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
               </div>

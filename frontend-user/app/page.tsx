@@ -58,7 +58,9 @@ export default function DashboardPage() {
     
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
     if (isAdmin) {
-      router.push('/admin/dashboard');
+      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+      window.location.href = `${protocol}//${host}:63001/admin/dashboard`;
       return;
     }
 

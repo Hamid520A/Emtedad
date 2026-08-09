@@ -18,7 +18,9 @@ export default function LoginPage() {
 
     if (token) {
       if (isAdmin) {
-        router.push('/admin/dashboard');
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+        window.location.href = `${protocol}//${host}:63001/admin/dashboard`;
       } else {
         // 🌟 اصلاح اصلی: کاربران معمولی پس از احراز هویت به روت اصلی (دشبورد) هدایت می‌شوند
         router.push('/');
