@@ -15,6 +15,23 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
+// تابع پاک‌سازی URL های مطلق به نسبی برای سازگاری با مینی‌اپ ایتا
+const getCleanImageUrl = (url: string) => {
+  if (!url) return '';
+  try {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const parsedUrl = new URL(url);
+      return parsedUrl.pathname;
+    }
+  } catch (e) {
+    console.error("Error parsing URL", e);
+  }
+  if (!url.startsWith('/')) {
+    return '/' + url;
+  }
+  return url;
+};
+
 export default function ContestLandingPage() {
   const router = useRouter();
   const pathParams = useParams();
@@ -219,8 +236,8 @@ export default function ContestLandingPage() {
         {contest.image_url ? (
           <>
             <img 
-              src={contest.image_url?.replace('http://localhost:8000', '')} 
-              alt="مسابقه هوش مصنوعی" 
+              src={getCleanImageUrl(contest.image_url)} 
+              alt={contest.title} 
               className="w-full h-full object-cover" 
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent"></div>
@@ -368,7 +385,6 @@ export default function ContestLandingPage() {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="text-xl sm:text-2xl font-black text-[#1a2e44] dark:text-slate-100 line-clamp-2">{contest.title}</h2>
-                <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#c5a059] text-[10px] font-black rounded-md border border-gray-100 dark:border-slate-800">کد آزمون: #{contest.id}</span>
               </div>
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#c5a059] rounded-xl sm:rounded-2xl flex items-center justify-center border border-gray-100 dark:border-slate-800 shadow-sm shrink-0"><Trophy size={24} /></div>
             </div>
@@ -396,7 +412,7 @@ export default function ContestLandingPage() {
                 <div className="flex flex-col text-right min-w-0 w-full">
                   <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold">منبع و جزوه دوره</span>
                   {contest.file_url ? (
-                    <a href={contest.file_url} target="_blank" rel="noopener noreferrer" className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block">دانلود فایل ضمیمه</a>
+                    <a href={getCleanImageUrl(contest.file_url)} target="_blank" rel="noopener noreferrer" className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block">دانلود فایل ضمیمه</a>
                   ) : (
                     <span className="font-black text-xs text-gray-400 dark:text-slate-500 mt-0.5">بدون فایل ضمیمه</span>
                   )}
@@ -448,7 +464,11 @@ export default function ContestLandingPage() {
                   </button>
                 </div>
               ) : (
-                <button onClick={() => router.push(`/exam/${contest.id}`)} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]"><PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به محیط رقابت و شروع آزمون</button>
+              <button onClick={() => {
+                  if (window.confirm('⚠️ توجه!\n\nپس از ورود به آزمون، امکان خروج و ادامه مجدد آزمون وجود ندارد.\nدر صورت خروج از آزمون پس از شروع، نتیجه شما ثبت نخواهد شد و از آزمون محروم خواهید شد.\n\nآیا مطمئن هستید که می‌خواهید وارد آزمون شوید؟')) {
+                    router.push(`/exam/${contest.id}`);
+                  }
+                }} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]"><PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به محیط رقابت و شروع آزمون</button>
               )}
             </div>
           )}

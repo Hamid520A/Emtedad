@@ -171,7 +171,7 @@ export default function ExamPage() {
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+    return toPersianDigits(`${m}:${s}`);
   };
 
   const getRecommendedTime = () => {
@@ -219,6 +219,20 @@ export default function ExamPage() {
     const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
+
+  // هشدار خروج از آزمون: جلوگیری از بستن تب یا رفرش صفحه حین آزمون
+  useEffect(() => {
+    if (isSubmitted || showReview || loading || questions.length === 0) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'در صورت خروج از آزمون، نتیجه شما ثبت نخواهد شد و از آزمون محروم خواهید شد. آیا مطمئن هستید؟';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isSubmitted, showReview, loading, questions.length]);
 
   if (loading || submitting) {
     return (

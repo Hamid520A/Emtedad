@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';
-import { ArrowRight, Save, Image as ImageIcon, Link as LinkIcon, Type, Eye, Loader2, CheckCircle } from 'lucide-react';
+import { ArrowRight, Save, Image as ImageIcon, Link as LinkIcon, Type, Eye, Loader2 } from 'lucide-react';
 
 export default function AdminBannersPage() {
   const router = useRouter();
@@ -18,7 +18,16 @@ export default function AdminBannersPage() {
     status: 'active' // active یا inactive
   });
 
-  // تابع آپلود تصویر بنر با استفاده از اندپوینت موجود پروژه
+  // تابع تبدیل آدرس‌های نسبی یا 127.0.0.1 به آدرس واقعی و قابل دسترس بک‌اند
+  const getFullImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) {
+      return url.replace('http://127.0.0.1:8000', 'http://10.10.20.51:64000');
+    }
+    return `http://10.10.20.51:64000${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  // تابع آپلود تصویر بنر
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -31,7 +40,11 @@ export default function AdminBannersPage() {
       const response = await api.post('/upload', uploadData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setFormData((prev) => ({ ...prev, image_url: response.data.url }));
+      
+      const rawUrl = response.data.url;
+      const validUrl = getFullImageUrl(rawUrl);
+      
+      setFormData((prev) => ({ ...prev, image_url: validUrl }));
       alert("تصویر بنر با موفقیت آپلود شد.");
     } catch (error) {
       alert("خطا در آپلود تصویر بنر");
@@ -46,12 +59,10 @@ export default function AdminBannersPage() {
 
     setSubmitting(true);
     try {
-      // ارسال اطلاعات بنر به بک‌ند (فرض بر وجود اندپوینت /admin/banners)
       await api.post('/admin/banners', formData);
       alert("بنر جدید با موفقیت ثبت و فعال شد!");
       router.push('/admin/dashboard');
     } catch (error: any) {
-      // پیوستگی امنیتی: اگر هنوز اندپوینت بک‌ند را نساختی، دیتای نهایی را لاگ کند
       console.log("Final Banner Data to Backend:", formData);
       alert("بنر ثبت شد (شبیه‌سازی فرانت‌ند). برای ثبت قطعی مطمئن شو اندپوینت بک‌ند متصل است.");
       router.push('/admin/dashboard');
@@ -63,10 +74,11 @@ export default function AdminBannersPage() {
   return (
     <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
       
-      {/* هدر عریض ویندوزی */}
+      {/* هدر عریض */}
       <header className="p-8 flex items-center justify-between sticky top-0 bg-[#faf9f6]/90 backdrop-blur-md z-20">
         <div className="flex items-center gap-4">
           <button 
+            type="button"
             onClick={() => router.back()} 
             className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition text-gray-500 hover:text-[#1a2e44]"
           >
@@ -79,7 +91,7 @@ export default function AdminBannersPage() {
         </div>
       </header>
 
-      {/* گرید دو ستونه دسکتاپ ادمین */}
+      {/* گرید دو ستونه */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
         
         {/* ستون راست (۲ ستون پهن): اطلاعات و آپلود بنر */}
@@ -155,9 +167,18 @@ export default function AdminBannersPage() {
             <div className="w-full aspect-[21/9] bg-[#faf9f6] rounded-2xl border border-gray-100 overflow-hidden relative flex items-center justify-center text-center">
               {formData.image_url ? (
                 <>
-                  <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/30 flex items-end p-3 text-right">
-                    <p className="text-white font-black text-xs drop-shadow-sm leading-tight line-clamp-2">{formData.title || "بدون عنوان"}</p>
+                  <img 
+                    src={getFullImageUrl(formData.image_url)} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x300?text=Image+Load+Error';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/40 flex items-end p-4 text-right">
+                    <p className="text-white font-black text-sm drop-shadow-md leading-tight line-clamp-2">
+                      {formData.title || "بدون عنوان"}
+                    </p>
                   </div>
                 </>
               ) : (

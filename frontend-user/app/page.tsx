@@ -131,10 +131,14 @@ export default function DashboardPage() {
 
   const handleBannerClick = (linkUrl: string) => {
     if (!linkUrl) return;
-    if (linkUrl.startsWith('http')) {
-      window.open(linkUrl, '_blank');
+    const cleanUrl = getCleanImageUrl(linkUrl);
+    // اگر بعد از پاک‌سازی، URL نسبی شد (مثلاً /static/...) از روتر استفاده کن
+    if (cleanUrl.startsWith('/')) {
+      router.push(cleanUrl);
+    } else if (cleanUrl.startsWith('http')) {
+      window.open(cleanUrl, '_blank');
     } else {
-      router.push(linkUrl);
+      router.push(cleanUrl);
     }
   };
           
@@ -235,9 +239,6 @@ export default function DashboardPage() {
                   )}
 
                   <div className="relative z-10 space-y-2">
-                    <span className="text-[9px] font-black px-2.5 py-1 rounded-full bg-[#c5a059] text-[#1a2e44] uppercase tracking-widest inline-flex items-center gap-1">
-                      <Megaphone size={10} /> اطلاعیه ویژه
-                    </span>
                     <h2 className="text-xl font-black mb-1 line-clamp-2 leading-snug">{banner.title}</h2>
                   </div>
 
