@@ -67,7 +67,7 @@ export const parseBannerUrl = (url: string) => {
 };
 
 /**
- * دانلود مستقیم فایل‌های ضمیمه با استفاده از Blob برای سازگاری کامل با WebView ایتا و اندروید
+ * دانلود مستقیم فایل‌های ضمیمه با استفاده از Blob و Fallback به هدایت مستقیم مرورگر
  */
 export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: string) => {
   if (!rawUrl) return;
@@ -83,8 +83,9 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
     }
   }
 
+  // ۱. تلاش برای دانلود Blob در فرانت‌ند
   try {
-    const response = await fetch(fullUrl, { mode: 'cors' });
+    const response = await fetch(fullUrl);
     if (response.ok) {
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
@@ -102,10 +103,13 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
       return;
     }
   } catch (err) {
-    console.warn("Fetch blob failed, fallback to openExternalLink", err);
+    console.warn("Fetch blob failed, fallback to location", err);
   }
 
-  openExternalLink(fullUrl);
+  // ۲. هدایت مستقیم آدرس جهت دانلود توسط Download Manager اندروید/ایتا
+  if (typeof window !== 'undefined') {
+    window.location.href = fullUrl;
+  }
 };
 
 /**
@@ -129,46 +133,40 @@ export const openExternalLink = (rawUrl: string): void => {
   }
 
   const windowObj = typeof window !== 'undefined' ? (window as any) : {};
-  
-  // ۱. تست SDK رسمی ایتا و تلگرام
   const tgWebApp = windowObj.Telegram?.WebApp || windowObj.Eitaa?.WebApp;
+
+  // ۱. اگر لینک کانال یا ربات ایتا بود
+  if (fullUrl.includes('eitaa.com')) {
+    if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
+      try {
+        tgWebApp.openTelegramLink(fullUrl);
+        return;
+      } catch (e) {}
+    }
+    window.location.href = fullUrl;
+    return;
+  }
+
+  // ۲. لینک‌های وب عمومی
   if (tgWebApp && typeof tgWebApp.openLink === 'function') {
     try {
       tgWebApp.openLink(fullUrl, { try_instant_view: true });
       return;
-    } catch (e) {
-      console.warn("openLink failed", e);
-    }
+    } catch (e) {}
   }
 
-  // ۲. ارسال مستقیم Event به WebView ایتا / تلگرام
+  // ۳. ارسال مستقیم رویداد نیتیو ایتا
   const webView = windowObj.Eitaa?.WebView || windowObj.Telegram?.WebView;
   if (webView && typeof webView.postEvent === 'function') {
     try {
       webView.postEvent('web_app_open_link', { url: fullUrl });
       return;
-    } catch (e) {
-      console.warn("postEvent failed", e);
-    }
-  }
-
-  // ۳. پروکسی بومی اندروید ایتا
-  if (windowObj.TelegramWebviewProxy?.postEvent) {
-    try {
-      windowObj.TelegramWebviewProxy.postEvent('web_app_open_link', JSON.stringify({ url: fullUrl }));
-      return;
-    } catch (e) {}
-  }
-  if (windowObj.EitaaWebviewProxy?.postEvent) {
-    try {
-      windowObj.EitaaWebviewProxy.postEvent('web_app_open_link', JSON.stringify({ url: fullUrl }));
-      return;
     } catch (e) {}
   }
 
-  // ۴. روش استاندارد مرورگر
+  // ۴. هدایت مستقیم مرورگر
   try {
-    const opened = window.open(fullUrl, '_blank', 'noopener,noreferrer');
+    const opened = window.open(fullUrl, '_blank');
     if (!opened || opened.closed || typeof opened.closed === 'undefined') {
       window.location.href = fullUrl;
     }

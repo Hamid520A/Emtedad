@@ -438,7 +438,7 @@ export default function ContestLandingPage() {
                 <div className="flex flex-col text-right min-w-0 w-full">
                   <span className="text-[9px] text-gray-400 font-bold">منبع و جزوه دوره</span>
                   {contest.file_url ? (
-                    <a href={contest.file_url} target="_blank" rel="noopener noreferrer" className="font-black text-xs text-blue-600 hover:underline mt-0.5 truncate block">دانلود فایل ضمیمه</a>
+                    <a href={getCleanImageUrl(contest.file_url)} target="_blank" rel="noopener noreferrer" download className="font-black text-xs text-blue-600 hover:underline mt-0.5 truncate block">دانلود فایل ضمیمه</a>
                   ) : (
                     <span className="font-black text-xs text-gray-400 mt-0.5">بدون فایل ضمیمه</span>
                   )}
