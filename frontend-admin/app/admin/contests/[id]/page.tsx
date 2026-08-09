@@ -6,7 +6,7 @@ import api from '../../../lib/api';
 import { 
   ArrowRight, Download, Gift, FileText, Clock, 
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X
+  Crown, Trash2, Award, BarChart3, HelpCircle, X, ExternalLink
 } from 'lucide-react';
 
 import { 
@@ -14,33 +14,7 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-// تابع پاک‌سازی آدرس‌های مطلق داخلی به نسبی برای لود صحیح تصاویر
-const getCleanImageUrl = (url: string) => {
-  if (!url) return '';
-  try {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      const parsedUrl = new URL(url);
-      if (
-        parsedUrl.hostname === 'localhost' ||
-        parsedUrl.hostname === '127.0.0.1' ||
-        parsedUrl.hostname === 'backend' ||
-        parsedUrl.port === '8000' ||
-        parsedUrl.port === '64000' ||
-        parsedUrl.pathname.startsWith('/static/') ||
-        parsedUrl.pathname.startsWith('/api/')
-      ) {
-        return parsedUrl.pathname + parsedUrl.search;
-      }
-      return url;
-    }
-  } catch (e) {
-    console.error("Error parsing URL", e);
-  }
-  if (!url.startsWith('/') && !url.startsWith('http')) {
-    return '/' + url;
-  }
-  return url;
-};
+import { getCleanImageUrl, openExternalLink } from '../../../lib/utils/url';
 
 export default function ContestLandingPage() {
   const router = useRouter();
