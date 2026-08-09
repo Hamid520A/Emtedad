@@ -591,17 +591,31 @@ def get_questions_list(
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
         
-    # ۱. گارد امنیتی: بررسی شرکت قبلی کاربر
+    # ۱. گارد امنیتی: بررسی شرکت قبلی کاربر (استثنا برای ادمین‌ها جهت تست مکرر)
     existing_subscription = db.query(models.Subscription).filter(
         models.Subscription.user_id == current_user.id,
         models.Subscription.contest_id == contest_id
     ).first()
 
-    if existing_subscription:
+    is_admin_user = getattr(current_user, 'is_admin', False) or getattr(current_user, 'role', '') == 'admin'
+
+    if existing_subscription and not is_admin_user:
         raise HTTPException(
             status_code=403, 
             detail="شما قبلاً در این آزمون شرکت کرده‌اید و مجاز به ورود مجدد نیستید!"
         )
+
+    # 🌟 قفل امنیتی آنی: ثبت رکورد شروع اولیه در دیتابیس تا در صورت بسته شدن مینی‌اپ (کلیک روی ضربدر) یا خروج، امکان شرکت مجدد وجود نداشته باشد
+    if not existing_subscription and not is_admin_user:
+        initial_sub = models.Subscription(
+            user_id=current_user.id,
+            contest_id=contest_id,
+            score=0,
+            is_left=1
+        )
+        db.add(initial_sub)
+        db.commit()
+        db.refresh(initial_sub)
         
     # ۲. واکشی سوالات حذف‌نشده و فعال
     all_questions = db.query(models.Question).filter(

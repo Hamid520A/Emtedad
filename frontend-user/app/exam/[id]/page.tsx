@@ -127,7 +127,7 @@ export default function ExamPage() {
         if (!isCurrent) return;
 
         if (error.response && error.response.status === 403) {
-          alert("شما قبلاً در این مسابقه شرکت کرده‌اید و پاسخنامه شما ثبت شده است.");
+          alert(error.response.data?.detail || "شما قبلاً در این آزمون شرکت کرده‌اید و مجاز به ورود مجدد نیستید.");
           router.replace(`/contests/${contestId}`); 
         } else {
           console.error("خطا در دریافت اطلاعات آزمون", error);
