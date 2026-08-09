@@ -355,7 +355,7 @@ export default function AdminDashboard() {
                 onClick={() => router.push('/admin/profile/change-password')}
               />
               <QuickAction 
-                label="تنظیم بنر تبلیغاتی جدید" 
+                label="مدیریت بنرها" 
                 icon={<ImageIcon size={18} />} 
                 onClick={() => router.push('/admin/banners')} 
               />

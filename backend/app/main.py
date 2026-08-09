@@ -1874,12 +1874,35 @@ def create_banner(banner_data: schemas.BannerCreate, db: Session = Depends(datab
         title=banner_data.title,
         link_url=banner_data.link_url,
         image_url=banner_data.image_url,
-        status=banner_data.status
+        status=banner_data.status or "active"
     )
     db.add(db_banner)
     db.commit()
     db.refresh(db_banner)
     return {"message": "بنر با موفقیت ذخیره شد", "banner_id": db_banner.id}
+
+@app.get("/admin/banners")
+def get_all_banners_admin(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+    return db.query(models.Banner).order_by(models.Banner.id.desc()).all()
+
+@app.delete("/admin/banners/{banner_id}")
+def delete_banner_admin(banner_id: int, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+    db_banner = db.query(models.Banner).filter(models.Banner.id == banner_id).first()
+    if not db_banner:
+        raise HTTPException(status_code=404, detail="بنر یافت نشد")
+    db.delete(db_banner)
+    db.commit()
+    return {"message": "بنر با موفقیت حذف شد"}
+
+@app.patch("/admin/banners/{banner_id}/toggle")
+def toggle_banner_admin(banner_id: int, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+    db_banner = db.query(models.Banner).filter(models.Banner.id == banner_id).first()
+    if not db_banner:
+        raise HTTPException(status_code=404, detail="بنر یافت نشد")
+    db_banner.status = "inactive" if db_banner.status == "active" else "active"
+    db.commit()
+    db.refresh(db_banner)
+    return {"message": "وضعیت بنر به روزرسانی شد", "status": db_banner.status}
 
 @app.get("/banners")
 def get_active_banners(db: Session = Depends(database.get_db)):
