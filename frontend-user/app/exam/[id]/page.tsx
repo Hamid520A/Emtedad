@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
-import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye, LogOut } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { openExternalLink } from '../../../lib/utils/url';
 
@@ -304,6 +304,15 @@ export default function ExamPage() {
     );
   }
 
+  const handleExitExam = () => {
+    const confirmExit = window.confirm(
+      "⚠️ هشدار انصراف و خروج از آزمون:\n\nدر صورت خروج از آزمون، هیچ نتیجه‌ای برای شما ثبت نخواهد شد و امکان شرکت مجدد در این آزمون را نخواهید داشت!\n\nآیا از خروج از آزمون اطمینان دارید؟"
+    );
+    if (confirmExit) {
+      router.replace(`/contests/${contestId}`);
+    }
+  };
+
   const question = questions[currentQIndex];
 
   return (
@@ -320,15 +329,27 @@ export default function ExamPage() {
 
         <div className="flex items-center gap-2">
           {!showReview && (
-            <div className="flex flex-col items-end">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl font-black text-sm ${timeLeft < 60 ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 animate-pulse' : 'bg-gray-50 dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100'}`}>
-                <Clock className="w-4 h-4 text-[#c5a059]" />
-                <span dir="ltr">{formatTime(timeLeft)}</span>
+            <>
+              <button
+                type="button"
+                onClick={handleExitExam}
+                className="px-3 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-2xl text-xs font-black transition-all flex items-center gap-1 border border-red-100 dark:border-red-900/30 active:scale-95 shrink-0"
+                title="خروج از آزمون"
+              >
+                <LogOut size={14} />
+                <span>خروج</span>
+              </button>
+
+              <div className="flex flex-col items-end">
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl font-black text-sm ${timeLeft < 60 ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 animate-pulse' : 'bg-gray-50 dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100'}`}>
+                  <Clock className="w-4 h-4 text-[#c5a059]" />
+                  <span dir="ltr">{formatTime(timeLeft)}</span>
+                </div>
+                <span className="text-[9px] font-bold text-gray-400 dark:text-slate-400 mt-0.5">
+                  پیشنهادی: {toPersianDigits(getRecommendedTime())} ثانیه
+                </span>
               </div>
-              <span className="text-[9px] font-bold text-gray-400 dark:text-slate-400 mt-0.5">
-                پیشنهادی: {toPersianDigits(getRecommendedTime())} ثانیه
-              </span>
-            </div>
+            </>
           )}
         </div>
       </header>
