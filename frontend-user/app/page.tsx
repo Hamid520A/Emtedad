@@ -6,7 +6,7 @@ import api from '../lib/api';
 import { getProfilePicture } from '../lib/get-profile-api';
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
 
-import { getCleanImageUrl, openExternalLink, downloadAttachmentFile } from '../lib/utils/url';
+import { getCleanImageUrl, openExternalLink, downloadAttachmentFile, parseBannerUrl } from '../lib/utils/url';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -116,22 +116,15 @@ export default function DashboardPage() {
 
   const handleBannerClick = (linkUrl: string) => {
     if (!linkUrl) return;
-    const cleanUrl = getCleanImageUrl(linkUrl);
+    const parsed = parseBannerUrl(linkUrl);
     
-    // ۱. اگر لینک مربوط به فایل‌های استاتیک یا پسوندهای دانلودی باشد
-    if (cleanUrl.startsWith('/static/') || cleanUrl.match(/\.(pdf|doc|docx|png|jpg|jpeg|zip|rar)$/i)) {
-      downloadAttachmentFile(linkUrl);
-      return;
+    if (parsed.type === 'internal') {
+      router.push(parsed.path);
+    } else if (parsed.type === 'file') {
+      downloadAttachmentFile(parsed.path);
+    } else {
+      openExternalLink(parsed.path);
     }
-
-    // ۲. اگر آدرس به مسیر مسابقه یا صفحات داخلی فرانت‌ند اشاره داشته باشد
-    if (cleanUrl.startsWith('/contests/') || cleanUrl.startsWith('/exam/') || (cleanUrl.startsWith('/') && !cleanUrl.startsWith('/static/'))) {
-      router.push(cleanUrl);
-      return;
-    }
-
-    // ۳. برای سایر لینک‌های خارجی از تابع نیتیو مینی‌اپ ایتا استفاده کن
-    openExternalLink(linkUrl);
   };
           
   return (
@@ -216,7 +209,8 @@ export default function DashboardPage() {
               activeBanners.map((banner: any) => (
                 <div 
                   key={banner.id}
-                  className="min-w-[90%] snap-center bg-[#1a2e44] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-lg flex flex-col justify-between min-h-[180px]"
+                  onClick={() => (banner.link_url || banner.link) && handleBannerClick(banner.link_url || banner.link)}
+                  className="min-w-[90%] snap-center bg-[#1a2e44] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-lg flex flex-col justify-between min-h-[180px] cursor-pointer"
                 >
                   {banner.image_url && (
                     <>
