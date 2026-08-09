@@ -169,6 +169,39 @@ export default function ExamPage() {
     }
   }, [isSubmitted, result]);
 
+  // 🌟 محافظ خروج از آزمون: فعال کردن تایید خروج نیتیو مینی‌اپ ایتا و هشدار قبل از بستن صفحه
+  useEffect(() => {
+    if (isSubmitted || showReview || loading || questions.length === 0) return;
+
+    const windowObj = typeof window !== 'undefined' ? (window as any) : {};
+    const tgWebApp = windowObj.Telegram?.WebApp || windowObj.Eitaa?.WebApp;
+
+    // ۱. فعال‌سازی مودال نیتیو ایتا برای دکمه ضربدر بالای مینی‌اپ
+    if (tgWebApp && typeof tgWebApp.enableClosingConfirmation === 'function') {
+      try {
+        tgWebApp.enableClosingConfirmation();
+      } catch (e) {}
+    }
+
+    // ۲. فعال‌سازی هشدار استاندارد مرورگر برای رفرش یا بستن تب
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '⚠️ در صورت خروج از آزمون، نمره‌ای ثبت نخواهد شد و امکان شرکت مجدد وجود ندارد!';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (tgWebApp && typeof tgWebApp.disableClosingConfirmation === 'function') {
+        try {
+          tgWebApp.disableClosingConfirmation();
+        } catch (e) {}
+      }
+    };
+  }, [isSubmitted, showReview, loading, questions.length]);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
@@ -329,19 +362,19 @@ export default function ExamPage() {
 
         <div className="flex items-center gap-2">
           {!showReview && (
-            <>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleExitExam}
-                className="px-3 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-2xl text-xs font-black transition-all flex items-center gap-1 border border-red-100 dark:border-red-900/30 active:scale-95 shrink-0"
+                className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-2xl text-xs font-black transition-all flex items-center gap-1.5 border border-red-100 dark:border-red-900/30 active:scale-95 shrink-0 h-[38px]"
                 title="خروج از آزمون"
               >
-                <LogOut size={14} />
+                <LogOut size={15} />
                 <span>خروج</span>
               </button>
 
               <div className="flex flex-col items-end">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl font-black text-sm ${timeLeft < 60 ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 animate-pulse' : 'bg-gray-50 dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100'}`}>
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl font-black text-sm h-[38px] ${timeLeft < 60 ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 animate-pulse' : 'bg-gray-50 dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100'}`}>
                   <Clock className="w-4 h-4 text-[#c5a059]" />
                   <span dir="ltr">{formatTime(timeLeft)}</span>
                 </div>
@@ -349,7 +382,7 @@ export default function ExamPage() {
                   پیشنهادی: {toPersianDigits(getRecommendedTime())} ثانیه
                 </span>
               </div>
-            </>
+            </div>
           )}
         </div>
       </header>
