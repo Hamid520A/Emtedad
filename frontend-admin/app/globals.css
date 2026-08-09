@@ -1,6 +1,10 @@
 /* frontend-admin/app/globals.css */
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Vazirmatn', sans-serif;
+}
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 243, 244, 246;
@@ -9,7 +13,7 @@
 
 body {
   direction: rtl; /* تنظیم جهت کل اپلیکیشن به راست به چپ */
-  font-family: 'Tahoma', sans-serif; /* در آینده می‌توانید فونت ایران‌یکان اضافه کنید */
+  font-family: 'Vazirmatn', sans-serif;
   background-color: #f3f4f6; /* 🌟 بازگشت به رنگ روشن اصلی پروژه */
   color: #1e293b;
 }

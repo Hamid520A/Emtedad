@@ -1,11 +1,15 @@
 /* frontend-user/app/globals.css */
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Vazirmatn', sans-serif;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 body {
   direction: rtl;
-  font-family: 'Tahoma', sans-serif;
+  font-family: 'Vazirmatn', sans-serif;
   background-color: #faf9f6;
   color: #1a2e44;
   transition: background-color 0.2s ease, color 0.2s ease;
