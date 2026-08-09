@@ -426,32 +426,15 @@ export default function ContestLandingPage() {
             </div>
 
             {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
-              <div className="space-y-2 mt-2">
-                <div className="w-full overflow-hidden rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video">
-                  <iframe 
-                    src={getAparatEmbedUrl(contest.video_url)} 
-                    allowFullScreen={true}
-                    allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    className="w-full h-full border-0" 
-                    title="Aparat Video Player"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsFullVideoModal(true)}
-                    className="bg-[#1a2e44] dark:bg-[#182234] text-[#c5a059] py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 border border-gray-200 dark:border-slate-800 hover:bg-[#2a405a] transition active:scale-95 shadow-sm"
-                  >
-                    <PlayCircle size={18} /> پخش تمام‌صفحه
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openExternalLink(contest.video_url)}
-                    className="bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 border border-gray-200 dark:border-slate-700 hover:bg-gray-200 transition active:scale-95 shadow-sm"
-                  >
-                    <ExternalLink size={16} /> باز کردن در آپارات
-                  </button>
-                </div>
+              <div className="w-full overflow-hidden rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video mt-2">
+                <iframe 
+                  src={getAparatEmbedUrl(contest.video_url)} 
+                  allowFullScreen={true}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; full-screen; fullscreen"
+                  className="w-full h-full border-0" 
+                  title="Aparat Video Player"
+                  {...({ webkitallowfullscreen: "true", mozallowfullscreen: "true" } as any)}
+                />
               </div>
             )}
           </div>
@@ -803,45 +786,6 @@ export default function ContestLandingPage() {
           </div>
         );
       })()}
-
-      {/* 🎬 مودال سینمایی پخش تمام‌صفحه ویدیو در درون برنامه */}
-      {isFullVideoModal && contest.video_url && getAparatEmbedUrl(contest.video_url) && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col justify-between p-4 backdrop-blur-md animate-fade-in" dir="rtl">
-          <div className="flex justify-between items-center z-10 p-2 border-b border-white/10">
-            <span className="text-white text-xs sm:text-sm font-bold flex items-center gap-2">
-              <PlayCircle className="text-[#c5a059]" size={18} />
-              پخش تمام‌صفحه ویدیوی مسابقه
-            </span>
-            <button 
-              onClick={() => setIsFullVideoModal(false)}
-              className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition active:scale-95 flex items-center gap-1 text-xs px-3 font-bold"
-            >
-              <X size={18} /> خروج از تمام‌صفحه
-            </button>
-          </div>
-
-          <div className="w-full flex-1 flex items-center justify-center my-auto p-2">
-            <div className="w-full max-w-5xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black">
-              <iframe 
-                src={getAparatEmbedUrl(contest.video_url)} 
-                allowFullScreen={true}
-                allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                className="w-full h-full border-0" 
-                title="Aparat Video Player Fullscreen"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto w-full z-10 pb-2">
-            <button
-              onClick={() => openExternalLink(contest.video_url)}
-              className="w-full bg-[#c5a059] text-[#1a2e44] py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-[#b08e4a] transition active:scale-95 shadow-md"
-            >
-              <ExternalLink size={16} /> باز کردن مستقیم در اپلیکیشن آپارات
-            </button>
-          </div>
-        </div>
-      )}
 
     </div>
   );
