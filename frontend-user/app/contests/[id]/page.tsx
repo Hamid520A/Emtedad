@@ -6,7 +6,7 @@ import api from '../../../lib/api';
 import { 
   ArrowRight, Download, Gift, FileText, Clock, 
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X
+  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink
 } from 'lucide-react';
 
 
@@ -33,6 +33,7 @@ export default function ContestLandingPage() {
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   // ۱. افکت دریافت اطلاعات جامع با تکنیک ضد کش و محاسبه اختلاف زمان سرور
   useEffect(() => {
@@ -411,10 +412,10 @@ export default function ContestLandingPage() {
                   {contest.file_url ? (
                     <button 
                       type="button"
-                      onClick={() => downloadAttachmentFile(contest.file_url)}
-                      className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block text-right"
+                      onClick={() => setShowPdfModal(true)}
+                      className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block text-right flex items-center gap-1"
                     >
-                      دانلود فایل ضمیمه
+                      <Eye size={13} /> مشاهده و دانلود جزوه
                     </button>
                   ) : (
                     <span className="font-black text-xs text-gray-400 dark:text-slate-500 mt-0.5">بدون فایل ضمیمه</span>
@@ -682,6 +683,57 @@ export default function ContestLandingPage() {
                   })}
                 </div>
               </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 مودال هوشمند نمایش و دانلود جزوه راهنمای دوره */}
+      {showPdfModal && contest?.file_url && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" dir="rtl">
+          <div className="bg-white dark:bg-[#182234] w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 dark:border-slate-800 flex flex-col max-h-[90vh]">
+            
+            {/* هدر مودال */}
+            <div className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={20} className="text-[#c5a059]" />
+                <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">جزوه و منبع راهنمای مسابقه</h3>
+              </div>
+              <button 
+                onClick={() => setShowPdfModal(false)}
+                className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-500 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* نوار ابزار: دانلود مستقیم و باز کردن در مرورگر */}
+            <div className="p-3 bg-gray-50 dark:bg-[#111827] flex items-center justify-between gap-2 border-b border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => downloadAttachmentFile(contest.file_url)}
+                className="bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm hover:opacity-90 transition active:scale-95"
+              >
+                <Download size={14} /> دانلود مستقیم فایل
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openExternalLink(contest.file_url)}
+                className="bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-700 text-[#1a2e44] dark:text-slate-200 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 hover:bg-gray-100 transition active:scale-95"
+              >
+                <ExternalLink size={14} /> باز کردن در مرورگر اصلی
+              </button>
+            </div>
+
+            {/* پیش‌نمایش زنده فایل PDF در محیط مینی‌اپ */}
+            <div className="flex-1 bg-gray-100 dark:bg-[#0b0f19] p-2 overflow-hidden flex items-center justify-center">
+              <iframe 
+                src={getCleanImageUrl(contest.file_url)} 
+                className="w-full h-[60vh] rounded-xl border-0 bg-white"
+                title="PDF Document"
+              />
             </div>
 
           </div>
