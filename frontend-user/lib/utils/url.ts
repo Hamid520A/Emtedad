@@ -169,8 +169,9 @@ export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Even
     console.log("[WebViewLink] Eitaa channel/bot link detected.");
     if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
       try {
-        console.log("[WebViewLink] Attempting openTelegramLink via SDK (without returning).");
+        console.log("[WebViewLink] Attempting openTelegramLink via SDK.");
         tgWebApp.openTelegramLink(fullUrl);
+        return; // Fix Race Condition: Early return on success
       } catch (err) {
         console.warn("[WebViewLink] openTelegramLink failed", err);
       }
@@ -179,59 +180,27 @@ export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Even
     // 2. استفاده از SDK مینی‌اپ ایتا
     if (tgWebApp && typeof tgWebApp.openLink === 'function') {
       try {
-        console.log("[WebViewLink] Attempting openLink via SDK (without returning).");
+        console.log("[WebViewLink] Attempting openLink via SDK.");
         tgWebApp.openLink(fullUrl, { try_browser: true });
+        return; // Fix Race Condition: Early return on success
       } catch (err) {
         console.warn("[WebViewLink] openLink failed", err);
       }
     }
   }
 
-  // 3. Ultimate Fallback: target="_top" escape hatch and Android Intent Trapdoor
-  const isFile = fullUrl.match(/\.(pdf|doc|docx|zip|rar|mp4|apk)$/i);
-  
-  if (isFile) {
-    console.log("[WebViewLink] File URL detected. Executing Android Intent Trapdoor.");
-    const urlWithoutProtocol = fullUrl.replace(/^https?:\/\//, '');
-    const intentUrl = `intent://${urlWithoutProtocol}#Intent;scheme=https;action=android.intent.action.VIEW;end;`;
-    
-    try {
-      const a = document.createElement('a');
-      a.href = intentUrl;
-      a.target = '_top'; // CRITICAL: Force top-level navigation to trigger OS intent
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      // Fallback for iOS which safely ignores intent:// but can render PDFs natively
-      setTimeout(() => {
-        console.log("[WebViewLink] Intent timeout reached. Executing iOS fallback.");
-        const fallbackA = document.createElement('a');
-        fallbackA.href = fullUrl;
-        fallbackA.target = '_top';
-        fallbackA.rel = 'noopener noreferrer';
-        document.body.appendChild(fallbackA);
-        fallbackA.click();
-        document.body.removeChild(fallbackA);
-      }, 500);
-    } catch (err) {
-      console.warn("[WebViewLink] Intent trapdoor failed", err);
-      window.top ? (window.top.location.href = fullUrl) : (window.location.href = fullUrl);
-    }
-  } else {
-    console.log("[WebViewLink] Executing target='_top' brute-force escape hatch.");
-    try {
-      const a = document.createElement('a');
-      a.href = fullUrl;
-      a.target = '_top'; // CRITICAL: Force top-level navigation to trigger OS intent
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (err) {
-      console.warn("[WebViewLink] target='_top' DOM fallback error", err);
-      window.top ? (window.top.location.href = fullUrl) : (window.location.href = fullUrl);
-    }
+  // 3. Ultimate Fallback: target="_top" escape hatch
+  console.log("[WebViewLink] Executing target='_top' brute-force escape hatch.");
+  try {
+    const a = document.createElement('a');
+    a.href = fullUrl;
+    a.target = '_top'; // CRITICAL: Force top-level navigation to trigger OS intent
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err) {
+    console.warn("[WebViewLink] target='_top' DOM fallback error", err);
+    window.top ? (window.top.location.href = fullUrl) : (window.location.href = fullUrl);
   }
 };
