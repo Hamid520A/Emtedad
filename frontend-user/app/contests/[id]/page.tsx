@@ -757,7 +757,7 @@ export default function ContestLandingPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => downloadAttachmentFile(contest.file_url)}
+                    onClick={(e) => downloadAttachmentFile(contest.file_url, undefined, e)}
                     className="bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition active:scale-95"
                   >
                     <Download size={16} /> دانلود مستقیم فایل
@@ -765,7 +765,7 @@ export default function ContestLandingPage() {
 
                   <button
                     type="button"
-                    onClick={() => openExternalLink(contest.file_url)}
+                    onClick={(e) => openExternalLink(contest.file_url, e)}
                     className="bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-700 text-[#1a2e44] dark:text-slate-200 p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition active:scale-95"
                   >
                     <ExternalLink size={16} /> باز کردن در مرورگر

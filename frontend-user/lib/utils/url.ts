@@ -1,5 +1,5 @@
 // frontend-user/lib/utils/url.ts
-
+import React from 'react';
 /**
  * پاک‌سازی آدرس‌های لوکال‌هاست و پورت‌های داخلی به آدرس‌های نسبی استاندارد
  */
@@ -69,8 +69,18 @@ export const parseBannerUrl = (url: string) => {
 /**
  * دانلود مستقیم فایل‌های ضمیمه با استفاده از Same-Origin Fetch و Blob با Fallback کامل
  */
-export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: string) => {
-  if (!rawUrl) return;
+export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: string, e?: React.SyntheticEvent | Event) => {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  if (!rawUrl) {
+    console.log("[WebViewLink] downloadAttachmentFile aborted: No URL provided");
+    return;
+  }
+
+  console.log("[WebViewLink] downloadAttachmentFile fired for URL:", rawUrl);
 
   const cleanPath = getCleanImageUrl(rawUrl);
   const fullUrl = cleanPath.startsWith('/') 
@@ -81,6 +91,7 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
   try {
     const response = await fetch(cleanPath);
     if (response.ok) {
+      console.log("[WebViewLink] Same-origin fetch successful. Creating Object URL for download.");
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -97,18 +108,29 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
       return true;
     }
   } catch (err) {
-    console.warn("Same-origin fetch blob failed", err);
+    console.warn("[WebViewLink] Same-origin fetch blob failed", err);
   }
 
+  console.log("[WebViewLink] Falling back to openExternalLink for URL:", fullUrl);
   // ۲. هدایت از طریق باز کردن آدرس کامل در مرورگر نیتیو یا تگ <a>
-  openExternalLink(fullUrl);
+  openExternalLink(fullUrl, e);
 };
 
 /**
  * باز کردن لینک‌های خارجی و ارجاعات به صورت ۱۰۰٪ سازگار با مینی‌اپ ایتا و تلگرام
  */
-export const openExternalLink = (rawUrl: string): void => {
-  if (!rawUrl) return;
+export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Event): void => {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  if (!rawUrl) {
+    console.log("[WebViewLink] openExternalLink aborted: No URL provided");
+    return;
+  }
+
+  console.log("[WebViewLink] openExternalLink fired for URL:", rawUrl);
 
   let fullUrl = rawUrl;
 
@@ -124,39 +146,57 @@ export const openExternalLink = (rawUrl: string): void => {
     }
   }
 
-  const windowObj = typeof window !== 'undefined' ? (window as any) : {};
+  console.log("[WebViewLink] Full URL resolved to:", fullUrl);
+
+  if (typeof window === 'undefined') return;
+
+  const windowObj = window as any;
   const tgWebApp = windowObj.Telegram?.WebApp || windowObj.Eitaa?.WebApp;
 
-  // ۱. اگر لینک کانال یا ربات ایتا بود
+  if (tgWebApp) {
+    console.log("[WebViewLink] Native WebApp SDK detected.");
+  } else {
+    console.log("[WebViewLink] Native WebApp SDK NOT found. Falling back to DOM methods.");
+  }
+
+  // 1. اگر لینک کانال یا ربات ایتا بود
   if (fullUrl.includes('eitaa.com')) {
+    console.log("[WebViewLink] Eitaa channel/bot link detected.");
     if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
       try {
+        console.log("[WebViewLink] Attempting openTelegramLink via SDK.");
         tgWebApp.openTelegramLink(fullUrl);
         return;
-      } catch (e) {}
+      } catch (err) {
+        console.warn("[WebViewLink] openTelegramLink failed", err);
+      }
     }
+    console.log("[WebViewLink] Falling back to window.location.href for Eitaa link.");
     window.location.href = fullUrl;
     return;
   }
 
-  // ۲. برای آدرس‌های HTTPS استفاده از SDK مینی‌اپ ایتا
-  if (fullUrl.startsWith('https://') && tgWebApp && typeof tgWebApp.openLink === 'function') {
+  // 2. استفاده از SDK مینی‌اپ ایتا
+  if (tgWebApp && typeof tgWebApp.openLink === 'function') {
     try {
+      console.log("[WebViewLink] Attempting openLink via SDK.");
       tgWebApp.openLink(fullUrl);
       return;
-    } catch (e) {
-      console.warn("openLink failed", e);
+    } catch (err) {
+      console.warn("[WebViewLink] openLink failed", err);
     }
   }
 
-  // ۳. روش جایگزین مرورگر برای آدرس‌های HTTP یا سرورهای محلی
+  // 3. روش جایگزین مرورگر برای آدرس‌های HTTP یا سرورهای محلی
+  console.log("[WebViewLink] Using standard DOM fallback (window.open/location.href).");
   try {
     const newWindow = window.open(fullUrl, '_blank', 'noopener,noreferrer');
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      // مرورگر یا وب‌ویو پاپ‌آپ را مسدود کرده است، از مسیردهی مستقیم استفاده می‌کنیم
+      console.log("[WebViewLink] window.open blocked. Falling back to window.location.href.");
       window.location.href = fullUrl;
     }
-  } catch (e) {
+  } catch (err) {
+    console.warn("[WebViewLink] DOM fallback error", err);
     window.location.href = fullUrl;
   }
 };

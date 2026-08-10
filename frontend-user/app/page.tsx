@@ -114,16 +114,16 @@ export default function DashboardPage() {
     return status === 'active' || status === 'فعال و در حال نمایش' || status === 'active_display';
   });
 
-  const handleBannerClick = (linkUrl: string) => {
+  const handleBannerClick = (linkUrl: string, e?: React.SyntheticEvent | Event) => {
     if (!linkUrl) return;
     const parsed = parseBannerUrl(linkUrl);
     
     if (parsed.type === 'internal') {
       router.push(parsed.path);
     } else if (parsed.type === 'file') {
-      downloadAttachmentFile(parsed.path);
+      downloadAttachmentFile(parsed.path, undefined, e);
     } else {
-      openExternalLink(parsed.path);
+      openExternalLink(parsed.path, e);
     }
   };
           
@@ -209,7 +209,7 @@ export default function DashboardPage() {
               activeBanners.map((banner: any) => (
                 <div 
                   key={banner.id}
-                  onClick={() => (banner.link_url || banner.link) && handleBannerClick(banner.link_url || banner.link)}
+                  onClick={(e) => (banner.link_url || banner.link) && handleBannerClick(banner.link_url || banner.link, e)}
                   className="min-w-[90%] snap-center bg-[#1a2e44] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-lg flex flex-col justify-between min-h-[180px] cursor-pointer"
                 >
                   {banner.image_url && (
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                   <div className="relative z-10 mt-4">
                     {banner.link_url || banner.link ? (
                       <button 
-                        onClick={() => handleBannerClick(banner.link_url || banner.link)}
+                        onClick={(e) => handleBannerClick(banner.link_url || banner.link, e)}
                         className="bg-white text-[#1a2e44] px-5 py-2.5 rounded-full text-xs font-black flex items-center gap-1.5 hover:bg-gray-100 transition-colors shadow-md"
                       >
                          مشاهده و ورود <ChevronLeft size={14} />
