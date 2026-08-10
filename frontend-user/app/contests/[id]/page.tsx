@@ -426,15 +426,23 @@ export default function ContestLandingPage() {
             </div>
 
             {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
-              <div className="w-full rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video mt-2 overflow-hidden">
-                <iframe 
-                  src={getAparatEmbedUrl(contest.video_url)} 
-                  allowFullScreen={true}
-                  allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className="w-full h-full border-0" 
-                  title="Aparat Video Player"
-                  {...({ webkitallowfullscreen: "true", mozallowfullscreen: "true", allowfullscreen: "true" } as any)}
-                />
+              <div className="flex flex-col gap-2 mt-2">
+                <div className="w-full rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video overflow-hidden">
+                  <iframe 
+                    src={getAparatEmbedUrl(contest.video_url)} 
+                    allowFullScreen
+                    allow="autoplay; fullscreen"
+                    className="w-full h-full border-0" 
+                    title="Aparat Video Player"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => openExternalLink(contest.video_url, e)}
+                  className="flex items-center justify-center gap-2 w-full p-2.5 sm:p-3 text-xs font-black rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-[#1a2e44] dark:hover:text-slate-200 transition-all active:scale-[0.98]"
+                >
+                  <ExternalLink size={16} /> تماشای تمام‌صفحه در آپارات
+                </button>
               </div>
             )}
           </div>
