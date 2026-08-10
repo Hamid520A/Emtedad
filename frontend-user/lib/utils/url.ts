@@ -84,29 +84,7 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
     ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
     : cleanPath;
 
-  const windowObj = typeof window !== 'undefined' ? (window as any) : {};
-  const tgWebApp = windowObj.Telegram?.WebApp || windowObj.Eitaa?.WebApp;
-
-  // ۱. اگر وب‌اپ فعال باشد، از Iframe مخفی برای دور زدن محدودیت‌های دانلود استفاده می‌کنیم
-  if (tgWebApp) {
-    console.log("[WebViewLink] Native WebApp SDK detected. Using Hidden Iframe Download Strategy.");
-    try {
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-      iframe.src = fullUrl;
-      console.log("[WebViewLink] Hidden Iframe created with src:", fullUrl);
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-        console.log("[WebViewLink] Hidden Iframe removed after timeout.");
-      }, 5000);
-      return true;
-    } catch (err) {
-      console.warn("[WebViewLink] Hidden Iframe Download Strategy failed", err);
-    }
-  }
-
-  // ۲. سعی در دریافت هم‌منبع (Same-origin fetch) برای مرورگرهای عادی
+  // ۱. سعی در دریافت هم‌منبع (Same-origin fetch) برای مرورگرهای عادی
   try {
     const response = await fetch(cleanPath);
     if (response.ok) {
@@ -131,7 +109,7 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
   }
 
   console.log("[WebViewLink] Falling back to openExternalLink for URL:", fullUrl);
-  // ۳. هدایت از طریق باز کردن آدرس کامل
+  // ۲. هدایت از طریق باز کردن آدرس کامل با روش‌های نیتیو و target="_top"
   openExternalLink(fullUrl, e);
 };
 
@@ -183,39 +161,36 @@ export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Even
     console.log("[WebViewLink] Eitaa channel/bot link detected.");
     if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
       try {
-        console.log("[WebViewLink] Attempting openTelegramLink via SDK.");
+        console.log("[WebViewLink] Attempting openTelegramLink via SDK (without returning).");
         tgWebApp.openTelegramLink(fullUrl);
-        return;
       } catch (err) {
         console.warn("[WebViewLink] openTelegramLink failed", err);
       }
     }
-    console.log("[WebViewLink] Falling back to window.location.href for Eitaa link.");
-    window.location.href = fullUrl;
-    return;
-  }
-
-  // 2. استفاده از SDK مینی‌اپ ایتا
-  if (tgWebApp && typeof tgWebApp.openLink === 'function') {
-    try {
-      console.log("[WebViewLink] Attempting openLink via SDK.");
-      tgWebApp.openLink(fullUrl);
-      return;
-    } catch (err) {
-      console.warn("[WebViewLink] openLink failed", err);
+  } else {
+    // 2. استفاده از SDK مینی‌اپ ایتا
+    if (tgWebApp && typeof tgWebApp.openLink === 'function') {
+      try {
+        console.log("[WebViewLink] Attempting openLink via SDK (without returning).");
+        tgWebApp.openLink(fullUrl);
+      } catch (err) {
+        console.warn("[WebViewLink] openLink failed", err);
+      }
     }
   }
 
-  // 3. روش جایگزین مرورگر برای آدرس‌های HTTP یا سرورهای محلی
-  console.log("[WebViewLink] Using standard DOM fallback (window.open/location.href).");
+  // 3. Ultimate Fallback: target="_top" escape hatch
+  console.log("[WebViewLink] Executing target='_top' brute-force escape hatch.");
   try {
-    const newWindow = window.open(fullUrl, '_blank', 'noopener,noreferrer');
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      console.log("[WebViewLink] window.open blocked. Falling back to window.location.href.");
-      window.location.href = fullUrl;
-    }
+    const a = document.createElement('a');
+    a.href = fullUrl;
+    a.target = '_top'; // CRITICAL: Force top-level navigation to trigger OS intent
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   } catch (err) {
-    console.warn("[WebViewLink] DOM fallback error", err);
-    window.location.href = fullUrl;
+    console.warn("[WebViewLink] target='_top' DOM fallback error", err);
+    window.top ? (window.top.location.href = fullUrl) : (window.location.href = fullUrl);
   }
 };
