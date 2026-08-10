@@ -706,9 +706,30 @@ export default function ContestLandingPage() {
         const fileName = cleanPath.split('/').pop() || 'منبع و جزوه مسابقه.pdf';
         
         const handleCopyLink = () => {
-          if (navigator.clipboard) {
-            navigator.clipboard.writeText(fullUrl);
-            alert("لینک مستقیم دانلود فایل با موفقیت کپی شد.");
+          const fallbackCopy = (text: string) => {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+              document.execCommand('copy');
+              alert("لینک مستقیم دانلود فایل با موفقیت کپی شد.");
+            } catch (err) {
+              console.error('Fallback copy failed', err);
+              alert("امکان کپی خودکار وجود ندارد. لطفاً لینک را دستی کپی کنید.");
+            }
+            document.body.removeChild(textArea);
+          };
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(fullUrl)
+              .then(() => alert("لینک مستقیم دانلود فایل با موفقیت کپی شد."))
+              .catch(() => fallbackCopy(fullUrl));
+          } else {
+            fallbackCopy(fullUrl);
           }
         };
 
@@ -741,45 +762,31 @@ export default function ContestLandingPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-black text-[#1a2e44] dark:text-slate-100 truncate">{fileName}</p>
-                      <p className="text-[10px] text-gray-400 font-bold">فایل ضمیمه آموزشی (PDF)</p>
+                      <p className="text-[10px] text-gray-400 font-bold">فایل ضمیمه آموزشی</p>
                     </div>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-2 mt-2">
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="text-[11px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition shrink-0"
+                    className="bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-100 transition shrink-0"
                   >
                     کپی لینک دانلود
                   </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => downloadAttachmentFile(contest.file_url, undefined, e)}
-                    className="bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition active:scale-95"
-                  >
-                    <Download size={16} /> دانلود مستقیم فایل
-                  </button>
 
                   <button
                     type="button"
-                    onClick={(e) => openExternalLink(contest.file_url, e)}
-                    className="bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-700 text-[#1a2e44] dark:text-slate-200 p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition active:scale-95"
+                    onClick={(e) => {
+                      const finalUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}`;
+                      openExternalLink(finalUrl, e);
+                    }}
+                    className="bg-[#1a2e44] dark:bg-[#c5a059] text-white p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition active:scale-95"
                   >
-                    <ExternalLink size={16} /> باز کردن در مرورگر
+                    <ExternalLink size={16} /> مشاهده جزوه
                   </button>
                 </div>
-              </div>
-
-              {/* پیش‌نمایش زنده فایل PDF در محیط مینی‌اپ با Google Viewer */}
-              <div className="flex-1 bg-gray-100 dark:bg-[#0b0f19] p-2 overflow-hidden flex items-center justify-center relative min-h-[300px]">
-                <iframe 
-                  src={googleDocsViewerUrl} 
-                  className="w-full h-[50vh] rounded-xl border-0 bg-white shadow-inner"
-                  title="PDF Document Viewer"
-                />
               </div>
 
             </div>

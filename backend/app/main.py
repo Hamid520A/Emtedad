@@ -46,6 +46,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_download_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path.lower()
+    if path.startswith("/static/") and path.endswith((".pdf", ".doc", ".docx", ".zip", ".rar", ".mp4")):
+        filename = os.path.basename(request.url.path)
+        response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
 # ۲. هماهنگ‌سازی کلیدهای JWT با فایل auth
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 EITAA_API_URL = os.getenv("EITAA_API_URL", "http://10.10.20.51:3000/send")
