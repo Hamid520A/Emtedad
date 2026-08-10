@@ -84,32 +84,40 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
     ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
     : cleanPath;
 
-  // ۱. سعی در دریافت هم‌منبع (Same-origin fetch) برای مرورگرهای عادی
-  try {
-    const response = await fetch(cleanPath);
-    if (response.ok) {
-      console.log("[WebViewLink] Same-origin fetch successful. Creating Object URL for download.");
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      
-      const extractedFileName = cleanPath.split('/').pop() || 'file.pdf';
-      link.download = fallbackFileName || extractedFileName;
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
-      return true;
+  const windowObj = typeof window !== 'undefined' ? (window as any) : {};
+  const tgWebApp = windowObj.Telegram?.WebApp || windowObj.Eitaa?.WebApp;
+
+  // ۱. اگر داخل وب‌اپ ایتا/تلگرام هستیم، دانلود با Blob بلاک می‌شود. مستقیماً سراغ روش نیتیو می‌رویم
+  if (tgWebApp) {
+    console.log("[WebViewLink] Native WebApp SDK detected. Bypassing fetch/blob download trap.");
+  } else {
+    // ۲. سعی در دریافت هم‌منبع (Same-origin fetch) برای مرورگرهای عادی
+    try {
+      const response = await fetch(cleanPath);
+      if (response.ok) {
+        console.log("[WebViewLink] Same-origin fetch successful. Creating Object URL for download.");
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        
+        const extractedFileName = cleanPath.split('/').pop() || 'file.pdf';
+        link.download = fallbackFileName || extractedFileName;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+        return true;
+      }
+    } catch (err) {
+      console.warn("[WebViewLink] Same-origin fetch blob failed", err);
     }
-  } catch (err) {
-    console.warn("[WebViewLink] Same-origin fetch blob failed", err);
   }
 
   console.log("[WebViewLink] Falling back to openExternalLink for URL:", fullUrl);
-  // ۲. هدایت از طریق باز کردن آدرس کامل با روش‌های نیتیو و target="_top"
+  // ۳. هدایت از طریق باز کردن آدرس کامل با روش‌های نیتیو و target="_top"
   openExternalLink(fullUrl, e);
 };
 
