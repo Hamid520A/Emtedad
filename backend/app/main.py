@@ -51,8 +51,9 @@ async def add_download_headers(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path.lower()
     if path.startswith("/static/") and path.endswith((".pdf", ".doc", ".docx", ".zip", ".rar", ".mp4")):
-        filename = os.path.basename(request.url.path)
-        response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        if request.query_params.get("download") == "true":
+            filename = os.path.basename(request.url.path)
+            response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
 
 # ۲. هماهنگ‌سازی کلیدهای JWT با فایل auth

@@ -706,6 +706,8 @@ export default function ContestLandingPage() {
         const fileName = cleanPath.split('/').pop() || 'منبع و جزوه مسابقه.pdf';
         
         const handleCopyLink = () => {
+          const downloadUrl = fullUrl.includes('?') ? fullUrl + '&download=true' : fullUrl + '?download=true';
+          
           const fallbackCopy = (text: string) => {
             const textArea = document.createElement("textarea");
             textArea.value = text;
@@ -725,11 +727,11 @@ export default function ContestLandingPage() {
           };
 
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(fullUrl)
+            navigator.clipboard.writeText(downloadUrl)
               .then(() => alert("لینک مستقیم دانلود فایل با موفقیت کپی شد."))
-              .catch(() => fallbackCopy(fullUrl));
+              .catch(() => fallbackCopy(downloadUrl));
           } else {
-            fallbackCopy(fullUrl);
+            fallbackCopy(downloadUrl);
           }
         };
 
