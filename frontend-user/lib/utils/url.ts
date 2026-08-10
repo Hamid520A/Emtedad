@@ -155,52 +155,28 @@ export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Even
 
   if (typeof window === 'undefined') return;
 
-  const windowObj = window as any;
-  const tgWebApp = windowObj.Telegram?.WebApp || windowObj.Eitaa?.WebApp;
+  // 1. بررسی آیا فایل یک داکیومنت است
+  const isDocument = fullUrl.match(/\.(pdf|doc|docx|ppt|pptx)$/i);
+  
+  // 2. استفاده از گوگل داکس برای دور زدن محدودیت‌های دانلود وب‌ویو
+  const finalUrl = isDocument ? "https://docs.google.com/viewer?url=" + encodeURIComponent(fullUrl) : fullUrl;
 
-  if (tgWebApp) {
-    console.log("[WebViewLink] Native WebApp SDK detected.");
-  } else {
-    console.log("[WebViewLink] Native WebApp SDK NOT found. Falling back to DOM methods.");
+  if (isDocument) {
+    console.log("[WebViewLink] Document detected. Wrapping with Google Docs Viewer.");
   }
 
-  // 1. اگر لینک کانال یا ربات ایتا بود
-  if (fullUrl.includes('eitaa.com')) {
-    console.log("[WebViewLink] Eitaa channel/bot link detected.");
-    if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
-      try {
-        console.log("[WebViewLink] Attempting openTelegramLink via SDK.");
-        tgWebApp.openTelegramLink(fullUrl);
-        return; // Fix Race Condition: Early return on success
-      } catch (err) {
-        console.warn("[WebViewLink] openTelegramLink failed", err);
-      }
-    }
-  } else {
-    // 2. استفاده از SDK مینی‌اپ ایتا
-    if (tgWebApp && typeof tgWebApp.openLink === 'function') {
-      try {
-        console.log("[WebViewLink] Attempting openLink via SDK.");
-        tgWebApp.openLink(fullUrl, { try_browser: true });
-        return; // Fix Race Condition: Early return on success
-      } catch (err) {
-        console.warn("[WebViewLink] openLink failed", err);
-      }
-    }
-  }
-
-  // 3. Ultimate Fallback: target="_top" escape hatch
-  console.log("[WebViewLink] Executing target='_top' brute-force escape hatch.");
+  // 3. اجرای قطعی با target="_top" برای خروج از وب‌ویو
+  console.log("[WebViewLink] Executing universal target='_top' hatch for URL:", finalUrl);
   try {
     const a = document.createElement('a');
-    a.href = fullUrl;
-    a.target = '_top'; // CRITICAL: Force top-level navigation to trigger OS intent
+    a.href = finalUrl;
+    a.target = '_top'; // CRITICAL: Force top-level navigation to bypass iframe traps
     a.rel = 'noopener noreferrer';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   } catch (err) {
     console.warn("[WebViewLink] target='_top' DOM fallback error", err);
-    window.top ? (window.top.location.href = fullUrl) : (window.location.href = fullUrl);
+    window.top ? (window.top.location.href = finalUrl) : (window.location.href = finalUrl);
   }
 };
