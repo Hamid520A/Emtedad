@@ -38,11 +38,8 @@ export const parseBannerUrl = (url: string) => {
   if (!url) return { type: 'none', path: '' };
 
   try {
-    let pathname = url;
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      const parsed = new URL(url);
-      pathname = parsed.pathname + parsed.search;
-    }
+    const parsedUrl = new URL(url, 'http://dummy.local');
+    const pathname = parsedUrl.pathname + parsedUrl.search;
 
     // تشخیص مسیرهای داخلی مسابقه یا آزمون (مثل /contests/1 یا /exam/2)
     const contestMatch = pathname.match(/\/(contests|contest|exam)\/(\d+)/i);
@@ -55,8 +52,8 @@ export const parseBannerUrl = (url: string) => {
       return { type: 'file', path: url };
     }
 
-    // مسیرهای نسبی داخلی دیگر
-    if (pathname.startsWith('/') && !pathname.startsWith('http')) {
+    // مسیرهای نسبی داخلی دیگر (اگر هاست ما همان dummy.local باشد، یعنی URL اصلی نسبی بوده است)
+    if (parsedUrl.hostname === 'dummy.local') {
       return { type: 'internal', path: pathname };
     }
   } catch (e) {
@@ -87,7 +84,29 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
     ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
     : cleanPath;
 
-  // ۱. سعی در دریافت هم‌منبع (Same-origin fetch)
+  const windowObj = typeof window !== 'undefined' ? (window as any) : {};
+  const tgWebApp = windowObj.Telegram?.WebApp || windowObj.Eitaa?.WebApp;
+
+  // ۱. اگر وب‌اپ فعال باشد، از Iframe مخفی برای دور زدن محدودیت‌های دانلود استفاده می‌کنیم
+  if (tgWebApp) {
+    console.log("[WebViewLink] Native WebApp SDK detected. Using Hidden Iframe Download Strategy.");
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      iframe.src = fullUrl;
+      console.log("[WebViewLink] Hidden Iframe created with src:", fullUrl);
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        console.log("[WebViewLink] Hidden Iframe removed after timeout.");
+      }, 5000);
+      return true;
+    } catch (err) {
+      console.warn("[WebViewLink] Hidden Iframe Download Strategy failed", err);
+    }
+  }
+
+  // ۲. سعی در دریافت هم‌منبع (Same-origin fetch) برای مرورگرهای عادی
   try {
     const response = await fetch(cleanPath);
     if (response.ok) {
@@ -112,7 +131,7 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
   }
 
   console.log("[WebViewLink] Falling back to openExternalLink for URL:", fullUrl);
-  // ۲. هدایت از طریق باز کردن آدرس کامل در مرورگر نیتیو یا تگ <a>
+  // ۳. هدایت از طریق باز کردن آدرس کامل
   openExternalLink(fullUrl, e);
 };
 
