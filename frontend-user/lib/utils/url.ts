@@ -151,13 +151,11 @@ export const openExternalLink = (rawUrl: string): void => {
 
   // ۳. روش جایگزین مرورگر برای آدرس‌های HTTP یا سرورهای محلی
   try {
-    const a = document.createElement('a');
-    a.href = fullUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const newWindow = window.open(fullUrl, '_blank', 'noopener,noreferrer');
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      // مرورگر یا وب‌ویو پاپ‌آپ را مسدود کرده است، از مسیردهی مستقیم استفاده می‌کنیم
+      window.location.href = fullUrl;
+    }
   } catch (e) {
     window.location.href = fullUrl;
   }

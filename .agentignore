@@ -1,0 +1,47 @@
+# ==========================================
+# Antigravity Agent Context Exclusion Rules
+# ==========================================
+
+# 1. Dependency Directories (Massive Token Wasters)
+node_modules/
+venv/
+env/
+.venv/
+__pycache__/
+.next/
+.pytest_cache/
+.mypy_cache/
+
+# 2. Database & Cache Volumes
+postgres-data/
+redis-data/
+pgadmin-data/
+emtedad.db
+
+# 3. Lock Files & Build Artifacts
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+build/
+dist/
+*.pyc
+*.pyo
+
+# 4. Media & Binary Files (AI cannot read these and they crash token limits)
+static/uploads/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.mp4
+*.ttf
+*.woff
+*.woff2
+*.ico
+
+# 5. IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+*.mdj
