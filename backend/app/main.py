@@ -15,8 +15,49 @@ from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse
 from jose import JWTError, jwt
+import logging
+import contextvars
+from starlette.middleware.base import BaseHTTPMiddleware
 
 app = FastAPI()
+
+# 🌟 متغیر کانتکست ایمن برای لاگین یکپارچه
+request_id_context = contextvars.ContextVar("request_id", default="unknown")
+
+class JSONLogFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "level": record.levelname,
+            "request_id": request_id_context.get(),
+            "message": record.getMessage()
+        }
+        return json.dumps(log_record)
+
+# 🌟 پیکربندی لاگر ساختاریافته JSON
+logger = logging.getLogger("emtedad_backend")
+logger.setLevel(logging.INFO)
+for handler in logger.handlers:
+    logger.removeHandler(handler)
+log_handler = logging.StreamHandler()
+log_handler.setFormatter(JSONLogFormatter())
+logger.addHandler(log_handler)
+# غیرفعال‌سازی لاگ‌های دیفالت uvicorn برای جلوگیری از اسپم متنی
+logging.getLogger("uvicorn.access").disabled = True
+
+# 🌟 میدلور تزریق Traceability (Request ID)
+class RequestTracingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        req_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
+        token = request_id_context.set(req_id)
+        
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = req_id
+        
+        request_id_context.reset(token)
+        return response
+
+app.add_middleware(RequestTracingMiddleware)
 
 # ۱. اتصال به سرور دیتابیس Redis برای Rate Limiting
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
