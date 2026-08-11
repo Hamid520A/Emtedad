@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse
+import jdatetime
 from jose import JWTError, jwt
 import logging
 import contextvars
@@ -958,7 +959,15 @@ def update_my_profile(
     # ۱. آپدیت فیلدهای متنی ساده
     user.first_name = payload.get("first_name", user.first_name)
     user.last_name = payload.get("last_name", user.last_name)
-    user.birth_date = payload.get("birth_date", user.birth_date)
+    
+    raw_birth_date = payload.get("birth_date")
+    if raw_birth_date:
+        try:
+            normalized_date = fa_to_en_digits(raw_birth_date)
+            # تبدیل رشته جلالی به آبجکت دیت‌تایم میلادی برای ذخیره در پستگرس
+            user.birth_date = jdatetime.date.strptime(normalized_date, '%Y/%m/%d').togregorian()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="فرمت تاریخ تولد نامعتبر است. لطفاً از فرمت معتبر مانند ۱۳۶۴/۰۵/۳۰ استفاده کنید.")
     
     # ۲. 🌟 تبدیل نام متنی شهر فرانت‌ند به city_id معتبر در دیتابیس
     city_name = payload.get("city")
