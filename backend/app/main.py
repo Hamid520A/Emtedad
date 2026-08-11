@@ -27,12 +27,10 @@ RATELIMIT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
 r = redis.Redis(host=RATELIMIT_REDIS_HOST, port=RATELIMIT_REDIS_PORT, db=RATELIMIT_REDIS_DB, decode_responses=True, socket_timeout=5)
 
 # ۲. اتصال اختصاصی به سرور Redis برای سشن‌های ایتا (پورت ۶۳۸۹ و آی‌پِی ۱۰.۱۰.۲۰.۵۱)
-EITAA_REDIS_HOST = os.getenv("EITAA_REDIS_HOST", "10.10.20.51")
-if EITAA_REDIS_HOST in ["127.0.0.1", "localhost", "redis", ""]:
-    EITAA_REDIS_HOST = "10.10.20.51"
+EITAA_REDIS_HOST = os.getenv("EITAA_REDIS_HOST", "127.0.0.1")
 EITAA_REDIS_PORT = int(os.getenv("EITAA_REDIS_PORT", 6389))
 EITAA_REDIS_DB = int(os.getenv("EITAA_REDIS_DB", 0))
-ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:989371787445")
+ACCOUNT_KEY = os.getenv("ACCOUNT_KEY", "latest_session:default")
 r_eitaa = redis.Redis(host=EITAA_REDIS_HOST, port=EITAA_REDIS_PORT, db=EITAA_REDIS_DB, decode_responses=True, socket_timeout=5)
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
@@ -59,9 +57,7 @@ async def add_download_headers(request: Request, call_next):
 
 # ۲. هماهنگ‌سازی کلیدهای JWT با فایل auth
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
-EITAA_API_URL = os.getenv("EITAA_API_URL", "http://10.10.20.51:3000/send")
-if "10.10.10.4" in EITAA_API_URL:
-    EITAA_API_URL = "http://10.10.20.51:3000/send"
+EITAA_API_URL = os.getenv("EITAA_API_URL", "http://127.0.0.1:3000/send")
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 LIMIT_WINDOW = 60       # پنجره زمانی بر اساس ثانیه (۱ دقیقه)
@@ -537,7 +533,7 @@ def get_contest_detail(
     current_user: Optional[models.User] = Depends(get_current_user_optional) # 🌟 متصل به دپندنسی محلی جدید
 ):
     cors_headers = {
-        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -825,7 +821,7 @@ async def upload_file(
 @app.get("/contests/{contest_id}/leaderboard")
 def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
     cors_headers = {
-        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -1045,7 +1041,7 @@ def get_my_own_contest_answers(contest_id: int, db: Session = Depends(database.g
 def options_download_certificate():
     from fastapi.responses import Response
     return Response(headers={
-        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -1058,7 +1054,7 @@ def download_my_certificate(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     cors_headers = {
-        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -1454,8 +1450,6 @@ def proxy_get_profile_photo(
     current_user: models.User = Depends(auth.get_current_user) # 🌟 اضافه شدن تاثیری امنیت و دسترسی به کاربر جاری
 ):
     eitaa_target_url = os.getenv("EITAA_API_URL", EITAA_API_URL) 
-    if "10.10.10.4" in eitaa_target_url:
-        eitaa_target_url = "http://10.10.20.51:3000/send" 
     try:
         session_json_str = r_eitaa.get(ACCOUNT_KEY)
         if not session_json_str:
@@ -2150,7 +2144,7 @@ def get_admin_questions_list(
 @app.get("/admin/contests/{contest_id}/analytics")
 def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db)):
     cors_headers = {
-        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",

@@ -3,7 +3,10 @@
 import axios from 'axios';
 
 // 🌟 اصلاح اول: خواندن آدرس اصلی بک‌ند از فایل env
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+if (!apiUrl) {
+  console.warn("⚠️ متغیر NEXT_PUBLIC_API_URL در محیط تنظیم نشده است.");
+}
 
 const api = axios.create({
   baseURL: apiUrl, 

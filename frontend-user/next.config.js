@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000';
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!backendUrl) {
+      console.warn("⚠️ متغیر NEXT_PUBLIC_API_URL در محیط تنظیم نشده است.");
+    }
     return [
       {
         source: '/api/:path*',
