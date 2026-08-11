@@ -291,9 +291,7 @@ export default function ContestLandingPage() {
                 )}
                 
                 {contest.status === 'finished' && (
-                  <div className="w-full text-center py-2 bg-gray-100 border border-gray-200 text-gray-500 rounded-xl text-xs font-black select-none">
-                    🏁 این مسابقه به اتمام رسیده و پاسخنامه‌ها بسته شده‌اند.
-                  </div>
+                  <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-indigo-700">🔄 بازگشایی مجدد پاسخنامه‌ها</button>
                 )}
               </div>
             </div>

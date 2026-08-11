@@ -504,13 +504,6 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
         models.Contest.start_time <= now
     ).update({"status": "active"}, synchronize_session=False)
 
-    # ۲. پایان مسابقاتی که زمان پایان آن‌ها گذشته
-    db.query(models.Contest).filter(
-        models.Contest.status == 'active',
-        models.Contest.end_time != None,
-        models.Contest.end_time < now
-    ).update({"status": "finished"}, synchronize_session=False)
-
     db.commit()
 
     # 🌟 فیکس: واکشی امن و برگرداندن دیتای نهایی فیلتر شده
