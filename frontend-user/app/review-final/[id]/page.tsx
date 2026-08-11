@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { ArrowRight, HelpCircle, Loader2, AlertCircle, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
+import { ArrowRight, HelpCircle, Loader2, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 export default function FinalReviewPage({ params }: { params: { id: string } }) {
   const router = useRouter();

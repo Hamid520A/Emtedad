@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, ChevronDown, Search } from 'lucide-react';
+import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -68,7 +68,6 @@ export default function RegisterPage() {
       globalWindow.Eitaa = globalWindow.Eitaa || {};
       globalWindow.Eitaa.WebView = globalWindow.Eitaa.WebView || {};
       globalWindow.Eitaa.WebView.receiveEvent = globalWindow.Eitaa.WebView.receiveEvent || function(event: any, data: any) {
-        console.log('📌 رویداد ایتا در صفحه ثبت نام خنثی شد:', event, data);
       };
     }
 

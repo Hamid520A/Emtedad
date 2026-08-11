@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from . import schemas, models, database
+from . import models, database
 from sqlalchemy.orm import Session
 
 # 🌟 خواندن مستقیم کلیدها از فایل env

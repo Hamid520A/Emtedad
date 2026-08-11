@@ -1,83 +1,158 @@
 networks:
   emtedad_network:
     driver: bridge
-
 volumes:
-  postgres_data:
-  redis_data:
-
+  postgres_data: null
+  redis_data: null
 services:
-  # 🟣 سرویس فرانت‌ند کاربران (برنامک ایتا)
   frontend-user:
     build:
       context: ./frontend-user
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
-      - "${FRONTEND_USER_PORT:-63000}:3000" # 🌟 پورت ۶۳۰۰۰ برای برنامک ایتا
-    restart: unless-stopped 
+    - ${FRONTEND_USER_PORT:-63000}:3000
+    restart: unless-stopped
     networks:
-      - emtedad_network
+    - emtedad_network
     depends_on:
-      - backend
-
-  # 🟠 سرویس فرانت‌ند ادمین (پنل مدیریت وب)
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:3000
+      interval: 30s
+      timeout: 10s
+      retries: 3
   frontend-admin:
     build:
       context: ./frontend-admin
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
-      - "${FRONTEND_ADMIN_PORT:-63001}:3000" # 🌟 پورت ۶۳۰۰۱ برای پنل ادمین
+    - ${FRONTEND_ADMIN_PORT:-63001}:3000
     restart: unless-stopped
     networks:
-      - emtedad_network
+    - emtedad_network
     depends_on:
-      - backend
-
-  # 🟢 سرویس بک‌ند (FastAPI)
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:3000
+      interval: 30s
+      timeout: 10s
+      retries: 3
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
       network: host
     ports:
-      - "${BACKEND_HOST_PORT:-8000}:8000"
+    - ${BACKEND_HOST_PORT:-8000}:8000
     volumes:
-      - ./backend/static/uploads:/app/static/uploads 
+    - ./backend/static/uploads:/app/static/uploads
     env_file:
-      - ./backend/.env
+    - ./backend/.env
     restart: unless-stopped
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
-      - emtedad_network
-
-  # 🔵 سرویس دیتابیس (PostgreSQL)
+    - emtedad_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8000/docs
+      interval: 30s
+      timeout: 10s
+      retries: 3
   db:
     image: postgres:15-alpine
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+    - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=emtedad_user
-      - POSTGRES_PASSWORD=123456
-      - POSTGRES_DB=emtedad_db
+    - POSTGRES_USER=${POSTGRES_USER:-emtedad_user}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-123456}
+    - POSTGRES_DB=${POSTGRES_DB:-emtedad_db}
     ports:
-      - "${DB_HOST_PORT:-5432}:5432"
-    restart: unless-stopped 
+    - ${DB_HOST_PORT:-5432}:5432
+    restart: unless-stopped
     networks:
-      - emtedad_network
-
-  # 🔴 سرویس کش (Redis)
+    - emtedad_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER:-emtedad_user} -d ${POSTGRES_DB:-emtedad_db}
+      interval: 10s
+      timeout: 5s
+      retries: 5
   redis:
     image: redis:7-alpine
     ports:
-      - "${REDIS_HOST_PORT:-6379}:6379"
+    - ${REDIS_HOST_PORT:-6379}:6379
     volumes:
-      - redis_data:/data
-    restart: unless-stopped 
+    - redis_data:/data
+    restart: unless-stopped
     networks:
-      - emtedad_network
+    - emtedad_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 5s
+      retries: 3

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { Lock, Phone, ArrowRight, Trophy } from 'lucide-react';
-import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();

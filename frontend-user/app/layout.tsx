@@ -25,7 +25,6 @@ export default function RootLayout({
               window.Eitaa = window.Eitaa || {};
               window.Eitaa.WebView = window.Eitaa.WebView || {};
               window.Eitaa.WebView.receiveEvent = window.Eitaa.WebView.receiveEvent || function(event, data) {
-                console.log('📌 پیام ایتا بدون کرش دریافت شد:', event, data);
               };
               document.addEventListener('DOMContentLoaded', function() {
                 try {

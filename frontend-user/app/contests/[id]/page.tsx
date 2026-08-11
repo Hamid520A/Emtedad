@@ -15,7 +15,7 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-import { getCleanImageUrl, openExternalLink, downloadAttachmentFile } from '../../../lib/utils/url';
+import { getCleanImageUrl, openExternalLink } from '../../../lib/utils/url';
 
 export default function ContestLandingPage() {
   const router = useRouter();
@@ -82,20 +82,28 @@ export default function ContestLandingPage() {
 
   // ۲. 🌟 موتور شمارش معکوس جدید: کاملاً خطی، ضد هک و ایزوله از دستکاری ساعت سیستم
   useEffect(() => {
-    if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null || totalSecondsLeft <= 0) {
-      if (totalSecondsLeft === 0 && contest?.status === 'upcoming') {
-        // باز شدن خودکار دکمه آزمون به محض به پایان رسیدن ثانیه‌ها
-        setContest((prev: any) => ({ ...prev, status: 'active' }));
-      }
+    if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null) {
+      return;
+    }
+
+    if (totalSecondsLeft <= 0) {
+      setContest((prev: any) => ({ ...prev, status: 'active' }));
       return;
     }
 
     const timer = setInterval(() => {
-      setTotalSecondsLeft((prev) => (prev && prev > 0 ? prev - 1 : 0));
+      setTotalSecondsLeft((prev) => {
+        if (prev !== null && prev <= 1) {
+          clearInterval(timer);
+          setContest((prevContest: any) => ({ ...prevContest, status: 'active' }));
+          return 0;
+        }
+        return prev && prev > 0 ? prev - 1 : 0;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [totalSecondsLeft, contest, mounted]);
+  }, [contest, mounted]);
 
   // ۳. 🌟 افکت کمکی رندر: تبدیل ثانیه‌های زنده به فرمت روز/ساعت/دقیقه/ثانیه برای لایه UI
   useEffect(() => {

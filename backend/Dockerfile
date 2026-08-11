@@ -22,8 +22,13 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 # ۶. کپی کردن کل کدهای بک‌ند به داخل کانتینر
 COPY . .
 
-# ۷. باز کردن پورت ۸۰۰۰ که سرور فاست‌اپی روی آن دوود می‌کند
+# ۸. اضافه کردن کاربر غیر روت برای امنیت پروداکشن
+RUN addgroup --system appgroup && adduser --system --group appuser
+RUN chown -R appuser:appgroup /app
+USER appuser
+
+# ۹. باز کردن پورت ۸۰۰۰
 EXPOSE 8000
 
-# ۸. دستور اجرای سرور با uvicorn
+# ۱۰. دستور اجرای سرور با uvicorn
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

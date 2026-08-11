@@ -11,9 +11,6 @@ class CityBase(BaseModel):
     title: str
     parent_id: Optional[int] = None
 
-class CityCreate(CityBase):
-    pass
-
 class City(CityBase):
     id: int
     class Config:
@@ -62,9 +59,6 @@ class AdminBase(BaseModel):
     user_id: int
     is_active: int = 1
 
-class AdminCreate(BaseModel):
-    user_id: int
-
 class Admin(AdminBase):
     id: int
     class Config:
@@ -78,17 +72,6 @@ class AdminLogBase(BaseModel):
     target_model: Optional[str] = None
     target_id: Optional[int] = None
     description: Optional[str] = None
-
-class AdminLogCreate(AdminLogBase):
-    admin_id: int
-
-class AdminLogOut(AdminLogBase):
-    id: int
-    admin_id: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 # ==========================================
 # Answer Schemas
@@ -113,9 +96,6 @@ class QuestionBase(BaseModel):
     title: str
     description: Optional[str] = None
     is_active: int = 1
-
-class QuestionCreate(QuestionBase):
-    answers: List[AnswerCreate]
 
 class Question(QuestionBase):
     id: int
@@ -207,24 +187,6 @@ class AwardDetailOut(BaseModel):
     class Config:
         from_attributes = True
 
-class ContestDetailOut(BaseModel):
-    id: int
-    title: str
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    video_url: Optional[str] = None
-    status: str
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    question_limit: Optional[int] = None
-    time_limit: int                         
-    file_url: Optional[str] = None          
-    awards: List[AwardDetailOut] = []       
-    certificate_type: str                   
-
-    class Config:
-        from_attributes = True
-
 # ==========================================
 # Subscription Schemas
 # ==========================================
@@ -251,9 +213,6 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
-    phone_number: Optional[str] = None
-
 # ==========================================
 # Banner Schemas
 # ==========================================
@@ -263,22 +222,7 @@ class BannerCreate(BaseModel):
     image_url: str
     status: str = "active"
 
-class BannerOut(BannerCreate):
-    id: int
-    class Config:
-        from_attributes = True
-
 class BannerUserBase(BaseModel):
     banner_id: int
     user_id: int
 
-class BannerUserCreate(BannerUserBase):
-    pass
-
-class BannerUser(BannerUserBase):
-    id: int
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True

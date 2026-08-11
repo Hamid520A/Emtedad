@@ -142,12 +142,18 @@ export default function ExamPage() {
   }, [contestId, router, showReview]);
 
   useEffect(() => {
-    if (isSubmitted || timeLeft <= 0 || loading || questions.length === 0 || showReview) return;
+    if (isSubmitted || loading || questions.length === 0 || showReview) return;
     const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, isSubmitted, loading, questions.length, showReview]);
+  }, [isSubmitted, loading, questions.length, showReview]);
 
   useEffect(() => {
     if (timeLeft === 0 && !isSubmitted && !loading && questions.length > 0 && !showReview) {
@@ -468,9 +474,10 @@ export default function ExamPage() {
             {currentQIndex === questions.length - 1 ? (
               <button 
                 onClick={handleSubmitExam} 
-                className="flex-1 bg-[#c5a059] text-white dark:text-[#1a2e44] rounded-3xl font-black shadow-sm active:scale-95 transition-all"
+                disabled={submitting}
+                className="flex-1 bg-[#c5a059] text-white dark:text-[#1a2e44] rounded-3xl font-black shadow-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                تایید و ثبت نتایج
+                {submitting ? "در حال ثبت..." : "تایید و ثبت نتایج"}
               </button>
             ) : (
               <button onClick={() => setCurrentQIndex(prev => prev + 1)} className="flex-1 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] rounded-3xl font-black shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2">

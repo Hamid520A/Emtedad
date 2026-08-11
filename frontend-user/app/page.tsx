@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 
 import { getProfilePicture } from '../lib/get-profile-api';
-import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User, Megaphone } from 'lucide-react';
+import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User } from 'lucide-react';
 
 import { getCleanImageUrl, openExternalLink, downloadAttachmentFile, parseBannerUrl } from '../lib/utils/url';
 

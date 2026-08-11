@@ -43,7 +43,6 @@ export default function ContestLandingPage() {
     setMounted(true);
 
     if (!contestId) {
-      console.log("⏳ در انتظار استخراج آیدی از آدرس مرورگر...");
       return;
     }
 
@@ -69,14 +68,12 @@ export default function ContestLandingPage() {
           const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
           setLeaderboard(lbRes.data || []);
         } catch (lbError) {
-          console.log("لیدربرد مسابقه هنوز در دسترس نیست.");
         }
 
         try {
           const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
           setProfile(profileRes.data);
         } catch (profError) {
-          console.log("پروفایل کاربری در لایه ادمین رد شد.");
         }
 
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
@@ -85,7 +82,6 @@ export default function ContestLandingPage() {
             const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
             setAnalyticsData(analyticsRes.data);
           } catch (anError) {
-            console.log("نمودارهای آماری برای این مسابقه هنوز آماده نشده‌اند.");
           }
         }
 

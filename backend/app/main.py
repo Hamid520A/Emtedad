@@ -3,12 +3,13 @@
 # =====================================================================
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, UploadFile, File, Request
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
-from . import crud, schemas, models, auth, database
-import shutil, os, random, httpx, base64, redis, json, io, requests, textwrap, traceback, uuid
+from . import schemas, models, auth, database
+import shutil, os, random, redis, json, io, requests, traceback, uuid
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
@@ -493,27 +494,31 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
 @app.get("/contests", response_model=List[schemas.ContestListItem])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)):
     """دریافت لیست مسابقات - فیلتر کامل و قطعی مسابقات حذف شده (Soft Deleted)"""
-    # 🌟 فیکس: فیلتر سخت‌گیرانه برای عدم نمایش مسابقات حذف شده
-    contests = db.query(models.Contest).filter(models.Contest.deleted_at == None).all()
-    now = datetime.now() # 🌟 اصلاح شد: استفاده مستقیم از کلاس datetime
+    now = datetime.now()
     
-    modified = False
-    for contest in contests:
-        if contest.status == 'upcoming' and contest.start_time and contest.start_time <= now:
-            contest.status = 'active'
-            modified = True
-            
-    if modified:
-        db.commit()
+    # 🌟 فیکس: آپدیت بالک وضعیت مسابقات در سطح دیتابیس (جلوگیری از OOM)
+    # ۱. فعال‌سازی مسابقاتی که زمان شروع آن‌ها رسیده
+    db.query(models.Contest).filter(
+        models.Contest.status == 'upcoming',
+        models.Contest.start_time != None,
+        models.Contest.start_time <= now
+    ).update({"status": "active"}, synchronize_session=False)
 
-    # اگر فرانت‌ند فیلتر استاتوس فرستاده بود
+    # ۲. پایان مسابقاتی که زمان پایان آن‌ها گذشته
+    db.query(models.Contest).filter(
+        models.Contest.status == 'active',
+        models.Contest.end_time != None,
+        models.Contest.end_time < now
+    ).update({"status": "finished"}, synchronize_session=False)
+
+    db.commit()
+
+    # 🌟 فیکس: واکشی امن و برگرداندن دیتای نهایی فیلتر شده
+    query = db.query(models.Contest).filter(models.Contest.deleted_at == None)
     if status:
-        return db.query(models.Contest).filter(
-            models.Contest.status == status,
-            models.Contest.deleted_at == None # 🌟 فیلتر همزمان حذف نرم
-        ).all()
+        query = query.filter(models.Contest.status == status)
         
-    return contests
+    return query.all()
 
 @app.get("/contests/{contest_id}")
 def get_contest_detail(
@@ -1190,51 +1195,69 @@ def change_my_password(
 @app.post("/subscriptions")
 def submit_exam(subscription: schemas.SubscriptionCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     try:
-        # ۱. بررسی ثبت‌نام تکراری بر اساس مدل جدید Subscription
-        existing_subscription = db.query(models.Subscription).filter(
-            models.Subscription.user_id == current_user.id,
-            models.Subscription.contest_id == subscription.contest_id
-        ).first()
-
-        if existing_subscription:
-            raise HTTPException(status_code=400, detail="شما قبلاً در این آزمون شرکت کرده‌اید و نمره شما ثبت شده است!")
+        # ۱. محاسبه نمره سرور-ساید (جلوگیری از Spoofing)
+        questions = db.query(models.Question).filter(
+            models.Question.contest_id == subscription.contest_id,
+            models.Question.deleted_at == None
+        ).all()
+        
+        correct_answers = {}
+        for q in questions:
+            for a in q.answers:
+                if a.is_correct == 1 and a.deleted_at is None:
+                    correct_answers[str(q.id)] = str(a.id)
+                    break
+                    
+        total_questions = len(questions)
+        correct_count = 0
+        answers_map = getattr(subscription, "answers_map", None)
+        
+        if answers_map and isinstance(answers_map, dict):
+            for q_id, a_id in answers_map.items():
+                if str(q_id) in correct_answers and str(a_id) == correct_answers[str(q_id)]:
+                    correct_count += 1
+                    
+        calculated_score = int((correct_count / total_questions) * 100) if total_questions > 0 else 0
 
         # ۲. ایجاد رکورد اصلی شرکت در مسابقه
         db_subscription = models.Subscription(
             user_id=current_user.id,
             contest_id=subscription.contest_id,
-            score=subscription.score,
+            score=calculated_score,
             started_at=datetime.utcnow()
         )
         db.add(db_subscription)
-        db.commit()
-        db.refresh(db_subscription)
+        db.flush() # تولید ID بدون کامیت برای استفاده در رکورد فرزند
         
-        # ۳. 🌟 مهندسی معکوس و نرمال‌سازی نقشه پاسخ‌ها به جداول تفکیک‌شده جدید
-        answers_map = getattr(subscription, "answers_map", None)
+        # ۳. ذخیره جواب‌ها به صورت اتمیک
         if answers_map and isinstance(answers_map, dict):
             for q_id, a_id in answers_map.items():
-                # ایجاد رکورد سوال پاسخ داده شده
                 db_sub_q = models.SubscriptionQuestions(
                     subscription_id=db_subscription.id,
                     question_id=int(q_id)
                 )
                 db.add(db_sub_q)
-                db.commit()
-                db.refresh(db_sub_q)
+                db.flush()
 
-                # ایجاد رکورد گزینه‌ انتخاب شده توسط کاربر
                 db_sub_a = models.SubscriptionAnswer(
                     subscription_question_id=db_sub_q.id,
                     answer_id=int(a_id),
                     is_chosen=1
                 )
                 db.add(db_sub_a)
-            db.commit()
+                
+        # یک کامیت نهایی و اتمیک (جلوگیری از تراکنش‌های تکه‌تکه)
+        db.commit()
+        db.refresh(db_subscription)
 
         return {"status": "success", "id": db_subscription.id}
         
+    except IntegrityError:
+        # ۴. جلوگیری از Race Condition با کچ ارور UniqueConstraint
+        db.rollback()
+        raise HTTPException(status_code=400, detail="شما قبلاً در این آزمون شرکت کرده‌اید و نمره شما ثبت شده است!")
     except HTTPException:
+        db.rollback()
         raise
     except Exception as e:
         db.rollback()

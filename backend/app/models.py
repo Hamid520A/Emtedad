@@ -1,5 +1,5 @@
 # backend/app/models.py
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float, Text, SmallInteger, Date, Time, BigInteger
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float, Text, SmallInteger, Date, Time, BigInteger, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -162,6 +162,9 @@ class Answer(Base):
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'contest_id', name='uix_user_contest_subscription'),
+    )
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     contest_id = Column(Integer, ForeignKey("contests.id"))

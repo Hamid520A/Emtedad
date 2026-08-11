@@ -73,11 +73,9 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
   }
 
   if (!rawUrl) {
-    console.log("[WebViewLink] downloadAttachmentFile aborted: No URL provided");
     return;
   }
 
-  console.log("[WebViewLink] downloadAttachmentFile fired for URL:", rawUrl);
 
   const cleanPath = getCleanImageUrl(rawUrl);
   const fullUrl = cleanPath.startsWith('/') 
@@ -89,13 +87,11 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
 
   // ۱. اگر داخل وب‌اپ ایتا/تلگرام هستیم، دانلود با Blob بلاک می‌شود. مستقیماً سراغ روش نیتیو می‌رویم
   if (tgWebApp) {
-    console.log("[WebViewLink] Native WebApp SDK detected. Bypassing fetch/blob download trap.");
   } else {
     // ۲. سعی در دریافت هم‌منبع (Same-origin fetch) برای مرورگرهای عادی
     try {
       const response = await fetch(cleanPath);
       if (response.ok) {
-        console.log("[WebViewLink] Same-origin fetch successful. Creating Object URL for download.");
         const blob = await response.blob();
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -116,7 +112,6 @@ export const downloadAttachmentFile = async (rawUrl: string, fallbackFileName?: 
     }
   }
 
-  console.log("[WebViewLink] Falling back to openExternalLink for URL:", fullUrl);
   // ۳. هدایت از طریق باز کردن آدرس کامل با روش‌های نیتیو و target="_top"
   openExternalLink(fullUrl, e);
 };
@@ -131,11 +126,9 @@ export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Even
   }
 
   if (!rawUrl) {
-    console.log("[WebViewLink] openExternalLink aborted: No URL provided");
     return;
   }
 
-  console.log("[WebViewLink] openExternalLink fired for URL:", rawUrl);
 
   let fullUrl = rawUrl;
 
@@ -151,7 +144,6 @@ export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Even
     }
   }
 
-  console.log("[WebViewLink] Full URL resolved to:", fullUrl);
 
   if (typeof window === 'undefined') return;
 
@@ -162,11 +154,9 @@ export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Even
   const finalUrl = isDocument ? "https://docs.google.com/viewer?url=" + encodeURIComponent(fullUrl) : fullUrl;
 
   if (isDocument) {
-    console.log("[WebViewLink] Document detected. Wrapping with Google Docs Viewer.");
   }
 
   // 3. اجرای قطعی با target="_top" برای خروج از وب‌ویو
-  console.log("[WebViewLink] Executing universal target='_top' hatch for URL:", finalUrl);
   try {
     const a = document.createElement('a');
     a.href = finalUrl;
