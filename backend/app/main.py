@@ -965,7 +965,7 @@ def update_my_profile(
         try:
             normalized_date = fa_to_en_digits(raw_birth_date)
             # تبدیل رشته جلالی به آبجکت دیت‌تایم میلادی برای ذخیره در پستگرس
-            user.birth_date = jdatetime.date.strptime(normalized_date, '%Y/%m/%d').togregorian()
+            user.birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
         except ValueError:
             raise HTTPException(status_code=400, detail="فرمت تاریخ تولد نامعتبر است. لطفاً از فرمت معتبر مانند ۱۳۶۴/۰۵/۳۰ استفاده کنید.")
     
