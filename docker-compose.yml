@@ -156,3 +156,39 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+    - "9090:9090"
+    volumes:
+    - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+    networks:
+    - emtedad_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+    - "3001:3000"
+    restart: unless-stopped
+    networks:
+    - emtedad_network
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M

@@ -18,8 +18,12 @@ from jose import JWTError, jwt
 import logging
 import contextvars
 from starlette.middleware.base import BaseHTTPMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI()
+
+# 🌟 فعال‌سازی متریک‌های پرومتئوس برای مانیتورینگ بلادرنگ
+Instrumentator().instrument(app).expose(app)
 
 # 🌟 متغیر کانتکست ایمن برای لاگین یکپارچه
 request_id_context = contextvars.ContextVar("request_id", default="unknown")
