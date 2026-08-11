@@ -136,7 +136,7 @@ export default function AdminUsersPage() {
       user.national_id || '',
       user.province || '',
       user.city || '---',
-      user.gender === 'male' || user.gender === 'مرد' ? 'مرد' : 'زن',
+      user.gender === 'male' ? 'مرد' : user.gender === 'female' ? 'زن' : 'نامشخص',
       user.is_admin ? 'مدیر سیستم' : 'کاربر عادی',
       user.last_contest || 'شرکت نکرده',
       user.average_score || '---'
@@ -335,8 +335,8 @@ export default function AdminUsersPage() {
                       <td className="py-4 text-gray-500 font-mono">{user.national_id}</td>
                       <td className="py-4 font-bold text-gray-600">{user.province}</td>
                       <td className="py-4">
-                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'مرد' || user.gender === 'male' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
-                          {user.gender === 'male' || user.gender === 'مرد' ? 'مرد' : 'زن'}
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'male' ? 'bg-blue-50 text-blue-600' : user.gender === 'female' ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
+                          {user.gender === 'male' ? 'مرد' : user.gender === 'female' ? 'زن' : 'نامشخص'}
                         </span>
                       </td>
                       <td className="py-4">
@@ -480,7 +480,7 @@ export default function AdminUsersPage() {
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
                           <Users size={16} className="text-gray-400" />
-                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">جنسیت</span><span className="font-black text-gray-700">{selectedUser.gender === 'male' || selectedUser.gender === 'مرد' ? 'مرد' : 'زن'}</span></div>
+                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">جنسیت</span><span className="font-black text-gray-700">{selectedUser.gender === 'male' ? 'مرد' : selectedUser.gender === 'female' ? 'زن' : 'نامشخص'}</span></div>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
                           <ShieldCheck size={16} className={selectedUser.is_admin ? "text-purple-500" : "text-gray-400"} />

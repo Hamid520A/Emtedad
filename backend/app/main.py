@@ -1489,7 +1489,7 @@ def get_admin_users_list(
     
     # بارگذاری پیش‌دستانه (Eager Loading) شهرها و استان‌ها برای جلوگیری از کوئری‌های تکراری در حلقه
     users = db.query(models.User)\
-              .options(joinedload(models.User.city).joinedload(models.City.parent))\
+              .options(joinedload(models.User.city).joinedload(models.City.parent), joinedload(models.User.admin))\
               .all()
               
     results = []
@@ -1529,11 +1529,11 @@ def get_admin_users_list(
             "national_id": u.national_id or "---",
             "province": province_title,
             "city": city_title,
-            "gender": "---", 
+            "gender": u.gender or "---", 
             "last_contest": last_sub.contest.title if last_sub and last_sub.contest else "شرکت نکرده",
             "all_contests": participated_contests,
             "average_score": average_score,
-            "is_admin": True if u.id == 1 else False
+            "is_admin": True if u.admin else False
         })
         
     return results
@@ -1656,6 +1656,7 @@ def get_user_detail(user_id: int, db: Session = Depends(database.get_db), curren
         "province": user.city.parent.title if (user.city and user.city.parent) else "---",
         "city": user.city.title if user.city else "---",
         "gender": user.gender,
+        "is_admin": True if user.admin else False,
         "birth_date": str(user.birth_date) if user.birth_date else "---",
         "history": history_records
     }
@@ -1675,6 +1676,9 @@ def update_admin_user_profile(
     user.last_name = payload.get("last_name", user.last_name)
     user.phone_number = payload.get("phone", payload.get("phone_number", user.phone_number))
     user.national_id = payload.get("national_id", user.national_id)
+    
+    if "gender" in payload:
+        user.gender = payload.get("gender")
     
     if "city_id" in payload:
         user.city_id = payload.get("city_id")
