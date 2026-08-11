@@ -1519,8 +1519,9 @@ def proxy_get_profile_photo(
         request_data["token"] = token
         request_data["imei"] = imei
 
-        # ارسال درخواست همزمان به سرور آپ‌استریم ایتا (تایم‌اوت سخت‌گیرانه برای جلوگیری از Thread Starvation)
-        response = requests.post(eitaa_target_url, json=request_data, timeout=(3.0, 5.0))
+        # اختصاص تایم‌اوت طولانی‌تر (۱۵ ثانیه) برای دریافت عکس پروفایل (چون دانلود فایل‌های باینری سنگین زمان‌بر است)
+        dynamic_timeout = (3.0, 15.0) if request_data.get("method") == "upload.getFile" else (3.0, 5.0)
+        response = requests.post(eitaa_target_url, json=request_data, timeout=dynamic_timeout)
         response_data = response.json()
 
         # 🌟 لایه هوشمند کش دیتای هویت‌سنجی ایتا در دیتابیس پروژه
