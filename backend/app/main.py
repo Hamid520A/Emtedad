@@ -1025,7 +1025,7 @@ def get_my_complete_profile(
         "last_name": user_data.last_name,
         "phone_number": user_data.phone_number,
         "national_id": user_data.national_id,
-        "birth_date": str(user_data.birth_date) if user_data.birth_date else "---",
+        "birth_date": jdatetime.date.fromgregorian(date=user_data.birth_date).strftime('%Y/%m/%d') if user_data.birth_date else "---",
         "city_title": city_title,
         "province_title": province_title,
         "history": history_records
