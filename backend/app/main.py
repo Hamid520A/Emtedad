@@ -506,12 +506,29 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
 
     db.commit()
 
-    # 🌟 فیکس: واکشی امن و برگرداندن دیتای نهایی فیلتر شده
+    # 🌟 فیکس: واکشی امن و برگرداندن دیتای نهایی فیلتر شده (با سیستم کش ردیس)
+    cache_key = f"cache:contests:all:{status or 'all'}"
+    cached_data = r.get(cache_key)
+    if cached_data:
+        try:
+            return json.loads(cached_data)
+        except Exception:
+            pass
+            
     query = db.query(models.Contest).filter(models.Contest.deleted_at == None)
     if status:
         query = query.filter(models.Contest.status == status)
         
-    return query.all()
+    results = query.all()
+    
+    # 🌟 ذخیره در کش ردیس (مدت زمان ۳۰ ثانیه)
+    try:
+        from fastapi.encoders import jsonable_encoder
+        r.setex(cache_key, 30, json.dumps(jsonable_encoder(results)))
+    except Exception as e:
+        print(f"Cache save error: {e}")
+        
+    return results
 
 @app.get("/contests/{contest_id}")
 def get_contest_detail(
@@ -814,6 +831,15 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
     }
     
+    # 🌟 سیستم کش پرسرعت ردیس برای لیدربورد (۶۰ ثانیه)
+    cache_key = f"cache:leaderboard:{contest_id}"
+    cached_data = r.get(cache_key)
+    if cached_data:
+        try:
+            return JSONResponse(status_code=200, content=json.loads(cached_data), headers=cors_headers)
+        except Exception:
+            pass
+            
     try:
         # دریافت لیست شرکت‌کنندگان
         subscriptions = db.query(models.Subscription).filter(
@@ -859,7 +885,12 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
         
         for idx, item in enumerate(results):
             item["rank"] = idx + 1
-            
+                    # ذخیره در کش ردیس برای ۶۰ ثانیه
+        try:
+            r.setex(cache_key, 60, json.dumps(results))
+        except Exception:
+            pass
+
         return JSONResponse(status_code=200, content=results, headers=cors_headers)
 
     except Exception as global_err:
@@ -1440,8 +1471,8 @@ def proxy_get_profile_photo(
         request_data["token"] = token
         request_data["imei"] = imei
 
-        # ارسال درخواست همزمان به سرور آپ‌استریم ایتا
-        response = requests.post(eitaa_target_url, json=request_data, timeout=25.0)
+        # ارسال درخواست همزمان به سرور آپ‌استریم ایتا (تایم‌اوت سخت‌گیرانه برای جلوگیری از Thread Starvation)
+        response = requests.post(eitaa_target_url, json=request_data, timeout=(3.0, 5.0))
         response_data = response.json()
 
         # 🌟 لایه هوشمند کش دیتای هویت‌سنجی ایتا در دیتابیس پروژه
@@ -1474,6 +1505,8 @@ def proxy_get_profile_photo(
 
         return response_data
             
+    except requests.exceptions.Timeout:
+        return {"status": "error", "message": "ارتباط با سرور ایتا برقرار نشد. لطفاً دوباره تلاش کنید."}
     except json.JSONDecodeError:
         return {"status": "error", "message": "500: ساختار متنی ردیس فرمت JSON معتبری ندارد."}
     except Exception as e:
