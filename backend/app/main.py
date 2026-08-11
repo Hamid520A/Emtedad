@@ -1503,7 +1503,9 @@ def proxy_get_profile_photo(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user) # 🌟 اضافه شدن تاثیری امنیت و دسترسی به کاربر جاری
 ):
-    eitaa_target_url = os.getenv("EITAA_API_URL", EITAA_API_URL) 
+    eitaa_target_url = os.getenv("EITAA_API_URL", "").strip()
+    if not eitaa_target_url or "127.0.0.1" in eitaa_target_url or "localhost" in eitaa_target_url:
+        eitaa_target_url = "http://10.10.10.4:3000/send"
     try:
         session_json_str = r_eitaa.get(ACCOUNT_KEY)
         if not session_json_str:
@@ -1554,12 +1556,15 @@ def proxy_get_profile_photo(
 
         return response_data
             
-    except requests.exceptions.Timeout:
-        return {"status": "error", "message": "ارتباط با سرور ایتا برقرار نشد. لطفاً دوباره تلاش کنید."}
-    except json.JSONDecodeError:
-        return {"status": "error", "message": "500: ساختار متنی ردیس فرمت JSON معتبری ندارد."}
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        logger.error(f"Eitaa Upstream Failed: {str(e)}")
+        raise HTTPException(status_code=502, detail="Bad Gateway: Could not resolve or connect to Eitaa upstream.")
+    except json.JSONDecodeError as e:
+        logger.error(f"Eitaa Upstream Failed: JSONDecodeError - {str(e)}")
+        raise HTTPException(status_code=500, detail="ساختار متنی ردیس فرمت JSON معتبری ندارد.")
     except Exception as e:
-        return {"status": "error", "message": f"500: خطا در برقراری ارتباط: {str(e)}"}
+        logger.error(f"Eitaa Proxy General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="خطا در برقراری ارتباط با سرور آپ‌استریم.")
     
 @app.get("/admin/users", response_model=List[Dict[str, Any]])
 @app.get("/admin/users-list", response_model=List[Dict[str, Any]])
