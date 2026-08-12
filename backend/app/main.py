@@ -20,8 +20,33 @@ import logging
 import contextvars
 from starlette.middleware.base import BaseHTTPMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # این لاگر در خطوط پایین‌تر فایل ساخته می‌شود و هنگام استارت در دسترس است
+    logger.info("Application is warming up...")
+    yield
+    logger.info("Initiating graceful shutdown...")
+    try:
+        r.close()
+        logger.info("Closed RateLimiter Redis connection.")
+    except Exception as e:
+        logger.error(f"Error closing RateLimiter Redis: {e}")
+        
+    try:
+        r_eitaa.close()
+        logger.info("Closed Eitaa Session Redis connection.")
+    except Exception as e:
+        logger.error(f"Error closing Eitaa Session Redis: {e}")
+        
+    try:
+        database.engine.dispose()
+        logger.info("Disposed SQLAlchemy engine.")
+    except Exception as e:
+        logger.error(f"Error disposing SQLAlchemy engine: {e}")
+
+app = FastAPI(lifespan=lifespan)
 
 # 🌟 فعال‌سازی متریک‌های پرومتئوس برای مانیتورینگ بلادرنگ
 Instrumentator().instrument(app).expose(app)
@@ -119,8 +144,20 @@ if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.method} {request.url}: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error. The incident has been logged."}
+    )
+
 @app.get("/health", tags=["System"])
-def deep_health_check(db: Session = Depends(database.get_db)):
+def liveness_probe():
+    return {"status": "alive"}
+
+@app.get("/ready", tags=["System"])
+def readiness_probe(db: Session = Depends(database.get_db)):
     health_status = {
         "status": "ok",
         "database": "ok",
@@ -252,7 +289,8 @@ def draw_centered_rtl_text(draw, center_x, y, text, font, fill):
     try:
         bbox = draw.textbbox((0, 0), text, font=font, direction="rtl")
         text_width = bbox[2] - bbox[0]
-    except:
+    except Exception as e:
+        logger.warning(f"Error calculating text width: {e}")
         text_width = len(text) * 13
     actual_x = center_x - (text_width // 2)
     safe_draw_text(draw, (actual_x, y), text, font, fill, direction="rtl")
@@ -266,8 +304,8 @@ def safe_draw_text(draw, position, text, font, fill, direction=None):
     except Exception:
         try:
             draw.text(position, text, font=font, fill=fill)
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Silent failure intercepted: {e}")
 
 # 🌟 بازنویسی کامل موتور گرافیکی گواهی‌نامه‌ها منطبق بر معماری ۱ به N جداول جدید StarUML
 def draw_certificate_canvas(user, contest, subscription):
@@ -333,7 +371,8 @@ def draw_certificate_canvas(user, contest, subscription):
     try:
         w_s = draw.textbbox((0, 0), txt_serial, font=font_sub, direction="rtl")[2] - draw.textbbox((0, 0), txt_serial, font=font_sub, direction="rtl")[0]
         w_d = draw.textbbox((0, 0), txt_date, font=font_sub, direction="rtl")[2] - draw.textbbox((0, 0), txt_date, font=font_sub, direction="rtl")[0]
-    except:
+    except Exception as e:
+        logger.warning(f"Error calculating text width: {e}")
         w_s, w_d = 160, 160
         
     safe_draw_text(draw, (1120 - w_s, 70), txt_serial, font_sub, "#FFFFFF", direction="rtl")
@@ -594,8 +633,8 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
     if cached_data:
         try:
             return json.loads(cached_data)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Silent failure intercepted: {e}")
             
     query = db.query(models.Contest).filter(models.Contest.deleted_at == None)
     if status:
@@ -919,8 +958,8 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
     if cached_data:
         try:
             return JSONResponse(status_code=200, content=json.loads(cached_data), headers=cors_headers)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Silent failure intercepted: {e}")
             
     try:
         # دریافت لیست شرکت‌کنندگان
@@ -970,8 +1009,8 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
                     # ذخیره در کش ردیس برای ۶۰ ثانیه
         try:
             r.setex(cache_key, 60, json.dumps(results))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Silent failure intercepted: {e}")
 
         return JSONResponse(status_code=200, content=results, headers=cors_headers)
 
@@ -1521,7 +1560,8 @@ async def get_admin_stats(db: Session = Depends(database.get_db), current_admin:
          .order_by(func.date(models.User.created_at)).all()
          
         chart_data = [{"name": str(row.date), "users": row.count} for row in chart_query]
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Error generating chart data: {e}")
         chart_data = []
     
     return {
@@ -1813,8 +1853,8 @@ def update_admin_user_profile(
     if "birth_date" in payload and payload.get("birth_date"):
         try:
             user.birth_date = datetime.strptime(payload.get("birth_date"), "%Y-%m-%d").date()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Silent failure intercepted: {e}")
             
     # 🌟 مدیریت هوشمند جدول admins بر اساس مقدار کلید is_admin ارسالی از فرانت‌ند
     if "is_admin" in payload:
@@ -2281,7 +2321,8 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
                     time_taken = (sub.time_left.hour * 3600) + (sub.time_left.minute * 60) + sub.time_left.second
                 else:
                     time_taken = int(sub.time_left)
-            except:
+            except Exception as e:
+                logger.warning(f"Error calculating time taken: {e}")
                 time_taken = 0
             
         if time_taken < 60: time_dist["زیر ۱ دقیقه"] += 1
@@ -2511,7 +2552,9 @@ def get_admin_contest_participants(
                 time_taken_seconds = (sub.time_left.hour * 3600) + (sub.time_left.minute * 60) + sub.time_left.second
             else:
                 try: time_taken_seconds = int(sub.time_left)
-                except: time_taken_seconds = 0
+                except Exception as e:
+                    logger.warning(f"Error calculating time taken: {e}")
+                    time_taken_seconds = 0
                 
         national_id = sub.user.national_id or "----"
         last_four = national_id[-4:] if len(national_id) >= 4 else national_id
