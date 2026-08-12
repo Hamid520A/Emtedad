@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
@@ -118,6 +118,46 @@ UPLOAD_DIR = "static/uploads"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/health", tags=["System"])
+def deep_health_check(db: Session = Depends(database.get_db)):
+    health_status = {
+        "status": "ok",
+        "database": "ok",
+        "redis_ratelimit": "ok",
+        "redis_eitaa": "ok"
+    }
+    
+    # Check Database
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        logger.error(f"HealthCheck DB Error: {str(e)}")
+        health_status["database"] = "error"
+        health_status["status"] = "error"
+        
+    # Check Redis Ratelimit
+    try:
+        if not r.ping():
+            raise Exception("Redis ping returned False")
+    except Exception as e:
+        logger.error(f"HealthCheck Redis Ratelimit Error: {str(e)}")
+        health_status["redis_ratelimit"] = "error"
+        health_status["status"] = "error"
+        
+    # Check Redis Eitaa
+    try:
+        if not r_eitaa.ping():
+            raise Exception("Redis Eitaa ping returned False")
+    except Exception as e:
+        logger.error(f"HealthCheck Redis Eitaa Error: {str(e)}")
+        health_status["redis_eitaa"] = "error"
+        health_status["status"] = "error"
+        
+    if health_status["status"] == "error":
+        raise HTTPException(status_code=503, detail=health_status)
+        
+    return health_status
 
 async def get_current_user_optional(request: Request, db: Session = Depends(database.get_db)):
     """تابع کمکی برای احراز هویت اختیاری؛ اگر کاربر توکن فرستاده بود هویتش مشخص می‌شود، در غیر این صورت None برمی‌گرداند"""
