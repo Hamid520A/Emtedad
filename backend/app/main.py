@@ -91,6 +91,11 @@ app.add_middleware(RequestTracingMiddleware)
 
 # ۱. اتصال به سرور دیتابیس Redis برای Rate Limiting
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
+DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() in ("true", "1", "yes")
+
+if SECRET_KEY == "fallback_temporary_secret_key_for_development" and not DEBUG_MODE:
+    raise RuntimeError("FATAL SECURITY ERROR: Running in production with a fallback SECRET_KEY is strictly forbidden.")
+
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 RATELIMIT_REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 RATELIMIT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
@@ -204,8 +209,8 @@ async def get_current_user_optional(request: Request, db: Session = Depends(data
         
     token = auth_header.split(" ")[1]
     try:
-        # رمزگشایی توکن با کلیدهای امنیتی موجود در همین فایل
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # رمزگشایی توکن با کلیدهای امنیتی موجود در همین فایل و بررسی سفت و سخت
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True, "verify_exp": True})
         phone_number: str = payload.get("sub")
         if phone_number is None:
             return None
@@ -233,10 +238,11 @@ def require_admin(current_user: models.User = Depends(auth.get_current_user), db
     return current_user
 
 def create_jwt_token(data: dict, expires_delta: timedelta):
-    to_encode = data.copy()
+    # Strip any sensitive PII explicitly
+    safe_data = {k: v for k, v in data.items() if k not in ("password", "national_id", "hashed_password")}
     expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    safe_data.update({"exp": expire})
+    return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
 
 def safe_load_image(url_str):
     if not url_str:
@@ -2402,7 +2408,7 @@ def refresh_access_token(payload: dict):
         raise HTTPException(status_code=400, detail="ریفرش توکن ارسال نشده است")
         
     try:
-        decoded_data = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        decoded_data = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True, "verify_exp": True})
         username: str = decoded_data.get("sub")
         is_admin: bool = decoded_data.get("is_admin", False)
         

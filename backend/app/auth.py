@@ -3,30 +3,34 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from passlib.context import CryptContext
 from . import models, database
 from sqlalchemy.orm import Session
 
 # 🌟 خواندن مستقیم کلیدها از فایل env
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
+DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() in ("true", "1", "yes")
+
+if SECRET_KEY == "fallback_temporary_secret_key_for_development" and not DEBUG_MODE:
+    raise RuntimeError("FATAL SECURITY ERROR: Running in production with a fallback SECRET_KEY is strictly forbidden.")
+
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 def get_password_hash(password: str) -> str:
-    pwd_bytes = password.encode('utf-8')
-    salt = bcrypt.gensalt()
-    hashed_password = bcrypt.hashpw(pwd_bytes, salt)
-    return hashed_password.decode('utf-8')
+    return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    password_byte_enc = plain_password.encode('utf-8')
-    hashed_password_byte_enc = hashed_password.encode('utf-8')
-    return bcrypt.checkpw(password_byte_enc, hashed_password_byte_enc)
+    return pwd_context.verify(plain_password, hashed_password)
 
 def create_access_token(data: dict):
-    to_encode = data.copy()
+    # Strip any sensitive PII explicitly
+    safe_data = {k: v for k, v in data.items() if k not in ("password", "national_id", "hashed_password")}
     expire = datetime.now(timezone.utc) + timedelta(minutes=1440) # ۲۴ ساعت
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    safe_data.update({"exp": expire})
+    return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(db: Session = Depends(database.get_db), token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
