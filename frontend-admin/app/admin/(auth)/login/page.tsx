@@ -13,6 +13,12 @@ export default function AdminLoginPage() {
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (password.length < 8) {
+      alert("رمز عبور باید حداقل ۸ کاراکتر باشد");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -27,9 +33,9 @@ export default function AdminLoginPage() {
       localStorage.setItem('isAdmin', 'true');
 
       alert("ورود با موفقیت انجام شد. به پنل مدیریت خوش آمدید! 👑");
-      
+
       // هدایت مستقیم به داشبورد ادمین
-      router.push('/admin/dashboard'); 
+      router.push('/admin/dashboard');
     } catch (error: any) {
       const errorMsg = error.response?.data?.detail || "خطا در برقراری ارتباط با سرور مدیریت.";
       alert(errorMsg);
@@ -41,7 +47,7 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 text-right font-sans" dir="rtl">
       <div className="w-full max-w-md bg-[#1e293b] p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl space-y-6">
-        
+
         {/* برندینگ و لوگوی پنل ادمین */}
         <div className="text-center space-y-2">
           <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl flex items-center justify-center mx-auto shadow-inner animate-pulse">
@@ -56,14 +62,14 @@ export default function AdminLoginPage() {
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">شماره تماس مدیر</label>
             <div className="relative">
               <Phone className="absolute right-4 top-4 text-slate-500" size={18} />
-              <input 
-                type="text" 
-                value={phone} 
-                onChange={e => setPhone(e.target.value)} 
-                placeholder="09120000000" 
+              <input
+                type="text"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="09120000000"
                 dir="ltr"
-                className="w-full p-4 pr-12 bg-[#0f172a] text-white border border-slate-800 rounded-2xl outline-none focus:border-red-500 text-sm font-bold placeholder-slate-600" 
-                required 
+                className="w-full p-4 pr-12 bg-[#0f172a] text-white border border-slate-800 rounded-2xl outline-none focus:border-red-500 text-sm font-bold placeholder-slate-600"
+                required
               />
             </div>
           </div>
@@ -72,21 +78,21 @@ export default function AdminLoginPage() {
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">رمز عبور امنیتی</label>
             <div className="relative">
               <Lock className="absolute right-4 top-4 text-slate-500" size={18} />
-              <input 
-                type="password" 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
-                placeholder="••••••" 
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••"
                 dir="ltr"
-                className="w-full p-4 pr-12 bg-[#0f172a] text-white border border-slate-800 rounded-2xl outline-none focus:border-red-500 text-sm font-bold placeholder-slate-600" 
-                required 
+                className="w-full p-4 pr-12 bg-[#0f172a] text-white border border-slate-800 rounded-2xl outline-none focus:border-red-500 text-sm font-bold placeholder-slate-600"
+                required
               />
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading} 
+          <button
+            type="submit"
+            disabled={loading}
             className="w-full mt-2 bg-gradient-to-r from-red-600 to-rose-600 text-white p-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:from-red-700 hover:to-rose-700 active:scale-[0.98] transition-all shadow-lg shadow-red-950/20 disabled:opacity-70"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : "بررسی هویت و ورود"}
