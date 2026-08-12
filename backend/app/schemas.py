@@ -1,5 +1,5 @@
 # backend/app/schemas.py
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 from typing import List, Optional
 from datetime import datetime, date, time
 import jdatetime
@@ -20,13 +20,13 @@ class City(CityBase):
 # User Schemas
 # ==========================================
 class UserBase(BaseModel):
-    first_name: str
-    last_name: Optional[str] = None
-    phone_number: str
-    national_id: str
+    first_name: str = Field(..., min_length=2, max_length=50, strip_whitespace=True)
+    last_name: Optional[str] = Field(None, max_length=50, strip_whitespace=True)
+    phone_number: str = Field(..., pattern=r"^09\d{9}$", strip_whitespace=True)
+    national_id: str = Field(..., pattern=r"^\d{10}$", strip_whitespace=True)
     city_id: Optional[int] = None
     birth_date: Optional[date] = None
-    gender: str = "male"
+    gender: str = Field("male", max_length=10)
     @field_validator("birth_date")
     @classmethod
     def validate_min_age(cls, value):
@@ -40,7 +40,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=8, max_length=128, strip_whitespace=True)
 
 class User(UserBase):
     id: int
@@ -49,8 +49,8 @@ class User(UserBase):
         from_attributes = True
 
 class UserLogin(BaseModel):
-    phone_number: str
-    password: str
+    phone_number: str = Field(..., pattern=r"^09\d{9}$", strip_whitespace=True)
+    password: str = Field(..., min_length=8, max_length=128)
 
 # ==========================================
 # Admin Schemas (بروزرسانی شده بر اساس رابطه ۱ به ۱ جدید)

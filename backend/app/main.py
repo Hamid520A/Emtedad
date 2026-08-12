@@ -9,7 +9,7 @@ from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
-import shutil, os, random, redis, json, io, requests, traceback, uuid
+import shutil, os, random, redis, json, io, requests, traceback, uuid, re
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
@@ -112,6 +112,9 @@ r_eitaa = redis.Redis(host=EITAA_REDIS_HOST, port=EITAA_REDIS_PORT, db=EITAA_RED
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_env.split(",")]
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
+
+if "*" in ALLOWED_ORIGINS:
+    raise RuntimeError("FATAL SECURITY ERROR: CORS ALLOWED_ORIGINS cannot contain '*' when allow_credentials is True.")
 
 app.add_middleware(
     CORSMiddleware,
@@ -929,15 +932,34 @@ async def upload_file(
     file: UploadFile = File(...),
     current_admin: models.User = Depends(require_admin)
 ):
-    # 🌟 ۲. استخراج و بررسی پسوند فایل
-    file_ext = os.path.splitext(file.filename)[1].lower()
+    # 🌟 1. MIME Type Checking (Do not rely solely on extension)
+    if file.content_type not in ["image/jpeg", "image/png", "image/webp", "application/pdf", "image/svg+xml"]:
+        raise HTTPException(
+            status_code=400,
+            detail="MIME type غیرمجاز است. فقط تصاویر JPEG, PNG, WEBP مجاز هستند."
+        )
+
+    # 🌟 2. File Size Validation (Max 5MB)
+    file.file.seek(0, 2)
+    file_size = file.file.tell()
+    file.file.seek(0)
+    if file_size > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="حجم فایل نباید بیشتر از 5 مگابایت باشد."
+        )
+
+    # 🌟 3. Sanitize filename to prevent Path Traversal
+    safe_filename = re.sub(r'[^a-zA-Z0-9.\-]', '', os.path.basename(file.filename))
+    file_ext = os.path.splitext(safe_filename)[1].lower()
+    
     if file_ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
             detail=f"فرمت فایل غیرمجاز است! فرمت‌های مجاز: {', '.join(ALLOWED_EXTENSIONS)}"
         )
     
-    # 🌟 ۳. ساخت نام یکتا برای فایل جهت جلوگیری از اوررایت و حملات Path Traversal
+    # 🌟 4. ساخت نام یکتا برای فایل جهت جلوگیری از اوررایت و حملات Path Traversal
     unique_filename = f"{uuid.uuid4().hex}{file_ext}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
     
