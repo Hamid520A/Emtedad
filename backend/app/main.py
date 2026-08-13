@@ -21,6 +21,7 @@ import contextvars
 from starlette.middleware.base import BaseHTTPMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from contextlib import asynccontextmanager
+from fastapi.security import OAuth2PasswordRequestForm
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -637,6 +638,23 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
         "access_token": token, 
         "token_type": "bearer"
     }
+
+@app.post("/swagger-login", tags=["System"], include_in_schema=False)
+def login_for_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    """این اندپوینت کاملاً مخفی است و فقط برای دکمه Authorize سواگر کار می‌کند"""
+    # سواگر شماره تلفن را به صورت خودکار درون فیلد username قرار می‌دهد
+    user = db.query(models.User).filter(models.User.phone_number == form_data.username).first()
+    
+    if not user or not auth.verify_password(form_data.password, user.password):
+        raise HTTPException(status_code=400, detail="شماره موبایل یا رمز عبور اشتباه است")
+        
+    # صدور توکن با تشخیص اتوماتیک ادمین بودن
+    token = auth.create_access_token(data={
+        "sub": user.phone_number, 
+        "is_admin": True if (user.admin and user.admin.is_active == 1) else False
+    })
+    
+    return {"access_token": token, "token_type": "bearer"}
 
 @app.get("/contests", response_model=List[schemas.ContestListItem])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):

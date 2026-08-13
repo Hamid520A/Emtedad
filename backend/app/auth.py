@@ -15,7 +15,7 @@ if SECRET_KEY == "fallback_temporary_secret_key_for_development" and not DEBUG_M
     raise RuntimeError("FATAL SECURITY ERROR: Running in production with a fallback SECRET_KEY is strictly forbidden.")
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="swagger-login")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
