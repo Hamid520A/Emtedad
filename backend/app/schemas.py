@@ -29,27 +29,29 @@ class UserBase(BaseModel):
     birth_date: Optional[date] = None
     gender: str = Field("male", max_length=10)
 
-    # 🌟 استفاده از mode="before" برای شکار دیتا قبل از پردازش اشتباهِ Pydantic
     @field_validator("birth_date", mode="before")
     @classmethod
     def validate_min_age(cls, value):
         if not value:
             return None
             
-        # ۱. یکدست‌سازی اعداد فارسی به انگلیسی و کاراکتر جداکننده
-        val_str = str(value)
-        trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
-        val_str = val_str.translate(trans_table).replace("-", "/")
-        
-        # ۲. تبدیل هوشمند تاریخ شمسی به میلادی
-        try:
-            # تلاش برای درک فرمت شمسی ارسالی فرانت‌اند (مثلا 1395/05/20)
-            parsed_jalali = jdatetime.datetime.strptime(val_str, '%Y/%m/%d')
-            gregorian_date = parsed_jalali.togregorian().date()
-        except ValueError:
-            # سوپاپ اطمینان: اگر به هر دلیلی میلادی بود، آن را هم می‌فهمیم
+        # 🌟 فیکس اصلی: اگر دیتا مستقیماً از دیتابیس آمده باشد (آبجکت Date پایتون)
+        if isinstance(value, date):
+            gregorian_date = value.date() if hasattr(value, "date") else value
+        else:
+            # ۱. یکدست‌سازی اعداد و پردازش دیتای متنی فرانت‌ند
+            val_str = str(value)
+            trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+            val_str = val_str.translate(trans_table).replace("-", "/")
+            
+            # ۲. تبدیل هوشمند تاریخ شمسی به میلادی
             try:
-                gregorian_date = date.fromisoformat(val_str.replace("/", "-"))
+                # سوپاپ اطمینان: اگر تاریخ با 13 یا 14 شروع شده، قطعاً شمسی است
+                if val_str.startswith("13") or val_str.startswith("14"):
+                    parsed_jalali = jdatetime.datetime.strptime(val_str, '%Y/%m/%d')
+                    gregorian_date = parsed_jalali.togregorian().date()
+                else:
+                    gregorian_date = date.fromisoformat(val_str.replace("/", "-"))
             except ValueError:
                 raise ValueError("فرمت تاریخ تولد نامعتبر است (مثال صحیح: 1390/01/01)")
 
@@ -60,9 +62,8 @@ class UserBase(BaseModel):
         if age < 10:
             raise ValueError("حداقل سن برای ثبت‌نام در مسابقات ۱۰ سال است.")
             
-        # ۴. پاس دادن تاریخ استاندارد میلادی برای ذخیره صحیح در دیتابیس
+        # ۴. پاس دادن تاریخ استاندارد میلادی
         return gregorian_date
-
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=128, strip_whitespace=True)
