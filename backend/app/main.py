@@ -48,8 +48,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# 🌟 فعال‌سازی متریک‌های پرومتئوس برای مانیتورینگ بلادرنگ
-Instrumentator().instrument(app).expose(app)
+# 🌟 فعال‌سازی متریک‌های پرومتئوس به صورت مخفی و محدود شده به شبکه داخلی
+Instrumentator().instrument(app).expose(app, include_in_schema=False)
+
+# 🌟 میدلور امنیتی: محدود کردن دسترسی به /metrics فقط برای سرور پرومتئوس
+@app.middleware("http")
+async def restrict_metrics_endpoint(request: Request, call_next):
+    if request.url.path == "/metrics":
+        client_ip = request.client.host if request.client else ""
+        allowed_ips_env = os.getenv("PROMETHEUS_ALLOWED_IPS", "127.0.0.1,localhost,::1,172.30.0.8,172.30.0.1")
+        allowed_ips = [ip.strip() for ip in allowed_ips_env.split(",")]
+        
+        # در داکر معمولا آی‌پی کلاینت همان آی‌پی گیت‌وی داکر (مثلا 172.x.x.x) است
+        if "*" not in allowed_ips and client_ip not in allowed_ips and not client_ip.startswith("172."):
+            return JSONResponse(
+                status_code=403, 
+                content={"detail": "Access forbidden: Your IP is not allowed to view metrics."}
+            )
+    return await call_next(request)
 
 # 🌟 متغیر کانتکست ایمن برای لاگین یکپارچه
 request_id_context = contextvars.ContextVar("request_id", default="unknown")
@@ -1609,11 +1625,11 @@ async def get_admin_stats(db: Session = Depends(database.get_db), current_admin:
 def proxy_get_profile_photo(
     request_data: dict, 
     db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(auth.get_current_user) # 🌟 اضافه شدن تاثیری امنیت و دسترسی به کاربر جاری
+    current_user: models.User = Depends(auth.get_current_user)
 ):
-    eitaa_target_url = os.getenv("EITAA_API_URL", "").strip()
-    if not eitaa_target_url or "127.0.0.1" in eitaa_target_url or "localhost" in eitaa_target_url:
-        eitaa_target_url = "http://10.10.10.4:3000/send"
+    # 🌟 استفاده مستقیم از متغیر محیطی (فال‌بک به نام کانتینر در داکر شبکه داخلی)
+    eitaa_target_url = os.getenv("EITAA_API_URL", "http://eitaa-api:3000/send").strip()
+    
     try:
         session_json_str = r_eitaa.get(ACCOUNT_KEY)
         if not session_json_str:
@@ -1629,51 +1645,56 @@ def proxy_get_profile_photo(
         request_data["token"] = token
         request_data["imei"] = imei
 
-        # اختصاص تایم‌اوت طولانی‌تر (۱۵ ثانیه) برای دریافت عکس پروفایل (چون دانلود فایل‌های باینری سنگین زمان‌بر است)
-        dynamic_timeout = (3.0, 15.0) if request_data.get("method") == "upload.getFile" else (3.0, 5.0)
-        response = requests.post(eitaa_target_url, json=request_data, timeout=dynamic_timeout)
+        # 🌟 افزایش شدید تایم‌اوت برای جلوگیری از ارور ۵۰۲ در دریافت عکس
+        dynamic_timeout = (5.0, 30.0) if request_data.get("method") == "upload.getFile" else (5.0, 10.0)
+        
+        # اضافه کردن هدر Connection: close برای جلوگیری از پر شدن استخر کانکشن‌های وب‌سرور
+        headers = {"Connection": "close"}
+        response = requests.post(eitaa_target_url, json=request_data, timeout=dynamic_timeout, headers=headers)
+        
+        # اگر ایتا ارور ۵۰۲ یا ۵۰۴ داد، آن را به درستی به فرانت بفرست
+        if response.status_code >= 500:
+            logger.error(f"Eitaa API returned status {response.status_code}: {response.text}")
+            raise HTTPException(status_code=502, detail="سرور ایتا در حال حاضر پاسخگو نیست.")
+            
         response_data = response.json()
 
-        # 🌟 لایه هوشمند کش دیتای هویت‌سنجی ایتا در دیتابیس پروژه
+        # کش کردن دیتای هویت‌سنجی ایتا در دیتابیس پروژه
         if request_data.get("method") == "contacts.importContacts" and response.status_code == 200:
             eitaa_users = response_data.get("users", [])
             
             if eitaa_users and len(eitaa_users) > 0:
                 eitaa_user = eitaa_users[0]
                 
-                # استخراج مقادیر و تبدیل قطعی به عددی برای سازگاری با int8 / BigInteger
                 fetched_eitaa_id = int(eitaa_user.get("id"))
                 fetched_access_hash = int(eitaa_user.get("access_hash"))
                 
-                # ۱. بررسی سخت‌گیرانه یکتا بودن آیدی ایتا (Uniqueness Check)
                 is_unique = db.query(models.User).filter(
                     models.User.eitaa_user_id == fetched_eitaa_id,
-                    models.User.id != current_user.id # مطمئن می‌شویم متعلق به خود این کاربر در دیتابیس نباشد
+                    models.User.id != current_user.id 
                 ).first()
                 
                 if not is_unique:
-                    # ۲. اگر آیدی منحصر به فرد بود و کاربر خودش هنوز ذخیره نکرده بود، آپدیت کن
                     if current_user.eitaa_user_id != fetched_eitaa_id:
                         current_user.eitaa_user_id = fetched_eitaa_id
                         current_user.eitaa_access_hash = fetched_access_hash
                         db.commit()
-                        db.refresh(current_user)
-                        print(f"✅ اطلاعات ایتا برای کاربر {current_user.id} با موفقیت کش شد.")
+                        print(f"✅ اطلاعات ایتا برای کاربر {current_user.id} کش شد.")
                 else:
-                    print(f"⚠️ خطای یکتایی: آیدی ایتای {fetched_eitaa_id} قبلاً توسط حساب دیگری تصاحب شده است.")
+                    print(f"⚠️ خطای یکتایی: آیدی ایتای {fetched_eitaa_id} تصاحب شده است.")
 
         return response_data
             
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
         logger.error(f"Eitaa Upstream Failed: {str(e)}")
-        raise HTTPException(status_code=502, detail="Bad Gateway: Could not resolve or connect to Eitaa upstream.")
+        raise HTTPException(status_code=502, detail="ارتباط با سرور واسط ایتا برقرار نشد (تایم‌اوت یا قطعی شبکه).")
     except json.JSONDecodeError as e:
         logger.error(f"Eitaa Upstream Failed: JSONDecodeError - {str(e)}")
-        raise HTTPException(status_code=500, detail="ساختار متنی ردیس فرمت JSON معتبری ندارد.")
+        raise HTTPException(status_code=500, detail="ساختار متنی ایتا معتبر نیست.")
     except Exception as e:
         logger.error(f"Eitaa Proxy General Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="خطا در برقراری ارتباط با سرور آپ‌استریم.")
-    
+        raise HTTPException(status_code=500, detail="خطای نامشخص در برقراری ارتباط با سرور آپ‌استریم.")
+        
 @app.get("/admin/users", response_model=List[Dict[str, Any]])
 @app.get("/admin/users-list", response_model=List[Dict[str, Any]])
 def get_admin_users_list(
