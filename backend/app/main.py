@@ -557,8 +557,7 @@ async def rate_limiter_and_ip_blocker(request: Request, call_next):
 def get_cities(
     parents_only: Optional[bool] = False, 
     parent_id: Optional[int] = None, 
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_user)
+    db: Session = Depends(database.get_db)
 ):
     query = db.query(models.City)
     
