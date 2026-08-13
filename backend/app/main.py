@@ -3,25 +3,23 @@
 # =====================================================================
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
-import shutil, os, random, redis, json, io, requests, traceback, uuid, re
+import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse
-import jdatetime
 from jose import JWTError, jwt
-import logging
-import contextvars
 from starlette.middleware.base import BaseHTTPMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from contextlib import asynccontextmanager
-from fastapi.security import OAuth2PasswordRequestForm
+from uuid import UUID
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -1853,7 +1851,7 @@ def update_contest_question(
     return {"status": "success", "message": "سوال با موفقیت ویرایش شد"}
 
 @app.get("/admin/users/{user_id}/detail")
-def get_user_detail(user_id: int, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+def get_user_detail(user_id: UUID, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="کاربر یافت نشد")
@@ -1898,7 +1896,7 @@ def get_user_detail(user_id: int, db: Session = Depends(database.get_db), curren
 
 @app.put("/admin/users/{user_id}/update")
 def update_admin_user_profile(
-    user_id: int, 
+    user_id: UUID, 
     payload: dict, 
     db: Session = Depends(database.get_db), 
     current_admin: models.User = Depends(require_admin)
@@ -1944,7 +1942,7 @@ def update_admin_user_profile(
 
 @app.get("/admin/users/{user_id}/contests/{contest_id}/answers")
 def get_admin_user_answers(
-    user_id: int,
+    user_id: UUID,
     contest_id: int,
     db: Session = Depends(database.get_db),
     current_admin: models.User = Depends(require_admin)
@@ -2119,7 +2117,7 @@ def get_export_data(contest_id: Optional[int] = None, db: Session = Depends(data
 
 @app.get("/admin/users/{user_id}/contests/{contest_id}/certificate/download")
 def generate_user_certificate_image(
-    user_id: int,
+    user_id: UUID,
     contest_id: int,
     db: Session = Depends(database.get_db),
     current_admin: models.User = Depends(require_admin)

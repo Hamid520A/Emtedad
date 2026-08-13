@@ -3,7 +3,8 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, F
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
-import datetime
+import datetime, uuid
+from sqlalchemy.dialects.postgresql import UUID
 
 class City(Base):
     __tablename__ = "cities"
@@ -19,7 +20,7 @@ class City(Base):
 
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     first_name = Column(String(255), nullable=False)
     last_name = Column(String(255), nullable=True)
     phone_number = Column(String(20), unique=True, index=True)
@@ -47,7 +48,7 @@ class User(Base):
 class Admin(Base):
     __tablename__ = "admins"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False, index=True)
     is_active = Column(SmallInteger, default=1)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
@@ -166,7 +167,7 @@ class Subscription(Base):
         UniqueConstraint('user_id', 'contest_id', name='uix_user_contest_subscription'),
     )
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     contest_id = Column(Integer, ForeignKey("contests.id"))
     time_left = Column(Time, nullable=True)
     score = Column(Integer, default=0)
@@ -269,7 +270,7 @@ class CertificateUser(Base):
     id = Column(Integer, primary_key=True, index=True)
     serial_number = Column(Integer, unique=True)
     certificate_id = Column(Integer, ForeignKey("certificates.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     image_url = Column(String(500), nullable=True)
     is_viewed = Column(SmallInteger, default=0)
     is_active = Column(SmallInteger, default=1)
@@ -296,7 +297,7 @@ class NotificationUsers(Base):
     __tablename__ = "notification_users"
     id = Column(Integer, primary_key=True, index=True)
     notification_id = Column(Integer, ForeignKey("notifications.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     is_viewed = Column(SmallInteger, default=0)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
@@ -318,7 +319,7 @@ class BannerUsers(Base):
     __tablename__ = "banner_users"
     id = Column(Integer, primary_key=True, index=True)
     banner_id = Column(Integer, ForeignKey("banners.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime, nullable=True)

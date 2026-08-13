@@ -3,6 +3,7 @@ from pydantic import BaseModel, field_validator, Field
 from typing import List, Optional
 from datetime import datetime, date, time
 import jdatetime
+from uuid import UUID
 
 # ==========================================
 # City Schemas
@@ -43,7 +44,7 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=128, strip_whitespace=True)
 
 class User(UserBase):
-    id: int
+    id: UUID
     is_active: int
     class Config:
         from_attributes = True
@@ -56,7 +57,7 @@ class UserLogin(BaseModel):
 # Admin Schemas (بروزرسانی شده بر اساس رابطه ۱ به ۱ جدید)
 # ==========================================
 class AdminBase(BaseModel):
-    user_id: int
+    user_id: UUID
     is_active: int = 1
 
 class Admin(AdminBase):
@@ -198,11 +199,11 @@ class SubscriptionBase(BaseModel):
     started_at: Optional[datetime] = None
 
 class SubscriptionCreate(SubscriptionBase):
-    user_id: int
+    user_id: UUID
 
 class Subscription(SubscriptionBase):
     id: int
-    user_id: int
+    user_id: UUID
     class Config:
         from_attributes = True
 
@@ -224,5 +225,5 @@ class BannerCreate(BaseModel):
 
 class BannerUserBase(BaseModel):
     banner_id: int
-    user_id: int
+    user_id: UUID
 
