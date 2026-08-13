@@ -558,7 +558,8 @@ async def rate_limiter_and_ip_blocker(request: Request, call_next):
 def get_cities(
     parents_only: Optional[bool] = False, 
     parent_id: Optional[int] = None, 
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     query = db.query(models.City)
     
@@ -638,7 +639,7 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
     }
 
 @app.get("/contests", response_model=List[schemas.ContestListItem])
-def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db)):
+def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     """دریافت لیست مسابقات - فیلتر کامل و قطعی مسابقات حذف شده (Soft Deleted)"""
     now = datetime.now()
     
@@ -680,7 +681,7 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
 def get_contest_detail(
     contest_id: int, 
     db: Session = Depends(database.get_db), 
-    current_user: Optional[models.User] = Depends(get_current_user_optional) # 🌟 متصل به دپندنسی محلی جدید
+    current_user: Optional[models.User] = Depends(get_current_user_optional)
 ):
     cors_headers = {
         "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
@@ -988,7 +989,7 @@ async def upload_file(
     return {"url": f"{BACKEND_URL}/static/uploads/{unique_filename}"}
 
 @app.get("/contests/{contest_id}/leaderboard")
-def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db)):
+def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     cors_headers = {
         "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
@@ -1694,7 +1695,7 @@ def proxy_get_profile_photo(
     except Exception as e:
         logger.error(f"Eitaa Proxy General Error: {str(e)}")
         raise HTTPException(status_code=500, detail="خطای نامشخص در برقراری ارتباط با سرور آپ‌استریم.")
-        
+
 @app.get("/admin/users", response_model=List[Dict[str, Any]])
 @app.get("/admin/users-list", response_model=List[Dict[str, Any]])
 def get_admin_users_list(
@@ -2165,7 +2166,7 @@ def toggle_banner_admin(banner_id: int, db: Session = Depends(database.get_db), 
     return {"message": "وضعیت بنر به روزرسانی شد", "status": db_banner.status}
 
 @app.get("/banners")
-def get_active_banners(db: Session = Depends(database.get_db)):
+def get_active_banners(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     # دریافت بنرهای فعال برای صفحه اصلی فرانت‌ند
     return db.query(models.Banner).filter(models.Banner.status == "active").all()
 
