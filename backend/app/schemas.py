@@ -28,16 +28,40 @@ class UserBase(BaseModel):
     city_id: Optional[int] = None
     birth_date: Optional[date] = None
     gender: str = Field("male", max_length=10)
-    @field_validator("birth_date")
+
+    # 🌟 استفاده از mode="before" برای شکار دیتا قبل از پردازش اشتباهِ Pydantic
+    @field_validator("birth_date", mode="before")
     @classmethod
     def validate_min_age(cls, value):
-        if value is None:
-            return value
+        if not value:
+            return None
+            
+        # ۱. یکدست‌سازی اعداد فارسی به انگلیسی و کاراکتر جداکننده
+        val_str = str(value)
+        trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        val_str = val_str.translate(trans_table).replace("-", "/")
+        
+        # ۲. تبدیل هوشمند تاریخ شمسی به میلادی
+        try:
+            # تلاش برای درک فرمت شمسی ارسالی فرانت‌اند (مثلا 1395/05/20)
+            parsed_jalali = jdatetime.datetime.strptime(val_str, '%Y/%m/%d')
+            gregorian_date = parsed_jalali.togregorian().date()
+        except ValueError:
+            # سوپاپ اطمینان: اگر به هر دلیلی میلادی بود، آن را هم می‌فهمیم
+            try:
+                gregorian_date = date.fromisoformat(val_str.replace("/", "-"))
+            except ValueError:
+                raise ValueError("فرمت تاریخ تولد نامعتبر است (مثال صحیح: 1390/01/01)")
+
+        # ۳. محاسبه دقیق سن بر اساس سال میلادی
         today = date.today()
-        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+        age = today.year - gregorian_date.year - ((today.month, today.day) < (gregorian_date.month, gregorian_date.day))
+        
         if age < 10:
             raise ValueError("حداقل سن برای ثبت‌نام در مسابقات ۱۰ سال است.")
-        return value
+            
+        # ۴. پاس دادن تاریخ استاندارد میلادی برای ذخیره صحیح در دیتابیس
+        return gregorian_date
 
 
 class UserCreate(UserBase):

@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"Error disposing SQLAlchemy engine: {e}")
 
 app = FastAPI(lifespan=lifespan)
+models.Base.metadata.create_all(bind=database.engine)
 
 # 🌟 فعال‌سازی متریک‌های پرومتئوس به صورت مخفی و محدود شده به شبکه داخلی
 Instrumentator().instrument(app).expose(app, include_in_schema=False)
@@ -1103,11 +1104,21 @@ def update_my_profile(
     if raw_birth_date:
         try:
             normalized_date = fa_to_en_digits(raw_birth_date)
-            # تبدیل رشته جلالی به آبجکت دیت‌تایم میلادی برای ذخیره در پستگرس
-            user.birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
+            # تبدیل به میلادی
+            new_birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
+            
+            # 🌟 کنترل سن در زمان ویرایش پروفایل
+            today = date.today()
+            age = today.year - new_birth_date.year - ((today.month, today.day) < (new_birth_date.month, new_birth_date.day))
+            
+            if age < 10:
+                raise HTTPException(status_code=400, detail="سن شما برای حضور در سیستم نمی‌تواند کمتر از ۱۰ سال باشد.")
+                
+            user.birth_date = new_birth_date
+            
         except ValueError:
             raise HTTPException(status_code=400, detail="فرمت تاریخ تولد نامعتبر است. لطفاً از فرمت معتبر مانند ۱۳۶۴/۰۵/۳۰ استفاده کنید.")
-    
+                
     # ۲. 🌟 تبدیل نام متنی شهر فرانت‌ند به city_id معتبر در دیتابیس
     city_name = payload.get("city")
     if city_name:
