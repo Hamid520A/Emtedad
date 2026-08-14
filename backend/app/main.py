@@ -360,9 +360,16 @@ def draw_certificate_canvas(user, contest, subscription):
         font_bytes_bold = None
         font_sub = ImageFont.load_default()
 
-    # پردازش متغیرهای نمره کاربر بر اساس ساختار مدل جدید Subscription (بزرگ شدن S)
     score_val = subscription.score or 0
-    rank_text = "عالی" if score_val >= 85 else "خیلی خوب" if score_val >= 70 else "خوب"
+    rank_text = "عمومی"
+    
+    if cert:
+        if "عالی" in cert.title:
+            rank_text = "عالی"
+        elif "خیلی خوب" in cert.title:
+            rank_text = "خیلی خوب"
+        elif "خوب" in cert.title:
+            rank_text = "خوب"
     user_full_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "شرکت‌کننده امتداد"
     
     # 🌟 اصلاح هوشمند فیلد تاریخ تولد برای حل باگ برعکس شدن لایوت گرافیکی
