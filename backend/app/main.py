@@ -1673,8 +1673,8 @@ def proxy_get_profile_photo(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     # 🌟 استفاده مستقیم از متغیر محیطی (فال‌بک به نام کانتینر در داکر شبکه داخلی)
-    eitaa_target_url = os.getenv("EITAA_API_URL", "http://eitaa-api:3000/send").strip()
-    
+    eitaa_target_url = "http://10.10.20.51:3000/send"
+
     try:
         session_json_str = r_eitaa.get(ACCOUNT_KEY)
         if not session_json_str:
