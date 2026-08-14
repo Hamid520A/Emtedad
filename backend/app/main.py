@@ -965,44 +965,54 @@ async def upload_file(
     file: UploadFile = File(...),
     current_admin: models.User = Depends(require_admin)
 ):
-    # 🌟 1. MIME Type Checking (Do not rely solely on extension)
-    if file.content_type not in ["image/jpeg", "image/png", "image/webp", "application/pdf", "image/svg+xml"]:
-        raise HTTPException(
-            status_code=400,
-            detail="MIME type غیرمجاز است. فقط تصاویر JPEG, PNG, WEBP مجاز هستند."
-        )
-
-    # 🌟 2. File Size Validation (Max 5MB)
-    file.file.seek(0, 2)
-    file_size = file.file.tell()
-    file.file.seek(0)
-    if file_size > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail="حجم فایل نباید بیشتر از 5 مگابایت باشد."
-        )
-
-    # 🌟 3. Sanitize filename to prevent Path Traversal
-    safe_filename = re.sub(r'[^a-zA-Z0-9.\-]', '', os.path.basename(file.filename))
-    file_ext = os.path.splitext(safe_filename)[1].lower()
-    
-    if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"فرمت فایل غیرمجاز است! فرمت‌های مجاز: {', '.join(ALLOWED_EXTENSIONS)}"
-        )
-    
-    # 🌟 4. ساخت نام یکتا برای فایل جهت جلوگیری از اوررایت و حملات Path Traversal
-    unique_filename = f"{uuid.uuid4().hex}{file_ext}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    import uuid # 🌟 ایمپورت محلی برای رفع تداخل با کلاس UUID دیتابیس
+    import shutil, os, re
     
     try:
+        # ۱. بررسی نوع فایل (MIME Type)
+        allowed_mimes = ["image/jpeg", "image/png", "image/webp", "application/pdf", "image/svg+xml"]
+        if file.content_type not in allowed_mimes:
+            raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
+
+        # ۲. بررسی حجم فایل (فیکس شده برای نسخه‌های جدید FastAPI)
+        file_size = getattr(file, "size", 0)
+        if file_size == 0:
+            file.file.seek(0, 2)
+            file_size = file.file.tell()
+            file.file.seek(0)
+        
+        if file_size > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="حجم فایل نباید بیشتر از 5 مگابایت باشد.")
+
+        # ۳. ایمن‌سازی نام فایل و استخراج فرمت
+        original_filename = file.filename or "unknown.jpg"
+        safe_filename = re.sub(r'[^a-zA-Z0-9.\-]', '', os.path.basename(original_filename))
+        file_ext = os.path.splitext(safe_filename)[1].lower()
+
+        # سوپاپ اطمینان برای اسم‌های کاملاً فارسی که فرمتشان پاک می‌شود
+        if file_ext not in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}:
+            file_ext = ".jpg" if "image" in file.content_type else ".pdf"
+
+        # ۴. ساخت نام یکتا و مسیر فایل
+        unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+        UPLOAD_DIR = "static/uploads"
+        if not os.path.exists(UPLOAD_DIR):
+            os.makedirs(UPLOAD_DIR)
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+        # ۵. ذخیره روی هارد سرور
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="خطا در ذخیره‌سازی فایل روی سرور")
+            
+        BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+        return {"url": f"{BACKEND_URL}/static/uploads/{unique_filename}"}
         
-    return {"url": f"{BACKEND_URL}/static/uploads/{unique_filename}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        # 🌟 چاپ دقیق خطا در کنسولِ سرور به جای ارور گنگ ۵۰۰
+        print(f"❌ Upload Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"خطا در پردازش فایل: {str(e)}")
 
 @app.get("/contests/{contest_id}/leaderboard")
 def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
