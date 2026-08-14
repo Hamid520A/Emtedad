@@ -4,6 +4,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.encoders import jsonable_encoder
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, text
@@ -1083,7 +1084,7 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), cur
         except Exception as e:
             logger.error(f"Silent failure intercepted: {e}")
 
-        return JSONResponse(status_code=200, content=results, headers=cors_headers)
+        return JSONResponse(status_code=200, content=jsonable_encoder(results), headers=cors_headers)
 
     except Exception as global_err:
         print("\n❌❌❌ [خطای بحرانی اندپوینت لیدربرد] ❌❌❌")
