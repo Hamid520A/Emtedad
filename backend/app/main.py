@@ -1918,7 +1918,7 @@ def get_user_detail(user_id: UUID, db: Session = Depends(database.get_db), curre
         "city": user.city.title if user.city else "---",
         "gender": user.gender,
         "is_admin": True if user.admin else False,
-        "birth_date": str(user.birth_date) if user.birth_date else "---",
+        "birth_date": jdatetime.date.fromgregorian(date=user.birth_date).strftime('%Y/%m/%d') if user.birth_date else "",
         "history": history_records
     }
 
@@ -1946,9 +1946,10 @@ def update_admin_user_profile(
         
     if "birth_date" in payload and payload.get("birth_date"):
         try:
-            user.birth_date = datetime.strptime(payload.get("birth_date"), "%Y-%m-%d").date()
+            normalized_date = fa_to_en_digits(payload.get("birth_date"))
+            user.birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
         except Exception as e:
-            logger.error(f"Silent failure intercepted: {e}")
+            print(f"⚠️ خطای تبدیل تاریخ تولد در پنل ادمین: {e}")
             
     # 🌟 مدیریت هوشمند جدول admins بر اساس مقدار کلید is_admin ارسالی از فرانت‌ند
     if "is_admin" in payload:
