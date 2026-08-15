@@ -28,7 +28,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
   const [awards, setAwards] = useState<{ rank: number; title: string }[]>([{ rank: 1, title: '' }]);
   const [formData, setFormData] = useState<any>({
     title: '', description: '', status: 'draft', image_url: '', file_url: '',
-    start_time: null, time_limit: 10, question_limit: 15, certificate_type: 'none', video_url: ''
+    start_time: null, end_time: null, time_limit: 10, question_limit: 15, certificate_type: 'none', video_url: ''
   });
 
   const [certData, setCertData] = useState<any>({
@@ -52,6 +52,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
           image_url: data.image_url || '',
           file_url: data.file_url || '',
           start_time: data.start_time ? new Date(data.start_time) : null,
+          end_time: data.end_time ? new Date(data.end_time) : null,
           time_limit: data.time_limit || 10,
           question_limit: data.question_limit || 15,
           certificate_type: data.certificate_type || 'none',
@@ -62,7 +63,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
           setAwards(data.awards);
         }
 
-        // 🌟 فیکس لودینگ: مپ کردن تضمینی دیتای دریافتی از اندپوینت اصلاح‌شده جدید بک‌ند
         if (data.certificate_details) {
           const cd = data.certificate_details;
           setCertData({
@@ -114,8 +114,8 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
     
     const now = new Date();
     const startTime = formData.start_time ? new Date(formData.start_time) : now;
+    const endTime = formData.end_time ? new Date(formData.end_time) : null;
     const durationInMinutes = parseInt(formData.time_limit.toString(), 10) || 10;
-    const endTime = new Date(startTime.getTime() + durationInMinutes * 60 * 1000);
     const validAwards = awards.filter(a => a.title.trim() !== "");
 
     const finalData = {
@@ -130,7 +130,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
       certificate_type: formData.certificate_type || 'none',
       start_time: startTime.toISOString(),
-      end_time: endTime.toISOString() 
+      end_time: endTime ? endTime.toISOString() : null 
     };
 
     try {
@@ -221,7 +221,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
         
-        {/* ستون راست */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
             <div>
@@ -234,7 +233,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
               <textarea rows={5} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-medium text-sm leading-relaxed" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
             </div>
 
-            {/* جوایز */}
             <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100 space-y-3">
               <div className="flex items-center gap-1.5 mb-1 text-gray-500"><Trophy size={16} className="text-[#c5a059]" /><label className="block text-[10px] font-black uppercase tracking-widest">تغییر جوایز بر اساس رتبه‌بندی</label></div>
               {awards.map((award, index) => (
@@ -249,7 +247,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
           </div>
         </div>
 
-        {/* ستون چپ */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
             <div>
@@ -262,7 +259,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
               </select>
             </div>
 
-            {/* 🌟 بخش گواهی هوشمند دوره (خلوت و مجهز به کارت پیش‌نمایش مینیاتوری) */}
             <div>
               <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
               <div className="relative">
@@ -275,7 +271,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
                 </select>
               </div>
 
-              {/* 🌟 کارت شیک پیش‌نمایش و دکمه ورود به پاپ‌آپ ادیتور گواهی */}
               {formData.certificate_type !== 'none' && (
                 <div className="mt-3 p-4 bg-amber-50/40 border border-amber-100/70 rounded-2xl flex flex-col gap-3 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">
@@ -308,23 +303,41 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
               </div>
             </div>
             
-            <div>
-              <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان آغاز رقابت</label>
-              <div className="relative">
-                <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-                <DatePickerComponent
-                  calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
-                  plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
-                  value={formData.start_time}
-                  onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
-                  containerClassName="w-full"
-                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl font-bold text-sm text-left"
-                />
+            <div className="grid grid-cols-1 gap-5 transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+              <div>
+                <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
+                <div className="relative">
+                  <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                  <DatePickerComponent
+                    calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
+                    plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
+                    value={formData.start_time}
+                    onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
+                    containerClassName="w-full"
+                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl font-bold text-sm text-left"
+                    placeholder="همین الان"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="flex items-center gap-2 text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان بسته شدن و پایان مسابقه</label>
+                <div className="relative">
+                  <CalendarClock className="absolute right-4 top-4 text-rose-400 z-10" size={18} />
+                  <DatePickerComponent
+                    calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
+                    plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
+                    value={formData.end_time}
+                    onChange={(date: any) => setFormData({ ...formData, end_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
+                    containerClassName="w-full"
+                    inputClass="w-full p-4 pr-12 bg-rose-50 border border-rose-100 rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-rose-400 outline-none font-bold text-sm text-left"
+                    placeholder="بدون محدودیت (باز)"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* مدیا */}
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
@@ -348,7 +361,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
         </div>
       </form>
 
-      {/* 🌟 مُدال اختصاصی و پیشرفته تنظیم جزئیات لوح تقدیر (کاملاً تفکیک‌شده و سبک) */}
       {isCertModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200" dir="rtl">
           <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto flex flex-col text-right">
@@ -362,7 +374,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
             </div>
 
             <div className="p-6 space-y-6">
-              {/* شبیه‌ساز لایو */}
               <div className="space-y-2">
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">
                   <Eye size={12}/> پیش‌نمایش زنده گواهی صادر شده
@@ -372,15 +383,12 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
                     <img src={certData.certificate_bg_url} alt="Bg" className="absolute inset-0 w-full h-full object-cover z-0" />
                   )}
                   
-                  {/* 🌟 بخش هدر لوح: انتقال لوگو به مرکز مطلق بالا و شماره سریال به گوشه */}
                   <div className="w-full flex justify-between items-start z-10 relative min-h-[4.5rem]">
-                    {/* تاریخ و شماره سریال در گوشه راست */}
                     <div className="text-right leading-relaxed bg-black/30 p-2 px-3 rounded-xl backdrop-blur-[4px] border border-white/5 shadow-md text-[9px] sm:text-xs">
                       <div className="text-[#F3E5AB]">شماره: ۱۴۰۵۰۷۰۱</div>
                       <div className="text-white/80 mt-0.5">تاریخ: ۱۴۰۵/۰۳/۱۹</div>
                     </div>
 
-                    {/* 🌟 فیکس لوگو: مرکزیت مطلق در بالاترین نقطه بدون فشار آوردن به متون پایین */}
                     <div className="absolute left-1/2 top-0 -translate-x-1/2 flex flex-col items-center">
                       {certData.certificate_logo_url ? (
                         <img src={certData.certificate_logo_url} alt="Logo" className="w-16 h-16 object-contain drop-shadow-md" />
@@ -389,18 +397,15 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
                       )}
                     </div>
                     
-                    {/* فضای خالی سمت چپ جهت حفظ توازن لایوت */}
                     <div></div>
                   </div>
                   
-                  {/* متن اصلی لوح تقدیر */}
                   <div className="z-10 px-6 py-3 bg-black/20 backdrop-blur-[2px] border border-white/5 rounded-2xl max-w-xl mx-auto text-center shadow-sm my-auto">
                     <p className="text-xs sm:text-sm font-bold leading-loose text-white drop-shadow-md break-words">
                       {renderMockCertificateText()}
                     </p>
                   </div>
                   
-                  {/* 🌟 فیکس امضاها: تبدیل گرید به Flex و فیلتر کردن هوشمند امضاهای فعال برای هم‌ترازی در مرکز */}
                   {(() => {
                     const activeSigners = [
                       { name: certData.signer_name, title: certData.signer_title, sig: certData.signer_signature_url },
@@ -428,7 +433,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
                 </div>
               </div>
 
-              {/* ادیتور متون */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">متن قالب لوح تقدیر</label>
@@ -448,7 +452,6 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
                   </div>
                 </div>
 
-                {/* امضاها */}
                 <div className="space-y-3 pt-2">
                   <span className="flex items-center gap-1 text-[10px] font-black text-gray-400 uppercase tracking-widest"><UserCheck size={14}/> امضاهای مدیران ارشد لوح</span>
                   {[

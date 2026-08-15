@@ -668,16 +668,23 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
     now = datetime.now()
     
     # 🌟 فیکس: آپدیت بالک وضعیت مسابقات در سطح دیتابیس (جلوگیری از OOM)
-    # ۱. فعال‌سازی مسابقاتی که زمان شروع آن‌ها رسیده
+    # ۱. فعال‌سازی خودکار مسابقاتی که زمان شروع آن‌ها رسیده
     db.query(models.Contest).filter(
         models.Contest.status == 'upcoming',
         models.Contest.start_time != None,
         models.Contest.start_time <= now
     ).update({"status": "active"}, synchronize_session=False)
 
+    # 🌟 ۲. پایان خودکار مسابقاتی که زمان اتمام آن‌ها فرا رسیده است
+    db.query(models.Contest).filter(
+        models.Contest.status == 'active',
+        models.Contest.end_time != None,
+        models.Contest.end_time <= now
+    ).update({"status": "finished"}, synchronize_session=False)
+
     db.commit()
 
-    # 🌟 فیکس: واکشی امن و برگرداندن دیتای نهایی فیلتر شده (با سیستم کش ردیس)
+    # فیکس: واکشی امن و برگرداندن دیتای نهایی فیلتر شده (با سیستم کش ردیس)
     cache_key = f"cache:contests:all:{status or 'all'}"
     cached_data = r.get(cache_key)
     if cached_data:
@@ -692,7 +699,7 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
         
     results = query.all()
     
-    # 🌟 ذخیره در کش ردیس (مدت زمان ۳۰ ثانیه)
+    # ذخیره در کش ردیس (مدت زمان ۳۰ ثانیه)
     try:
         from fastapi.encoders import jsonable_encoder
         r.setex(cache_key, 30, json.dumps(jsonable_encoder(results)))

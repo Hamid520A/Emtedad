@@ -195,7 +195,7 @@ export default function AdminBannersPage() {
                     type="text" 
                     required 
                     className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" 
-                    placeholder="مثلاً: آغاز مسابقه بزرگ هوش مصنوعی مهدوی" 
+                    placeholder="مثلاً: آغاز مسابقه بزرگ هوش مصنوعی " 
                     value={formData.title} 
                     onChange={(e) => setFormData({...formData, title: e.target.value})} 
                   />

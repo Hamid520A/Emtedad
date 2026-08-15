@@ -18,28 +18,25 @@ export default function CreateContestPage() {
   };
   const router = useRouter();
   
-  // رفرنس همزمان برای تشخیص دکمه کلیک شده (انتشار یا پیش‌نویس)
   const submitStatusRef = useRef<'upcoming' | 'draft'>('upcoming');
 
-  // ۱. استیت اختصاصی برای مدیریت جوایز چندگانه رتبه‌بندی
   const [awards, setAwards] = useState<{ rank: number; title: string }[]>([
     { rank: 1, title: '' }
   ]);
 
-  // ۲. استیت فرم
   const [formData, setFormData] = useState<any>({
     title: '',
     description: '',
     image_url: '',
     file_url: '',
     start_time: null, 
+    end_time: null, 
     time_limit: 10,
     question_limit: 15,
     certificate_type: 'none', 
     video_url: ''
   });
 
-  // توابع مدیریت پویای لیست جوایز
   const handleAwardChange = (index: number, field: 'rank' | 'title', value: string) => {
     const updated = [...awards];
     if (field === 'rank') {
@@ -64,20 +61,17 @@ export default function CreateContestPage() {
     
     const now = new Date();
     const startTime = formData.start_time ? new Date(formData.start_time) : now;
-
+    const endTime = formData.end_time ? new Date(formData.end_time) : null;
     const durationInMinutes = parseInt(formData.time_limit.toString(), 10) || 10;
-    const endTime = new Date(startTime.getTime() + durationInMinutes * 60 * 1000);
 
     const validAwards = awards.filter(a => a.title.trim() !== "");
-
-    // 👈 استفاده از رفرنس کلیک شده برای اعمال وضعیت نهایی مسابقه
     const finalStatus = submitStatusRef.current;
 
     const finalData = {
       title: formData.title,
       description: formData.description || "",
       award: JSON.stringify(validAwards), 
-      status: finalStatus, // 📝 ارسال مقدار 'upcoming' یا 'draft' به سرور
+      status: finalStatus, 
       image_url: formData.image_url || "",
       file_url: formData.file_url || "",
       video_url: formData.video_url || "",
@@ -85,7 +79,7 @@ export default function CreateContestPage() {
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
       certificate_type: formData.certificate_type || 'none',
       start_time: startTime.toISOString(),
-      end_time: endTime.toISOString() 
+      end_time: endTime ? endTime.toISOString() : null 
     };
 
     try {
@@ -148,8 +142,6 @@ export default function CreateContestPage() {
 
   return (
     <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
-      
-      {/* هدر پهن دسکتاپ */}
       <header className="p-8 flex items-center gap-4 sticky top-0 bg-[#faf9f6]/90 backdrop-blur-md z-20">
         <button onClick={() => router.back()} className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition text-gray-500 hover:text-[#1a2e44]">
           <ArrowRight size={20} />
@@ -160,13 +152,9 @@ export default function CreateContestPage() {
         </div>
       </header>
 
-      {/* تقسیم فضا به صورت گرید: بخش محتوا (۲ ستون) و بخش تنظیمات/آپلودها (۱ ستون) */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
-        
-        {/* ستون راست: اطلاعات متنی و اصلی مسابقه */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
-            
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
               <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" placeholder="مثلاً: مسابقه هوش مصنوعی" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
@@ -177,7 +165,6 @@ export default function CreateContestPage() {
               <textarea rows={4} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
             </div>
 
-            {/* بخش جوایز رتبه‌بندی */}
             <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100 space-y-3">
               <div className="flex items-center gap-1.5 mb-1 text-gray-500">
                 <Trophy size={16} className="text-[#c5a059]" />
@@ -214,17 +201,11 @@ export default function CreateContestPage() {
                 <Plus size={14} /> افزودن جایزه برای رتبه بعدی
               </button>
             </div>
-
           </div>
         </div>
 
-        {/* ستون چپ: ابزارها، زمان‌بندی، ویدیو و فایل‌های پیوست */}
         <div className="lg:col-span-1 space-y-6">
-          
-          {/* باکس پیکربندی مسابقه */}
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
-            
-            {/* تغییر مقادیر و عناوین گواهی‌ها به عالی، خیلی خوب و خوب */}
             <div>
               <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
               <div className="relative">
@@ -252,25 +233,41 @@ export default function CreateContestPage() {
               </div>
             </div>
             
-            {/* نمایش همیشگی تقویم برای تنظیم زمان شروع مسابقه پیش‌نویس یا عمومی */}
-            <div className="transition-all duration-300 animate-in fade-in slide-in-from-top-2">
-              <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
-              <div className="relative">
-                <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
-                <DatePickerComponent
-                  calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
-                  plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
-                  value={formData.start_time}
-                  onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
-                  containerClassName="w-full"
-                  inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
-                  placeholder="انتخاب تاریخ و ساعت"
-                />
+            <div className="grid grid-cols-1 gap-5 transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+              <div>
+                <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
+                <div className="relative">
+                  <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                  <DatePickerComponent
+                    calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
+                    plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
+                    value={formData.start_time}
+                    onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
+                    containerClassName="w-full"
+                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                    placeholder="همین الان"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="flex items-center gap-2 text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان بسته شدن و پایان مسابقه</label>
+                <div className="relative">
+                  <CalendarClock className="absolute right-4 top-4 text-rose-400 z-10" size={18} />
+                  <DatePickerComponent
+                    calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
+                    plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
+                    value={formData.end_time}
+                    onChange={(date: any) => setFormData({ ...formData, end_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
+                    containerClassName="w-full"
+                    inputClass="w-full p-4 pr-12 bg-rose-50 border border-rose-100 rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-rose-400 outline-none font-bold text-sm text-left"
+                    placeholder="بدون محدودیت (باز)"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* باکس بارگذاری و ویدیو */}
           <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
@@ -291,7 +288,6 @@ export default function CreateContestPage() {
             </div>
           </div>
 
-          {/* 👈 دکمه‌های دوگانه عملیاتی برای انتشار نهایی یا ذخیره پیش‌نویس */}
           <div className="space-y-3">
             <button 
               type="submit" 
@@ -309,9 +305,7 @@ export default function CreateContestPage() {
               <FileMinus size={20} className="text-gray-400" /> ذخیره به عنوان پیش‌نویس
             </button>
           </div>
-
         </div>
-
       </form>
     </div>
   );
