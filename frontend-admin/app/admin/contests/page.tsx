@@ -13,7 +13,6 @@ export default function AdminContestsPage() {
   useEffect(() => {
     const fetchContests = async () => {
       try {
-        // 🌟 شاه‌کلید حل باگ کش: استفاده از روت اختصاصی ادمین همراه با پارامتر زمان زنده
         const res = await api.get(`/admin/contests?t=${Date.now()}`);
         setContests(res.data);
       } catch (error) {
@@ -37,6 +36,20 @@ export default function AdminContestsPage() {
     if (status === 'finished') return 'پایان یافته';
     if (status === 'draft') return 'پیش‌نویس (مخفی)';
     return 'به زودی';
+  };
+
+  // 🌟 تابع تبدیل تاریخ میلادی به شمسی بدون نیاز به کتابخانه جانبی
+  const formatPersianDate = (dateString: string) => {
+    if (!dateString) return 'نامشخص';
+    try {
+      return new Intl.DateTimeFormat('fa-IR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date(dateString));
+    } catch (e) {
+      return 'نامشخص';
+    }
   };
 
   return (
@@ -78,9 +91,13 @@ export default function AdminContestsPage() {
               {contests.map((c: any) => (
                 <div key={c.id} className="group flex items-center justify-between p-5 bg-[#faf9f6] rounded-3xl border border-transparent hover:border-[#c5a059] transition-all">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm font-black text-[#c5a059]">
-                      #{c.id}
+                    
+                    {/* 🌟 رفع باگ امنیتی: جایگزینی ID دیتابیس با باکس زیبای تاریخ شمسی */}
+                    <div className="px-3 h-12 bg-white rounded-2xl flex flex-col items-center justify-center shadow-sm text-[#c5a059] shrink-0 min-w-[75px] border border-gray-50">
+                      <span className="text-[8px] font-black text-gray-400 mb-0.5">تاریخ ثبت</span>
+                      <span className="font-black text-xs tracking-widest">{formatPersianDate(c.created_at)}</span>
                     </div>
+
                     <div>
                       <h4 className="font-bold text-[#1a2e44]">{c.title}</h4>
                       <div className="flex gap-2 items-center mt-1">
@@ -92,7 +109,7 @@ export default function AdminContestsPage() {
                     </div>
                   </div>
 
-                  {/* 👈 باکس دکمه‌های اکشن مجهز به دکمه ویرایش سریع */}
+                  {/* 👈 باکس دکمه‌های اکشن */}
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => router.push(`/admin/contests/${c.id}/edit`)} 
