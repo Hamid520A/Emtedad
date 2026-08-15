@@ -255,7 +255,7 @@ export default function ProfilePage() {
               <button onClick={openCertificateModal} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-amber-50 dark:bg-amber-950/30 text-[#c5a059] rounded-2xl group-hover:scale-105 transition-transform"><Award size={22} /></div>
-                  <span className="font-black text-[#1a2e44] dark:text-slate-100">گواهی‌های دوره امتداد</span>
+                  <span className="font-black text-[#1a2e44] dark:text-slate-100">دانلود گواهی</span>
                 </div>
                 <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>

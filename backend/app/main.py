@@ -376,19 +376,21 @@ def draw_certificate_canvas(user, contest, subscription):
     user_full_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "شرکت‌کننده امتداد"
     
     # 🌟 اصلاح هوشمند فیلد تاریخ تولد برای حل باگ برعکس شدن لایوت گرافیکی
+    # 🌟 ۱. تبدیل تاریخ تولد از میلادی به شمسی
     if user.birth_date:
-        if hasattr(user.birth_date, "strftime"):
-            raw_date = user.birth_date.strftime("%Y/%m/%d")
-        else:
-            parts = str(user.birth_date).split("-")
-            raw_date = f"{parts[0]}/{parts[1]}/{parts[2]}" if len(parts) == 3 else str(user.birth_date)
+        try:
+            # تبدیل آبجکت میلادی دیتابیس به شمسی با کتابخانه jdatetime
+            shamsi_bd = jdatetime.date.fromgregorian(date=user.birth_date)
+            raw_date = shamsi_bd.strftime("%Y/%m/%d")
+        except Exception:
+            raw_date = str(user.birth_date)
         
-        # استفاده از کاراکتر \u200e برای تثبیت جهت چپ به راست تاریخ در لایوت فارسی
+        # استفاده از کاراکتر \u200e برای تثبیت جهت اعداد در متن فارسی
         birth_date_str = f"\u200e{to_persian_digits(raw_date)}\u200e"
     else:
         birth_date_str = "---"
 
-    # دریافت متن قالب گواهی از فیلد جدید cert.content
+    # دریافت متن قالب گواهی
     template = cert.content if cert else "بدین‌وسیله گواهی می‌شود {{name}} در مسابقه شرکت نموده است."
     
     # اعمال جایگزینی‌ها همراه با فارسی‌سازی کدملی
@@ -397,14 +399,16 @@ def draw_certificate_canvas(user, contest, subscription):
                         .replace("{{birth_date}}", birth_date_str)\
                         .replace("{{rank}}", rank_text)
 
-    # ۲. ثبت راست‌چین شماره سریال و تاریخ کاملاً فارسی
+    # 🌟 ۲. تولید شماره سریال و تاریخ صدور کاملاً شمسی برای گوشه بالا
     if hasattr(user.id, 'int'):
         user_serial_part = str(user.id.int)[-4:]
     else:
         user_serial_part = str(abs(hash(str(user.id))))[-4:]
         
     persian_serial = to_persian_digits(f"1405{contest.id:02d}{user_serial_part}")
-    persian_date = to_persian_digits(datetime.now().strftime("%Y/%m/%d"))
+    
+    # دریافت تاریخ امروز به صورت شمسی
+    persian_date = to_persian_digits(jdatetime.date.today().strftime("%Y/%m/%d"))
     
     txt_serial = f"شماره: {persian_serial}"
     txt_date = f"تاریخ: {persian_date}"
