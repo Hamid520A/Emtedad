@@ -395,7 +395,12 @@ def draw_certificate_canvas(user, contest, subscription):
                         .replace("{{rank}}", rank_text)
 
     # ۲. ثبت راست‌چین شماره سریال و تاریخ کاملاً فارسی
-    persian_serial = to_persian_digits(f"1405{contest.id:02d}{user.id:02d}")
+    if hasattr(user.id, 'int'):
+        user_serial_part = str(user.id.int)[-4:]
+    else:
+        user_serial_part = str(abs(hash(str(user.id))))[-4:]
+        
+    persian_serial = to_persian_digits(f"1405{contest.id:02d}{user_serial_part}")
     persian_date = to_persian_digits(datetime.now().strftime("%Y/%m/%d"))
     
     txt_serial = f"شماره: {persian_serial}"
