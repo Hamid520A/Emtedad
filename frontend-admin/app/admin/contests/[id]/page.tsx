@@ -6,12 +6,12 @@ import api from '../../../lib/api';
 import {
   ArrowRight, Download, Gift, FileText, Clock,
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, ExternalLink
+  Crown, Trash2, Award, BarChart3, HelpCircle, X, ExternalLink, MapPin
 } from 'lucide-react';
 
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, Tooltip, Legend, CartesianGrid
+  XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell
 } from 'recharts';
 
 import { getCleanImageUrl, openExternalLink } from '@/lib/utils/url';
@@ -30,8 +30,15 @@ export default function ContestLandingPage() {
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
+  
+  // استیت‌های مدال سوالات
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
+  
+  // 🌟 استیت‌های جدید برای مدال استان‌ها
+  const [selectedProvince, setSelectedProvince] = useState<any>(null);
+  const [provinceModalOpen, setProvinceModalOpen] = useState(false);
+
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
   const [isFullVideoModal, setIsFullVideoModal] = useState(false);
 
@@ -67,22 +74,19 @@ export default function ContestLandingPage() {
         try {
           const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
           setLeaderboard(lbRes.data || []);
-        } catch (lbError) {
-        }
+        } catch (lbError) {}
 
         try {
           const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
           setProfile(profileRes.data);
-        } catch (profError) {
-        }
+        } catch (profError) {}
 
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
         if (adminStatus) {
           try {
             const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
             setAnalyticsData(analyticsRes.data);
-          } catch (anError) {
-          }
+          } catch (anError) {}
         }
 
       } catch (error) {
@@ -234,7 +238,6 @@ export default function ContestLandingPage() {
         )}
 
         <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center gap-3 sm:gap-4 z-20">
-          {/* 🌟 اصلاح هوشمند: دکمه بازگشت بر اساس نقش کاربر به دشبورد اختصاصی خودش هدایت می‌شود */}
           <button
             onClick={() => {
               if (isAdminUser) {
@@ -300,6 +303,7 @@ export default function ContestLandingPage() {
           {isAdminUser && analyticsData && (
             <div className="space-y-6 animate-in fade-in duration-300">
 
+              {/* نمودار ۱: زمان‌ها */}
               <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <Clock size={18} className="text-[#c5a059]" />
@@ -324,6 +328,7 @@ export default function ContestLandingPage() {
                 </div>
               </div>
 
+              {/* نمودار ۲: سوالات */}
               <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <BarChart3 size={18} className="text-[#c5a059]" />
@@ -367,6 +372,76 @@ export default function ContestLandingPage() {
                           }
                         }}
                       />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* 🌟 نمودار ۳: پراکندگی جغرافیایی (استان‌ها) */}
+              <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
+                  <MapPin size={18} className="text-[#c5a059]" />
+                  <h3 className="font-black text-sm text-[#1a2e44]">پراکندگی جغرافیایی شرکت‌کنندگان (استان‌ها)</h3>
+                </div>
+                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart
+                      data={analyticsData.province_stats || []}
+                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+                      <XAxis dataKey="province" stroke="#9ca3af" tickLine={false} />
+                      <YAxis stroke="#9ca3af" tickLine={false} />
+                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
+                      <Bar
+                        dataKey="count"
+                        name="تعداد شرکت‌کننده"
+                        fill="#3b82f6"
+                        radius={[4, 4, 0, 0]}
+                        barSize={12}
+                        onClick={(item) => {
+                          if (item && item.payload) {
+                            setSelectedProvince(item.payload);
+                            setProvinceModalOpen(true);
+                          }
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* 🌟 نمودار ۴: تفکیک جنسیت شرکت‌کنندگان */}
+              <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
+                  <Users size={18} className="text-[#c5a059]" />
+                  <h3 className="font-black text-sm text-[#1a2e44]">تفکیک جنسیت شرکت‌کنندگان</h3>
+                </div>
+                <div className="w-full h-72 text-xs font-bold font-sans">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart
+                      data={analyticsData.gender_stats || []}
+                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+                      <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
+                      <YAxis stroke="#9ca3af" tickLine={false} />
+                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
+                      <Bar
+                        dataKey="count"
+                        name="تعداد شرکت‌کننده"
+                        radius={[4, 4, 0, 0]}
+                        barSize={40}
+                      >
+                        {
+                          (analyticsData.gender_stats || []).map((entry: any, index: number) => {
+                            let color = "#9ca3af"; // خاکستری برای نامشخص
+                            if (entry.gender === "مرد") color = "#3b82f6"; // آبی
+                            if (entry.gender === "زن") color = "#ec4899"; // صورتی
+                            return <Cell key={`cell-${index}`} fill={color} />;
+                          })
+                        }
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -602,6 +677,7 @@ export default function ContestLandingPage() {
         </div>
       </main>
 
+      {/* مدال تحلیل سوالات */}
       {questionModalOpen && selectedQuestion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col text-right">
@@ -668,6 +744,51 @@ export default function ContestLandingPage() {
                   })}
                 </div>
               </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 مدال جدید تحلیل جغرافیایی استان‌ها و شهرستان‌ها */}
+      {provinceModalOpen && selectedProvince && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col text-right">
+
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f6]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#1a2e44] text-[#c5a059] rounded-xl flex items-center justify-center shadow-md">
+                  <MapPin size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-[#1a2e44]">آمار شهرستان‌های استان {selectedProvince.province}</h3>
+                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">تعداد کل شرکت‌کنندگان در این استان: {toPersianDigits(selectedProvince.count)} نفر</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setProvinceModalOpen(false); setSelectedProvince(null); }}
+                className="p-2 bg-white border border-gray-100 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all shadow-sm"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3 overflow-y-auto max-h-[60vh]">
+              {selectedProvince.cities && selectedProvince.cities.length > 0 ? (
+                selectedProvince.cities.map((cityData: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center p-4 bg-[#faf9f6] border border-gray-100 rounded-2xl hover:border-[#c5a059] transition-all">
+                    <span className="font-bold text-sm text-[#1a2e44] flex items-center gap-2">
+                      <div className="w-2 h-2 bg-[#c5a059] rounded-full"></div> 
+                      {cityData.city || 'نامشخص'}
+                    </span>
+                    <span className="font-black text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm">
+                      {toPersianDigits(cityData.count)} نفر
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-xs text-gray-400 font-bold py-6">اطلاعات تفکیکی شهرستان‌ها برای این استان ثبت نشده است.</p>
+              )}
             </div>
 
           </div>

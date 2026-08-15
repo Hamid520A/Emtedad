@@ -2396,26 +2396,27 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
     if not contest:
         return JSONResponse(status_code=404, content={"detail": "مسابقه یافت نشد"}, headers=cors_headers)
         
-    subscriptions = db.query(models.Subscription).filter(
+    subscriptions = db.query(models.Subscription).options(
+        joinedload(models.Subscription.user).joinedload(models.User.city).joinedload(models.City.parent)
+    ).filter(
         models.Subscription.contest_id == contest_id,
         models.Subscription.deleted_at == None
     ).all()
     
     total_participants = len(subscriptions)
     
-    # ۱. بخش توزیع زمانی (کاملاً سالم و فیکس)
+    # متغیرهای تجمیع داده‌ها
     time_dist = {
-        "زیر ۱ دقیقه": 0,
-        "۱ تا ۳ دقیقه": 0,
-        "۳ تا ۵ دقیقه": 0,
-        "بالای ۵ دقیقه": 0
+        "زیر ۱ دقیقه": 0, "۱ تا ۳ دقیقه": 0,
+        "۳ تا ۵ دقیقه": 0, "بالای ۵ دقیقه": 0
     }
+    province_map = {}
     
-    contest_total_seconds = 600
-    if contest and contest.max_time:
-        contest_total_seconds = (contest.max_time.hour * 3600) + (contest.max_time.minute * 60) + contest.max_time.second
-    
+    # 🌟 متغیر جدید برای شمارش جنسیت
+    gender_map = {"مرد": 0, "زن": 0, "نامشخص": 0}
+
     for sub in subscriptions:
+        # --- منطق توزیع زمانی ---
         time_taken = 0
         if sub.time_left:
             try:
@@ -2431,10 +2432,60 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
         elif time_taken < 180: time_dist["۱ تا ۳ دقیقه"] += 1
         elif time_taken < 300: time_dist["۳ تا ۵ دقیقه"] += 1
         else: time_dist["بالای ۵ دقیقه"] += 1
+
+        # --- منطق توزیع جغرافیایی و جنسیت ---
+        u = sub.user
+        if u:
+            # پراکندگی استان
+            prov_name = "نامشخص"
+            city_name = "نامشخص"
+            
+            if u.city:
+                if u.city.parent:
+                    prov_name = u.city.parent.title
+                    city_name = u.city.title
+                else:
+                    prov_name = u.city.title
+                    city_name = "مرکز استان"
+                    
+            if prov_name not in province_map:
+                province_map[prov_name] = {"count": 0, "cities": {}}
+                
+            province_map[prov_name]["count"] += 1
+            
+            if city_name not in province_map[prov_name]["cities"]:
+                province_map[prov_name]["cities"][city_name] = 0
+            province_map[prov_name]["cities"][city_name] += 1
+            
+            # 🌟 شمارش جنسیت
+            if u.gender == "male":
+                gender_map["مرد"] += 1
+            elif u.gender == "female":
+                gender_map["زن"] += 1
+            else:
+                gender_map["نامشخص"] += 1
         
     time_payload = [{"name": k, "users": v} for k, v in time_dist.items()]
     
-    # ۲. 🌟 واکشی سوالات و گزینه‌ها با کوئری‌های مستقیم و مستقل دیتابیسی (حل مشکل غیب شدن میله‌ها و فعال‌سازی پاپ‌آپ)
+    province_stats = []
+    for prov_name, data in province_map.items():
+        cities_list = [{"city": c, "count": count} for c, count in data["cities"].items()]
+        cities_list.sort(key=lambda x: x["count"], reverse=True)
+        province_stats.append({
+            "province": prov_name,
+            "count": data["count"],
+            "cities": cities_list
+        })
+    province_stats.sort(key=lambda x: x["count"], reverse=True)
+    
+    # 🌟 پکیج‌بندی دیتای جنسیت
+    gender_stats = [
+        {"gender": "مرد", "count": gender_map["مرد"]},
+        {"gender": "زن", "count": gender_map["زن"]},
+        {"gender": "نامشخص", "count": gender_map["نامشخص"]}
+    ]
+    
+    # --- منطق سوالات ---
     questions_payload = []
     questions = db.query(models.Question).filter(
         models.Question.contest_id == contest_id, 
@@ -2442,7 +2493,6 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
     ).order_by(models.Question.id.asc()).all()
     
     for idx, q in enumerate(questions):
-        # 🌟 واکشی مستقیم گزینه‌ها از دیتابیس بدون اتکا به ریلیشن تنبل q.answers
         answers = db.query(models.Answer).filter(
             models.Answer.question_id == q.id,
             models.Answer.deleted_at == None
@@ -2456,9 +2506,8 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
             options_list.append(ans.title)
             if ans.is_correct == 1:
                 correct_answer_id = ans.id
-                correct_index = a_idx + 1 # ایندکس گزینه‌ی صحیح برای فرانت‌ند
+                correct_index = a_idx + 1 
         
-        # 🌟 واکشی مستقیم و ایمن تمام پاسخ‌های انتخاب شده (is_chosen == 1) از دیتابیس
         chosen_answers = db.query(models.SubscriptionAnswer).join(
             models.SubscriptionQuestions, 
             models.SubscriptionAnswer.subscription_question_id == models.SubscriptionQuestions.id
@@ -2479,22 +2528,22 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
             if correct_answer_id and int(ca.answer_id) == int(correct_answer_id):
                 correct_count += 1
         
-        # پاسخ‌های اشتباه = کل شرکت‌کنندگان منهای پاسخ‌های صحیح
         incorrect_count = max(0, total_participants - correct_count)
         
-        # فرستادن پکیج کامل دیتا به فرانت‌ند
         questions_payload.append({
             "question_index": idx + 1,
             "title": q.title,
             "correct": correct_count,
             "incorrect": incorrect_count,
-            "options": options_list,          # 🌟 تزریق شد: گزینه‌ها دیگر هرگز خالی نمی‌شوند
-            "correct_answer": correct_index   # 🌟 تزریق شد: کلید صحیح برای روشن شدن در پاپ‌آپ
+            "options": options_list,          
+            "correct_answer": correct_index   
         })
         
     return JSONResponse(status_code=200, content={
         "time_distribution": time_payload,
-        "questions_stats": questions_payload
+        "questions_stats": questions_payload,
+        "province_stats": province_stats,
+        "gender_stats": gender_stats # 🌟 ارسال دیتای جنسیت به فرانت‌ند
     }, headers=cors_headers)
 
 @app.post("/auth/refresh")
