@@ -589,9 +589,13 @@ export default function AdminUsersPage() {
 
                       <div className="grid grid-cols-1 gap-2">
                         {q.options?.map((opt: any, optIdx: number) => {
-                          const isUserSelected = String(q.selected_option_id) === String(opt.id);
-                          const isKeyOption = String(q.correct_option_id) === String(opt.id);
-                          const isCorrect = String(q.selected_option_id) === String(q.correct_option_id);
+                          // تبدیل ایندکس آرایه (صفر-بیس) به شماره گزینه (۱ تا ۴)
+                          const currentOptionNumber = optIdx + 1;
+                          
+                          // مقایسه با دیتای واقعیِ ارسال شده از سمت بک‌اند
+                          const isUserSelected = q.selected_option === currentOptionNumber;
+                          const isKeyOption = q.correct_answer === currentOptionNumber;
+                          const isCorrect = q.selected_option === q.correct_answer;
 
                           let cardStyle = "bg-[#faf9f6] border-gray-50 text-gray-600";
                           if (isKeyOption) cardStyle = "bg-emerald-50 border-emerald-200 text-emerald-900";
@@ -601,9 +605,10 @@ export default function AdminUsersPage() {
                             <div key={optIdx} className={`p-3 rounded-xl border text-[11px] font-bold flex items-center justify-between ${cardStyle}`}>
                               <span className="flex items-center gap-2">
                                 <span className={`w-5 h-5 rounded-md text-[9px] font-black flex items-center justify-center ${isKeyOption ? 'bg-emerald-500 text-white' : isUserSelected ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                                  {toPersianDigits(optIdx + 1)}
+                                  {toPersianDigits(currentOptionNumber)}
                                 </span>
-                                <span>{opt.title}</span> 
+                                {/* چون opt مستقیماً یک رشته متنی است، دیگر opt.title نداریم */}
+                                <span>{opt}</span> 
                               </span>
 
                               <div className="flex items-center gap-1 shrink-0 font-black text-[9px]">
