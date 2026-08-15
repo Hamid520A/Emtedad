@@ -313,25 +313,28 @@ def wrap_persian_text(text, max_chars=50):
 
 def draw_centered_rtl_text(draw, center_x, y, text, font, fill):
     try:
-        bbox = draw.textbbox((0, 0), text, font=font, direction="rtl")
+        # استفاده از قابلیت داخلی Pillow برای RTL. اگر Pillow با Raqm کامپایل شده باشد این کار می‌کند
+        bbox = draw.textbbox((0, 0), text, font=font, direction="rtl", language="fa")
         text_width = bbox[2] - bbox[0]
     except Exception as e:
         logger.warning(f"Error calculating text width: {e}")
         text_width = len(text) * 13
+        
     actual_x = center_x - (text_width // 2)
-    safe_draw_text(draw, (actual_x, y), text, font, fill, direction="rtl")
-
-def safe_draw_text(draw, position, text, font, fill, direction=None):
     try:
-        if direction:
-            draw.text(position, text, font=font, fill=fill, direction=direction)
-        else:
-            draw.text(position, text, font=font, fill=fill)
-    except Exception:
+        draw.text((actual_x, y), text, font=font, fill=fill, direction="rtl", language="fa")
+    except Exception as e:
+        logger.error(f"Draw text fallback: {e}")
+        draw.text((actual_x, y), text, font=font, fill=fill)
+
+def safe_draw_text(draw, position, text, font, fill, direction="rtl"):
+    try:
+        draw.text(position, text, font=font, fill=fill, direction=direction, language="fa")
+    except Exception as e:
         try:
-            draw.text(position, text, font=font, fill=fill)
-        except Exception as e:
-            logger.error(f"Silent failure intercepted: {e}")
+             draw.text(position, text, font=font, fill=fill)
+        except Exception as e2:
+            logger.error(f"Silent failure intercepted: {e2}")
 
 # 🌟 بازنویسی کامل موتور گرافیکی گواهی‌نامه‌ها منطبق بر معماری ۱ به N جداول جدید StarUML
 def draw_certificate_canvas(user, contest, subscription):
