@@ -29,6 +29,13 @@ class UserBase(BaseModel):
     birth_date: Optional[date] = None
     gender: str = Field("male", max_length=10)
 
+    @field_validator("phone_number", "national_id", mode="before")
+    @classmethod
+    def convert_persian_digits(cls, value):
+        if not value: return value
+        trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        return str(value).translate(trans_table)
+
     @field_validator("birth_date", mode="before")
     @classmethod
     def validate_min_age(cls, value):
@@ -77,6 +84,13 @@ class User(UserBase):
 class UserLogin(BaseModel):
     phone_number: str = Field(..., pattern=r"^09\d{9}$", strip_whitespace=True)
     password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("phone_number", "password", mode="before")
+    @classmethod
+    def convert_login_digits(cls, value):
+        if not value: return value
+        trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        return str(value).translate(trans_table)
 
 # ==========================================
 # Admin Schemas (بروزرسانی شده بر اساس رابطه ۱ به ۱ جدید)
