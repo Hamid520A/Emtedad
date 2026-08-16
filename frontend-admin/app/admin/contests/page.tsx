@@ -51,11 +51,16 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع هوشمند اشتراک‌گذاری (تولید دیپ‌لینک مینی‌اپ ایتا)
+  // 🌟 تابع هوشمند اشتراک‌گذاری (باگ باز نشدن مستقیم مینی‌اپ حل شد)
   const handleShareContest = (contestId: number | string, contestTitle: string) => {
-    // استفاده از آیدی ربات/مینی‌اپ شما برای ساخت لینک اختصاصی ایتا
     const eitaaUsername = "emtedad_emam_app";
-    const shareUrl = `https://eitaa.com/${eitaaUsername}?startapp=contest_${contestId}`;
+    
+    // 👇 نام کوتاه مینی‌اپ خود را اینجا قرار دهید (به صورت پیش‌فرض app گذاشتم)
+    // اگر لینک مستقیم ایتا را نمی‌دانید، به تنظیمات بات خود در ایتا سر بزنید.
+    const appShortName = "app"; 
+    
+    // ساختار جدید و استاندارد برای باز شدن مستقیم مینی‌اپ
+    const shareUrl = `https://eitaa.com/${eitaaUsername}/${appShortName}?startapp=contest_${contestId}`;
     
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
