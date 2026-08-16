@@ -51,15 +51,15 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع هوشمند اشتراک‌گذاری (باگ باز نشدن مستقیم مینی‌اپ حل شد)
+  // 🌟 تابع تولید دیپ‌لینک مینی‌اپ ایتا
   const handleShareContest = (contestId: number | string, contestTitle: string) => {
     const eitaaUsername = "emtedad_emam_app";
     
-    // 👇 نام کوتاه مینی‌اپ خود را اینجا قرار دهید (به صورت پیش‌فرض app گذاشتم)
-    // اگر لینک مستقیم ایتا را نمی‌دانید، به تنظیمات بات خود در ایتا سر بزنید.
+    // 🔴 نکته بسیار مهم: کلمه 'app' را پاک کنید و نام کوتاه برنامک خودتان را که در بات‌فادر ثبت کرده‌اید داخل کوتیشن بنویسید!
+    // مثلاً اگر نام کوتاه شما emtedad است، باید بنویسید: "emtedad"
     const appShortName = "app"; 
     
-    // ساختار جدید و استاندارد برای باز شدن مستقیم مینی‌اپ
+    // ساختار لینک اختصاصی برای باز شدن پاپ‌آپ برنامک
     const shareUrl = `https://eitaa.com/${eitaaUsername}/${appShortName}?startapp=contest_${contestId}`;
     
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
@@ -82,7 +82,7 @@ export default function AdminContestsPage() {
         document.body.removeChild(textArea);
         
         if (successful) {
-          alert("✅ لینک مسابقه در کلیپ‌بورد کپی شد! در پیام‌رسان پیست کنید.");
+          alert("✅ لینک مسابقه در کلیپ‌بورد کپی شد! در پیام‌رسان ایتا ارسال کنید.");
         } else {
           alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
         }
