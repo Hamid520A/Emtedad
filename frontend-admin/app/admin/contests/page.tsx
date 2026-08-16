@@ -38,7 +38,7 @@ export default function AdminContestsPage() {
     return 'به زودی';
   };
 
-  // 🌟 فیکس: تغییر ورودی از created_at (که نداریم) به زمان شروع یا پایان و هندل کردن null
+  // 🌟 فیکس باگ تاریخ: اگر تاریخ ارسال نشد، ارور ندهد
   const formatPersianDate = (dateString: string | null) => {
     if (!dateString) return 'نامشخص';
     try {
@@ -52,7 +52,7 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع اشتراک‌گذاری فیکس شده: حذف چک سخت‌گیرانه برای کار در HTTP و پورت ۶۳۰۰۱
+  // 🌟 تابع هوشمند اشتراک‌گذاری (باگ کپی نکردن در HTTP برطرف شد)
   const handleShareContest = async (contestId: number | string, contestTitle: string) => {
     const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
     const shareUrl = `${userAppBaseUrl}/exam/${contestId}`;
@@ -60,7 +60,6 @@ export default function AdminContestsPage() {
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
-    // ۱. وب شیر بومی موبایل
     if (navigator.share) {
       try {
         await navigator.share({
@@ -70,27 +69,36 @@ export default function AdminContestsPage() {
         });
         return;
       } catch (error) {
-        console.log("وب‌شیر لغو شد یا در این مرورگر پشتیبانی نمی‌شود.");
+        console.log("Share canceled or unsupported.");
       }
     }
 
-    // ۲. روش مدرن (اگر مرورگر در لوکال‌هاست یا https اجازه بدهد)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if (navigator.clipboard && window.isSecureContext) {
       try {
         await navigator.clipboard.writeText(fullTextToCopy);
         alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید.");
         return;
       } catch (err) {
-        console.log("Clipboard مدرن ناموفق بود، در حال تلاش با روش جایگزین...");
+        console.log("Clipboard API failed:", err);
       }
     }
 
-    // ۳. روش جایگزین (Fallback) برای سرورهای HTTP مانند 10.10.20.51
+    // تکنیک قطعی برای محیط تست (HTTP) - بدون توقف و await اضافی
     try {
       const textArea = document.createElement("textarea");
       textArea.value = fullTextToCopy;
+      
       textArea.style.position = "fixed";
-      textArea.style.left = "-999999px";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.width = "2px";
+      textArea.style.height = "2px";
+      textArea.style.padding = "0";
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+      textArea.style.background = "transparent";
+      
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
@@ -101,7 +109,7 @@ export default function AdminContestsPage() {
       if (successful) {
         alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را پیست کنید.");
       } else {
-        alert("❌ مرورگر شما اجازه کپی خودکار را نمی‌دهد.");
+        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
       }
     } catch (err) {
       alert("❌ خطا در کپی کردن لینک.");
@@ -146,10 +154,10 @@ export default function AdminContestsPage() {
                 <div key={c.id} className="group flex items-center justify-between p-5 bg-[#faf9f6] rounded-3xl border border-transparent hover:border-[#c5a059] transition-all">
                   <div className="flex items-center gap-4">
                     
-                    {/* 🌟 تاریخ شروع به جای تاریخ نامشخص */}
+                    {/* 🌟 فیکس: چک کردن اولویت‌دار تاریخ‌ها تا نامشخص نزند */}
                     <div className="px-3 h-12 bg-white rounded-2xl flex flex-col items-center justify-center shadow-sm text-[#c5a059] shrink-0 min-w-[75px] border border-gray-50">
                       <span className="text-[8px] font-black text-gray-400 mb-0.5">تاریخ ثبت</span>
-                      <span className="font-black text-xs tracking-widest">{formatPersianDate(c.start_time)}</span>
+                      <span className="font-black text-xs tracking-widest">{formatPersianDate(c.created_at || c.start_time)}</span>
                     </div>
 
                     <div>

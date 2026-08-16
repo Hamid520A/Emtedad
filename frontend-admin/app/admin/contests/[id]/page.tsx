@@ -174,15 +174,25 @@ export default function ContestLandingPage() {
     }
   };
 
+  // 🌟 تابع حذف اصلاح شده: ضدگلوله در برابر کش Next.js و ارور آیدی نامشخص
   const deleteContest = async () => {
+    if (!contest || !contest.id) {
+      alert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
+      return;
+    }
+
     if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
+    
     try {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
-      router.push('/admin/dashboard');
-    } catch (error) {
+      
+      // هدایت کاربر به لیست مسابقات و پاک کردن کش مرورگر برای رفرش شدن لیست
+      router.push('/admin/contests');
+      router.refresh(); 
+    } catch (error: any) {
       console.error(error);
-      alert("خطا در حذف مسابقه. لطفاً دوباره تلاش کنید.");
+      alert(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'لطفاً دوباره تلاش کنید.'}`);
     }
   };
 
