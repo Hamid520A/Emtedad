@@ -51,20 +51,21 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع کپی استاندارد و بدون وقفه (بدون کلمات async و await مسدود کننده)
+  // 🌟 تابع هوشمند اشتراک‌گذاری (باگ آدرس لندینگ برطرف شد)
   const handleShareContest = (contestId: number | string, contestTitle: string) => {
     const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
-    const shareUrl = `${userAppBaseUrl}/exam/${contestId}`;
+    
+    // 🌟 اصلاح مسیر: ارجاع به صفحه لندینگ (contests) به جای صفحه آزمون (exam)
+    const shareUrl = `${userAppBaseUrl}/contests/${contestId}`;
+    
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
-    // اگر در محیط امن HTTPS بودیم از کلیپ‌بورد مدرن استفاده می‌کنیم
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(fullTextToCopy)
         .then(() => alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید."))
         .catch(() => alert("❌ خطا در کپی کردن لینک."));
     } else {
-      // 🌟 روش قطعی و تضمینی برای سرورهای HTTP (باید بلافاصله و همگام اجرا شود)
       try {
         const textArea = document.createElement("textarea");
         textArea.value = fullTextToCopy;
