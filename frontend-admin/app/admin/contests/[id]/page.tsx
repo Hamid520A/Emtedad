@@ -37,44 +37,6 @@ export default function ContestLandingPage() {
 
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
 
-  const smartAlert = (message: string) => {
-    const globalWindow = window as any;
-    if (globalWindow.Telegram?.WebApp?.showAlert) {
-      globalWindow.Telegram.WebApp.showAlert(message);
-    } else if (globalWindow.Eitaa?.WebApp?.showAlert) {
-      globalWindow.Eitaa.WebApp.showAlert(message);
-    } else {
-      alert(message);
-    }
-  };
-
-  const smartConfirm = (message: string, onConfirm: () => void) => {
-    const globalWindow = window as any;
-    try {
-      if (globalWindow.Telegram?.WebApp?.showConfirm) {
-        globalWindow.Telegram.WebApp.showConfirm(message, (res: boolean) => {
-          if (res) onConfirm();
-        });
-        return;
-      } 
-      if (globalWindow.Eitaa?.WebApp?.showConfirm) {
-        globalWindow.Eitaa.WebApp.showConfirm(message, (res: boolean) => {
-          if (res) onConfirm();
-        });
-        return;
-      }
-    } catch(e) { console.error("WebApp Error:", e); }
-
-    try {
-      if (window.confirm(message)) {
-        onConfirm();
-      }
-    } catch(e) {
-      // اگر مرورگر پاپ‌آپ را مسدود کرده باشد این پیام لاگ می‌شود
-      console.error("مرورگر اجازه تایید را نمی‌دهد", e);
-    }
-  };
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsAdminUser(localStorage.getItem('isAdmin') === 'true');
@@ -154,26 +116,8 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
-  const executeStatusChange = async (newStatus: string) => {
-    try {
-      const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
-      setContest({
-        ...contest,
-        status: response.data.status,
-        start_time: response.data.start_time
-      });
-      if (response.data.status === 'active') setTimeLeft(null);
-      smartAlert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
-    } catch (error) {
-      smartAlert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
-    }
-  };
-
-  // 🌟 محافظت از تابع تغییر وضعیت در برابر افزونه‌ها
-  const changeContestStatus = async (e: React.MouseEvent, newStatus: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  // 🌟 تابع استاندارد تغییر وضعیت
+  const changeContestStatus = async (newStatus: string) => {
     if (newStatus === 'active') {
       try {
         const questionsRes = await api.get(`/contests/${contest.id}/questions`);
@@ -181,18 +125,15 @@ export default function ContestLandingPage() {
         const targetLimit = parseInt(contest.question_limit || 0, 10);
 
         if (actualQuestionsCount === 0) {
-          smartAlert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید سوال طرح کنید.");
+          alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید سوال طرح کنید.");
           return;
         }
 
         if (actualQuestionsCount < targetLimit) {
-          smartConfirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`, () => {
-            executeStatusChange(newStatus);
-          });
-          return;
+          if (!window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`)) return;
         }
       } catch (error) {
-        smartAlert("خطا در اعتبارسنجی سوالات");
+        alert("خطا در اعتبارسنجی سوالات");
         return;
       }
     }
@@ -202,32 +143,40 @@ export default function ContestLandingPage() {
       newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' :
       newStatus === 'resume' ? 'فعال‌سازی و انتشار مجدد خودکار' : 'پایان دادن به مسابقه';
 
-    smartConfirm(`آیا از ${actionText} مطمئن هستید؟`, () => {
-      executeStatusChange(newStatus);
-    });
+    if (!window.confirm(`آیا از ${actionText} مطمئن هستید؟`)) return;
+
+    try {
+      const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
+      setContest({
+        ...contest,
+        status: response.data.status,
+        start_time: response.data.start_time
+      });
+      if (response.data.status === 'active') setTimeLeft(null);
+      alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
+    } catch (error) {
+      alert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
+    }
   };
 
-  // 🌟 محافظت از تابع حذف در برابر افزونه‌ها
-  const deleteContest = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  // 🌟 تابع استاندارد حذف (بدون preventDefault و کدهای مزاحم)
+  const deleteContest = async () => {
     if (!contest || !contest.id) {
-      smartAlert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
+      alert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
       return;
     }
 
-    smartConfirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!", async () => {
-      try {
-        await api.delete(`/admin/contests/${contest.id}`);
-        smartAlert("مسابقه با موفقیت از سیستم حذف شد.");
-        router.push('/admin/contests');
-        router.refresh(); 
-      } catch (error: any) {
-        console.error(error);
-        smartAlert(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'دوباره تلاش کنید.'}`);
-      }
-    });
+    if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
+    
+    try {
+      await api.delete(`/admin/contests/${contest.id}`);
+      alert("مسابقه با موفقیت از سیستم حذف شد.");
+      router.push('/admin/contests');
+      router.refresh(); 
+    } catch (error: any) {
+      console.error(error);
+      alert(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'دوباره تلاش کنید.'}`);
+    }
   };
 
   const toPersianDigits = (str: string | number) => {
@@ -320,26 +269,26 @@ export default function ContestLandingPage() {
                   <button onClick={() => router.push(`/admin/contests/${contest.id}/questions`)} className="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 transition-all active:scale-95">📝 مدیریت سوالات</button>
                   <button onClick={() => router.push(`/admin/contests/${contest.id}/participants`)} className="bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
                   
-                  {/* 🌟 دکمه حذف به روزرسانی شده مجهز به e.preventDefault */}
-                  <button onClick={(e) => deleteContest(e)} className="bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
+                  {/* 🌟 دکمه حذف به شکل کاملاً استاندارد */}
+                  <button onClick={deleteContest} className="bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
               </div>
 
               <div className="flex flex-wrap justify-end gap-2">
                 {(contest.status === 'active' || contest.status === 'upcoming') && (
-                  <button onClick={(e) => changeContestStatus(e, 'draft')} className="w-full sm:w-auto bg-amber-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-amber-600">⏸️ توقف و مخفی‌سازی اضطراری</button>
+                  <button onClick={() => changeContestStatus('draft')} className="w-full sm:w-auto bg-amber-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-amber-600">⏸️ توقف و مخفی‌سازی اضطراری</button>
                 )}
                 {contest.status === 'upcoming' && (
-                  <button onClick={(e) => changeContestStatus(e, 'active')} className="w-full sm:w-auto bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-red-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-red-600"><PlayCircle size={15} /> شروع فوری رقابت</button>
+                  <button onClick={() => changeContestStatus('active')} className="w-full sm:w-auto bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-red-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-red-600"><PlayCircle size={15} /> شروع فوری رقابت</button>
                 )}
                 {contest.status === 'active' && (
-                  <button onClick={(e) => changeContestStatus(e, 'finished')} className="w-full sm:w-auto bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a]"><Power size={15} className="text-[#c5a059]" /> اتمام نهایی مسابقه</button>
+                  <button onClick={() => changeContestStatus('finished')} className="w-full sm:w-auto bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a]"><Power size={15} className="text-[#c5a059]" /> اتمام نهایی مسابقه</button>
                 )}
                 {contest.status === 'draft' && (
-                  <button onClick={(e) => changeContestStatus(e, 'resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
+                  <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
                 )}
                 {contest.status === 'finished' && (
-                  <button onClick={(e) => changeContestStatus(e, 'resume')} className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-indigo-700">🔄 بازگشایی مجدد</button>
+                  <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-indigo-700">🔄 بازگشایی مجدد</button>
                 )}
               </div>
             </div>
@@ -554,7 +503,7 @@ export default function ContestLandingPage() {
                   <p className="text-green-700 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
 
                   <button
-                    onClick={() => smartAlert("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
+                    onClick={() => alert("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
                     className="w-full mt-4 bg-white hover:bg-gray-50 text-[#1a2e44] py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 shadow-sm"
                   >
                     <FileText size={15} className="text-[#c5a059]" />
