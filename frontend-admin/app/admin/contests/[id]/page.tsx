@@ -14,7 +14,7 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-import { getCleanImageUrl, openExternalLink } from '../../../lib/utils/url';
+import { getCleanImageUrl, openExternalLink } from '@/lib/utils/url';
 
 export default function ContestLandingPage() {
   const router = useRouter();
