@@ -196,10 +196,13 @@ export default function ContestLandingPage() {
   };
 
   // 🌟 تابع هوشمند اشتراک‌گذاری با استفاده از آدرس فعلی صفحه
+  // 🌟 تابع هوشمند اشتراک‌گذاری با پشتیبانی کامل از محیط‌های HTTP (تست) و HTTPS (پروداکشن)
   const handleShareContest = async () => {
     const shareUrl = window.location.href; // آدرس همین صفحه‌ای که کاربر در آن است
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contest.title}» روی لینک زیر کلیک کنید:\n`;
+    const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
+    // ۱. تلاش برای باز کردن منوی شیر بومی گوشی (فقط در HTTPS یا Localhost کار می‌کند)
     if (navigator.share) {
       try {
         await navigator.share({
@@ -209,14 +212,50 @@ export default function ContestLandingPage() {
         });
         return;
       } catch (error) {
-        console.log("اشتراک‌گذاری لغو شد یا پشتیبانی نشد:", error);
+        console.log("Share canceled or unsupported.");
       }
     }
 
-    // فال‌بک برای دسکتاپ و مینی‌اپ‌هایی که وب‌شیر بومی ندارند
+    // ۲. فال‌بک اول: استفاده از کلیپ‌بورد مدرن (اگر در محیط امن باشیم)
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(fullTextToCopy);
+        alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید.");
+        return;
+      } catch (err) {
+        console.log("Clipboard API failed:", err);
+      }
+    }
+
+    // ۳. 🌟 فال‌بک نهایی و تضمینی: تکنیک Textarea برای محیط‌های HTTP (مثل 10.10.20.51)
     try {
-      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-      alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید.");
+      const textArea = document.createElement("textarea");
+      textArea.value = fullTextToCopy;
+      
+      // مخفی کردن کامل textarea از دید کاربر
+      textArea.style.position = "fixed";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.width = "2px";
+      textArea.style.height = "2px";
+      textArea.style.padding = "0";
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+      textArea.style.background = "transparent";
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود پیست کنید.");
+      } else {
+        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد. آدرس را از بالای صفحه کپی کنید.");
+      }
     } catch (err) {
       alert("❌ خطا در کپی کردن لینک.");
     }

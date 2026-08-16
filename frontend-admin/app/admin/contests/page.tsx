@@ -52,17 +52,16 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع هوشمند اشتراک‌گذاری مسابقه (پشتیبانی از مینی‌اپ، موبایل و دسکتاپ)
+  // 🌟 تابع هوشمند اشتراک‌گذاری (ورژن مخصوص لیست مسابقات ادمین)
   const handleShareContest = async (contestId: number | string, contestTitle: string) => {
-    // ۱. ساخت آدرس دقیق سامانه کاربران (فرانت‌ند اصلی)
-    // اگر متغیر محیطی ست نشده بود، پورت 63000 را به عنوان پیش‌فرض کاربران در نظر می‌گیرد
+    // ساخت آدرس فرانت‌ند کاربران (چون ادمین در پورت ۶۳۰۰۱ است، لینک باید به ۶۳۰۰۰ ارجاع داده شود)
     const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
-    
-    // آدرس لندینگ مسابقه در پنل کاربران (مسیر را بر اساس روتر خودتان تنظیم کنید، مثلا /exam/1)
     const shareUrl = `${userAppBaseUrl}/exam/${contestId}`;
+    
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
+    const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
-    // ۲. بررسی پشتیبانی مرورگر/مینی‌اپ از قابلیت Share بومی (Native Share)
+    // ۱. تلاش برای باز کردن منوی شیر بومی گوشی
     if (navigator.share) {
       try {
         await navigator.share({
@@ -70,17 +69,51 @@ export default function AdminContestsPage() {
           text: shareText,
           url: shareUrl,
         });
-        return; // اگر موفق بود از تابع خارج شو
+        return;
       } catch (error) {
-        console.log("اشتراک‌گذاری لغو شد یا مرورگر پشتیبانی نکرد:", error);
-        // در صورت لغو یا خطا، به سراغ کپی کردن در کلیپ‌بورد می‌رویم
+        console.log("Share canceled or unsupported.");
       }
     }
 
-    // ۳. فال‌بک (Fallback) برای دسکتاپ یا مرورگرهایی که Share بومی ندارند: کپی در حافظه
+    // ۲. فال‌بک اول: کلیپ‌بورد مدرن (محیط امن HTTPS)
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(fullTextToCopy);
+        alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید.");
+        return;
+      } catch (err) {
+        console.log("Clipboard API failed:", err);
+      }
+    }
+
+    // ۳. 🌟 فال‌بک نهایی و تضمینی: تکنیک Textarea برای محیط‌های HTTP
     try {
-      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-      alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید.");
+      const textArea = document.createElement("textarea");
+      textArea.value = fullTextToCopy;
+      
+      textArea.style.position = "fixed";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.width = "2px";
+      textArea.style.height = "2px";
+      textArea.style.padding = "0";
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+      textArea.style.background = "transparent";
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را پیست کنید.");
+      } else {
+        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+      }
     } catch (err) {
       alert("❌ خطا در کپی کردن لینک.");
     }
