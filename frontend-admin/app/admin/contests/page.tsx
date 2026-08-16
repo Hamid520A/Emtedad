@@ -38,8 +38,8 @@ export default function AdminContestsPage() {
     return 'به زودی';
   };
 
-  // 🌟 تابع تبدیل تاریخ میلادی به شمسی بدون نیاز به کتابخانه جانبی
-  const formatPersianDate = (dateString: string) => {
+  // 🌟 فیکس: تغییر ورودی از created_at (که نداریم) به زمان شروع یا پایان و هندل کردن null
+  const formatPersianDate = (dateString: string | null) => {
     if (!dateString) return 'نامشخص';
     try {
       return new Intl.DateTimeFormat('fa-IR', {
@@ -52,16 +52,15 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع هوشمند اشتراک‌گذاری (ورژن مخصوص لیست مسابقات ادمین)
+  // 🌟 تابع اشتراک‌گذاری فیکس شده: حذف چک سخت‌گیرانه برای کار در HTTP و پورت ۶۳۰۰۱
   const handleShareContest = async (contestId: number | string, contestTitle: string) => {
-    // ساخت آدرس فرانت‌ند کاربران (چون ادمین در پورت ۶۳۰۰۱ است، لینک باید به ۶۳۰۰۰ ارجاع داده شود)
     const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
     const shareUrl = `${userAppBaseUrl}/exam/${contestId}`;
     
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
-    // ۱. تلاش برای باز کردن منوی شیر بومی گوشی
+    // ۱. وب شیر بومی موبایل
     if (navigator.share) {
       try {
         await navigator.share({
@@ -71,37 +70,27 @@ export default function AdminContestsPage() {
         });
         return;
       } catch (error) {
-        console.log("Share canceled or unsupported.");
+        console.log("وب‌شیر لغو شد یا در این مرورگر پشتیبانی نمی‌شود.");
       }
     }
 
-    // ۲. فال‌بک اول: کلیپ‌بورد مدرن (محیط امن HTTPS)
-    if (navigator.clipboard && window.isSecureContext) {
+    // ۲. روش مدرن (اگر مرورگر در لوکال‌هاست یا https اجازه بدهد)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(fullTextToCopy);
         alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید.");
         return;
       } catch (err) {
-        console.log("Clipboard API failed:", err);
+        console.log("Clipboard مدرن ناموفق بود، در حال تلاش با روش جایگزین...");
       }
     }
 
-    // ۳. 🌟 فال‌بک نهایی و تضمینی: تکنیک Textarea برای محیط‌های HTTP
+    // ۳. روش جایگزین (Fallback) برای سرورهای HTTP مانند 10.10.20.51
     try {
       const textArea = document.createElement("textarea");
       textArea.value = fullTextToCopy;
-      
       textArea.style.position = "fixed";
-      textArea.style.top = "0";
-      textArea.style.left = "0";
-      textArea.style.width = "2px";
-      textArea.style.height = "2px";
-      textArea.style.padding = "0";
-      textArea.style.border = "none";
-      textArea.style.outline = "none";
-      textArea.style.boxShadow = "none";
-      textArea.style.background = "transparent";
-      
+      textArea.style.left = "-999999px";
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
@@ -112,7 +101,7 @@ export default function AdminContestsPage() {
       if (successful) {
         alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را پیست کنید.");
       } else {
-        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+        alert("❌ مرورگر شما اجازه کپی خودکار را نمی‌دهد.");
       }
     } catch (err) {
       alert("❌ خطا در کپی کردن لینک.");
@@ -121,7 +110,6 @@ export default function AdminContestsPage() {
 
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
-      {/* Header */}
       <header className="p-8 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <button 
@@ -146,7 +134,6 @@ export default function AdminContestsPage() {
         </button>
       </header>
 
-      {/* Contests List */}
       <main className="px-8">
         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
           {loading ? (
@@ -159,10 +146,10 @@ export default function AdminContestsPage() {
                 <div key={c.id} className="group flex items-center justify-between p-5 bg-[#faf9f6] rounded-3xl border border-transparent hover:border-[#c5a059] transition-all">
                   <div className="flex items-center gap-4">
                     
-                    {/* 🌟 رفع باگ امنیتی: جایگزینی ID دیتابیس با باکس زیبای تاریخ شمسی */}
+                    {/* 🌟 تاریخ شروع به جای تاریخ نامشخص */}
                     <div className="px-3 h-12 bg-white rounded-2xl flex flex-col items-center justify-center shadow-sm text-[#c5a059] shrink-0 min-w-[75px] border border-gray-50">
                       <span className="text-[8px] font-black text-gray-400 mb-0.5">تاریخ ثبت</span>
-                      <span className="font-black text-xs tracking-widest">{formatPersianDate(c.created_at)}</span>
+                      <span className="font-black text-xs tracking-widest">{formatPersianDate(c.start_time)}</span>
                     </div>
 
                     <div>
@@ -176,7 +163,6 @@ export default function AdminContestsPage() {
                     </div>
                   </div>
 
-                  {/* 👈 باکس دکمه‌های اکشن */}
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => handleShareContest(c.id, c.title)} 
