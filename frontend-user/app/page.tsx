@@ -16,16 +16,42 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState('active'); 
   const [profileImg, setProfileImg] = useState<string | null>(null);
 
-  // === استیت‌های مربوط به اعلان‌ها ===
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    // اگر کاربر اکسس توکن نداشت، فوراً ریدایرکت شود به لاگین
+    // 🌟 ۱. شکار پارامتر دیپ‌لینک از ایتا (برای زمانی که کاربر روی لینک ارسالی در تلگرام/ایتا زده است)
+    const globalWindow = window as any;
+    const startParam = 
+      globalWindow.Eitaa?.WebApp?.initDataUnsafe?.start_param || 
+      globalWindow.Telegram?.WebApp?.initDataUnsafe?.start_param ||
+      new URLSearchParams(window.location.search).get('startapp');
+
+    let targetContestPath: string | null = null;
+    
+    // اگر پارامتری مثل contest_1 بود، مسیر هدف را آماده می‌کنیم
+    if (startParam && startParam.startsWith('contest_')) {
+      const targetId = startParam.split('_')[1];
+      if (targetId) {
+        targetContestPath = `/contests/${targetId}`;
+      }
+    }
+
+    // ۲. بررسی وضعیت لاگین
     const token = localStorage.getItem('accessToken');
     if (!token) {
+      if (targetContestPath) {
+        // ذخیره آدرس تا اگر کاربر لاگین نبود، پس از ورود به صفحه مسابقه پرتاب شود
+        localStorage.setItem('redirect_after_login', targetContestPath);
+      }
       router.push('/login');
       return; 
+    }
+
+    // 🌟 ۳. اگر مسیر دیپ‌لینک پیدا شد و کاربر لاگین بود -> پرتاب مستقیم به صفحه مسابقه
+    if (targetContestPath) {
+      router.push(targetContestPath);
+      return; // جلوگیری از اجرای بقیه کدهای لود دشبورد
     }
     
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
@@ -53,7 +79,6 @@ export default function DashboardPage() {
     };
     fetchDashboardData();
 
-    // لود تصویر پروفایل کاربر از ایتا
     const fetchProfileImage = async () => {
       try {
         const res = await api.get('/users/me/profile');
@@ -99,7 +124,6 @@ export default function DashboardPage() {
     fetchProfileImage();
   }, [router]);
 
-  // فیلتر کردن لیست پایینی دشبورد کاربری
   const filteredContests = contests.filter((c: any) => {
     const status = c.status?.toLowerCase().trim();
     if (filter === 'finished') {
@@ -108,7 +132,6 @@ export default function DashboardPage() {
     return status === filter;
   });
 
-  // فیلتر کردن بنرهای فعال تبلیغاتی برای اسلایدر بالا
   const activeBanners = banners.filter((b: any) => {
     const status = b.status?.toLowerCase().trim();
     return status === 'active' || status === 'فعال و در حال نمایش' || status === 'active_display';
@@ -135,7 +158,6 @@ export default function DashboardPage() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
-      {/* هدر اصلاح‌شده بر اساس طرح جدید */}
       <header className="bg-[#faf9f6] dark:bg-[#0b0f19] p-6 flex justify-between items-center sticky top-0 z-40 transition-colors duration-200">
         <div className="flex items-center gap-3">
           <button 
@@ -202,7 +224,6 @@ export default function DashboardPage() {
 
       <main className="p-6 space-y-8">
         
-        {/* اسلایدر بنرهای تبلیغاتی لبه-به-لبه تا کناره‌های گوشی */}
         <section className="-mx-6 relative">
           <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory px-6 pb-4">
             {activeBanners.length > 0 ? (
@@ -214,7 +235,6 @@ export default function DashboardPage() {
                 >
                   {banner.image_url && (
                     <>
-                      {/* 🌟 اصلاح شد: استفاده از تابع پاک‌سازی آدرس تصویر برای بنرها */}
                       <img 
                         src={getCleanImageUrl(banner.image_url)} 
                         alt={banner.title} 
@@ -256,7 +276,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* بخش تب‌ها و لیست مسابقات */}
         <section>
           <div className="flex bg-white dark:bg-[#182234] p-1.5 rounded-full shadow-sm border border-gray-100 dark:border-slate-800 mb-6">
             {['active', 'upcoming', 'finished'].map((tab) => (
@@ -284,7 +303,6 @@ export default function DashboardPage() {
                 className="bg-white dark:bg-[#182234] p-4 rounded-3xl border border-gray-100 dark:border-slate-800 flex items-center gap-4 shadow-sm active:scale-95 transition cursor-pointer group animate-in fade-in duration-200"
               >
                 <div className="w-16 h-16 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100 dark:border-slate-800">
-                  {/* 🌟 اصلاح شد: استفاده از تابع پاک‌سازی آدرس تصویر برای مسابقات */}
                   {contest.image_url ? (
                     <img src={getCleanImageUrl(contest.image_url)} className="w-full h-full object-cover" />
                   ) : (
