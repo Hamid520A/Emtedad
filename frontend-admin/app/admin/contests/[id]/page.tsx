@@ -30,32 +30,52 @@ export default function ContestLandingPage() {
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
-  
-  // استیت‌های مدال سوالات
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
-  
-  // 🌟 استیت‌های جدید برای مدال استان‌ها
   const [selectedProvince, setSelectedProvince] = useState<any>(null);
   const [provinceModalOpen, setProvinceModalOpen] = useState(false);
 
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
-  const [isFullVideoModal, setIsFullVideoModal] = useState(false);
+
+  // 🌟 توابع هوشمند جایگزین alert و confirm با پشتیبانی از مینی‌اپ ایتا و تلگرام
+  const smartAlert = (message: string) => {
+    const globalWindow = window as any;
+    if (globalWindow.Telegram?.WebApp?.showAlert) {
+      globalWindow.Telegram.WebApp.showAlert(message);
+    } else if (globalWindow.Eitaa?.WebApp?.showAlert) {
+      globalWindow.Eitaa.WebApp.showAlert(message);
+    } else {
+      alert(message);
+    }
+  };
+
+  const smartConfirm = (message: string, onConfirm: () => void) => {
+    const globalWindow = window as any;
+    if (globalWindow.Telegram?.WebApp?.showConfirm) {
+      globalWindow.Telegram.WebApp.showConfirm(message, (res: boolean) => {
+        if (res) onConfirm();
+      });
+    } else if (globalWindow.Eitaa?.WebApp?.showConfirm) {
+      globalWindow.Eitaa.WebApp.showConfirm(message, (res: boolean) => {
+        if (res) onConfirm();
+      });
+    } else {
+      if (window.confirm(message)) {
+        onConfirm();
+      }
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const adminStatus = localStorage.getItem('isAdmin') === 'true';
-      setIsAdminUser(adminStatus);
+      setIsAdminUser(localStorage.getItem('isAdmin') === 'true');
     }
     setMounted(true);
 
-    if (!contestId) {
-      return;
-    }
+    if (!contestId) return;
 
     const cleanId = parseInt(contestId as string, 10);
     if (isNaN(cleanId)) {
-      console.error("❌ آیدی پیدا شده عدد نیست:", contestId);
       setLoading(false);
       return;
     }
@@ -81,8 +101,7 @@ export default function ContestLandingPage() {
           setProfile(profileRes.data);
         } catch (profError) {}
 
-        const adminStatus = localStorage.getItem('isAdmin') === 'true';
-        if (adminStatus) {
+        if (localStorage.getItem('isAdmin') === 'true') {
           try {
             const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
             setAnalyticsData(analyticsRes.data);
@@ -95,7 +114,6 @@ export default function ContestLandingPage() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [contestId]);
 
@@ -110,7 +128,6 @@ export default function ContestLandingPage() {
     const timer = setInterval(() => {
       setTotalSecondsLeft((prev) => (prev && prev > 0 ? prev - 1 : 0));
     }, 1000);
-
     return () => clearInterval(timer);
   }, [totalSecondsLeft, contest, mounted]);
 
@@ -119,7 +136,6 @@ export default function ContestLandingPage() {
       setTimeLeft(null);
       return;
     }
-
     const secs = totalSecondsLeft;
     setTimeLeft({
       days: Math.floor(secs / (3600 * 24)),
@@ -129,6 +145,22 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
+  // 🌟 تابع آپدیت وضعیت مجهز شده به smartConfirm
+  const executeStatusChange = async (newStatus: string) => {
+    try {
+      const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
+      setContest({
+        ...contest,
+        status: response.data.status,
+        start_time: response.data.start_time
+      });
+      if (response.data.status === 'active') setTimeLeft(null);
+      smartAlert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
+    } catch (error) {
+      smartAlert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
+    }
+  };
+
   const changeContestStatus = async (newStatus: string) => {
     if (newStatus === 'active') {
       try {
@@ -137,63 +169,50 @@ export default function ContestLandingPage() {
         const targetLimit = parseInt(contest.question_limit || 0, 10);
 
         if (actualQuestionsCount === 0) {
-          alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید از قسمت «مدیریت سوالات» برای مسابقه سوال طرح کنید.");
+          smartAlert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید سوال طرح کنید.");
           return;
         }
 
         if (actualQuestionsCount < targetLimit) {
-          const ignoreWarning = window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`);
-          if (!ignoreWarning) return;
+          smartConfirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`, () => {
+            executeStatusChange(newStatus);
+          });
+          return;
         }
       } catch (error) {
-        alert("خطا در اعتبارسنجی سوالات");
+        smartAlert("خطا در اعتبارسنجی سوالات");
         return;
       }
     }
 
     const actionText =
       newStatus === 'active' ? 'شروع فوری مسابقه' :
-        newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' :
-          newStatus === 'resume' ? 'فعال‌سازی و انتشار مجدد خودکار' : 'پایان دادن به مسابقه';
+      newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' :
+      newStatus === 'resume' ? 'فعال‌سازی و انتشار مجدد خودکار' : 'پایان دادن به مسابقه';
 
-    if (!window.confirm(`آیا از ${actionText} مطمئن هستید؟`)) return;
-
-    try {
-      const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
-      setContest({
-        ...contest,
-        status: response.data.status,
-        start_time: response.data.start_time
-      });
-      if (response.data.status === 'active') {
-        setTimeLeft(null);
-      }
-      alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
-    } catch (error) {
-      alert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
-    }
+    smartConfirm(`آیا از ${actionText} مطمئن هستید؟`, () => {
+      executeStatusChange(newStatus);
+    });
   };
 
-  // 🌟 تابع حذف اصلاح شده: ضدگلوله در برابر کش Next.js و ارور آیدی نامشخص
-  const deleteContest = async () => {
+  // 🌟 تابع حذف مجهز شده به smartConfirm
+  const deleteContest = () => {
     if (!contest || !contest.id) {
-      alert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
+      smartAlert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
       return;
     }
 
-    if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
-    
-    try {
-      await api.delete(`/admin/contests/${contest.id}`);
-      alert("مسابقه با موفقیت از سیستم حذف شد.");
-      
-      // هدایت کاربر به لیست مسابقات و پاک کردن کش مرورگر برای رفرش شدن لیست
-      router.push('/admin/contests');
-      router.refresh(); 
-    } catch (error: any) {
-      console.error(error);
-      alert(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'لطفاً دوباره تلاش کنید.'}`);
-    }
+    smartConfirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!", async () => {
+      try {
+        await api.delete(`/admin/contests/${contest.id}`);
+        smartAlert("مسابقه با موفقیت از سیستم حذف شد.");
+        router.push('/admin/contests');
+        router.refresh(); 
+      } catch (error: any) {
+        console.error(error);
+        smartAlert(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'دوباره تلاش کنید.'}`);
+      }
+    });
   };
 
   const toPersianDigits = (str: string | number) => {
@@ -285,6 +304,8 @@ export default function ContestLandingPage() {
                   <button onClick={() => router.push(`/admin/contests/${contest.id}/edit`)} className="bg-indigo-50 border border-indigo-200 text-indigo-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
                   <button onClick={() => router.push(`/admin/contests/${contest.id}/questions`)} className="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 transition-all active:scale-95">📝 مدیریت سوالات</button>
                   <button onClick={() => router.push(`/admin/contests/${contest.id}/participants`)} className="bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
+                  
+                  {/* دکمه حذف به روزرسانی شده */}
                   <button onClick={deleteContest} className="bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
               </div>
@@ -313,7 +334,6 @@ export default function ContestLandingPage() {
           {isAdminUser && analyticsData && (
             <div className="space-y-6 animate-in fade-in duration-300">
 
-              {/* نمودار ۱: زمان‌ها */}
               <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <Clock size={18} className="text-[#c5a059]" />
@@ -332,13 +352,12 @@ export default function ContestLandingPage() {
                       <XAxis dataKey="name" stroke="#9ca3af" tickLine={false} />
                       <YAxis stroke="#9ca3af" tickLine={false} />
                       <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right', fontSize: '11px', fontFamily: 'sans-serif' }} />
-                      <Area type="monotone" dataKey="users" name="تعداد شرکت‌کننده" stroke="#f5f7f8" strokeWidth={3} fillOpacity={1} fill="url(#colorTimeTheme)" />
+                      <Area type="monotone" dataKey="users" name="تعداد شرکت‌کننده" stroke="#1a2e44" strokeWidth={3} fillOpacity={1} fill="url(#colorTimeTheme)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* نمودار ۲: سوالات */}
               <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <BarChart3 size={18} className="text-[#c5a059]" />
@@ -387,7 +406,6 @@ export default function ContestLandingPage() {
                 </div>
               </div>
 
-              {/* 🌟 نمودار ۳: پراکندگی جغرافیایی (استان‌ها) */}
               <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <MapPin size={18} className="text-[#c5a059]" />
@@ -421,7 +439,6 @@ export default function ContestLandingPage() {
                 </div>
               </div>
 
-              {/* 🌟 نمودار ۴: تفکیک جنسیت شرکت‌کنندگان */}
               <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <Users size={18} className="text-[#c5a059]" />
@@ -448,7 +465,6 @@ export default function ContestLandingPage() {
                           .filter((entry: any) => entry.gender === "مرد" || entry.gender === "زن")
                           .map((entry: any, index: number) => {
                             const color = entry.gender === "مرد" ? "#3b82f6" : "#ec4899"; 
-                            
                             return <Cell key={`cell-${index}`} fill={color} />;
                           })
                         }
@@ -524,7 +540,7 @@ export default function ContestLandingPage() {
                   <p className="text-green-700 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
 
                   <button
-                    onClick={() => alert("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
+                    onClick={() => smartAlert("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
                     className="w-full mt-4 bg-white hover:bg-gray-50 text-[#1a2e44] py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 shadow-sm"
                   >
                     <FileText size={15} className="text-[#c5a059]" />
@@ -761,7 +777,6 @@ export default function ContestLandingPage() {
         </div>
       )}
 
-      {/* 🌟 مدال جدید تحلیل جغرافیایی استان‌ها و شهرستان‌ها */}
       {provinceModalOpen && selectedProvince && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col text-right">

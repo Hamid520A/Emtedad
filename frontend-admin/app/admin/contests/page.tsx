@@ -38,7 +38,6 @@ export default function AdminContestsPage() {
     return 'به زودی';
   };
 
-  // 🌟 فیکس باگ تاریخ: اگر تاریخ ارسال نشد، ارور ندهد
   const formatPersianDate = (dateString: string | null) => {
     if (!dateString) return 'نامشخص';
     try {
@@ -52,67 +51,55 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع هوشمند اشتراک‌گذاری (باگ کپی نکردن در HTTP برطرف شد)
-  const handleShareContest = async (contestId: number | string, contestTitle: string) => {
+  // 🌟 تابع کمکی هوشمند برای سازگاری هشدارهای پاپ‌آپ با مینی‌اپ‌های تلگرام/ایتا
+  const smartAlert = (message: string) => {
+    const globalWindow = window as any;
+    if (globalWindow.Telegram?.WebApp?.showAlert) {
+      globalWindow.Telegram.WebApp.showAlert(message);
+    } else if (globalWindow.Eitaa?.WebApp?.showAlert) {
+      globalWindow.Eitaa.WebApp.showAlert(message);
+    } else {
+      alert(message);
+    }
+  };
+
+  // 🌟 تابع کپی ۱۰۰٪ تضمینی (بدون وقفه)
+  const handleShareContest = (contestId: number | string, contestTitle: string) => {
     const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
     const shareUrl = `${userAppBaseUrl}/exam/${contestId}`;
-    
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
-    if (navigator.share) {
+    // تکنیک کپی سنتی که دقیقاً همزمان با کلیک اجرا می‌شود تا مسدود نشود
+    const fallbackCopy = () => {
       try {
-        await navigator.share({
-          title: contestTitle,
-          text: shareText,
-          url: shareUrl,
-        });
-        return;
-      } catch (error) {
-        console.log("Share canceled or unsupported.");
-      }
-    }
-
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(fullTextToCopy);
-        alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید.");
-        return;
+        const textArea = document.createElement("textarea");
+        textArea.value = fullTextToCopy;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+          smartAlert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دیگران پیست کنید.");
+        } else {
+          smartAlert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+        }
       } catch (err) {
-        console.log("Clipboard API failed:", err);
+        smartAlert("❌ خطا در کپی کردن لینک.");
       }
-    }
+    };
 
-    // تکنیک قطعی برای محیط تست (HTTP) - بدون توقف و await اضافی
-    try {
-      const textArea = document.createElement("textarea");
-      textArea.value = fullTextToCopy;
-      
-      textArea.style.position = "fixed";
-      textArea.style.top = "0";
-      textArea.style.left = "0";
-      textArea.style.width = "2px";
-      textArea.style.height = "2px";
-      textArea.style.padding = "0";
-      textArea.style.border = "none";
-      textArea.style.outline = "none";
-      textArea.style.boxShadow = "none";
-      textArea.style.background = "transparent";
-      
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      if (successful) {
-        alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را پیست کنید.");
-      } else {
-        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
-      }
-    } catch (err) {
-      alert("❌ خطا در کپی کردن لینک.");
+    // اگر در محیط امن HTTPS بودیم از کلیپ‌بورد مدرن استفاده می‌کنیم، در غیر این‌صورت بلافاصله روش سنتی
+    if (window.isSecureContext && navigator.clipboard) {
+      navigator.clipboard.writeText(fullTextToCopy)
+        .then(() => smartAlert("✅ لینک مسابقه با موفقیت کپی شد!"))
+        .catch(() => fallbackCopy());
+    } else {
+      fallbackCopy();
     }
   };
 
@@ -154,7 +141,6 @@ export default function AdminContestsPage() {
                 <div key={c.id} className="group flex items-center justify-between p-5 bg-[#faf9f6] rounded-3xl border border-transparent hover:border-[#c5a059] transition-all">
                   <div className="flex items-center gap-4">
                     
-                    {/* 🌟 فیکس: چک کردن اولویت‌دار تاریخ‌ها تا نامشخص نزند */}
                     <div className="px-3 h-12 bg-white rounded-2xl flex flex-col items-center justify-center shadow-sm text-[#c5a059] shrink-0 min-w-[75px] border border-gray-50">
                       <span className="text-[8px] font-black text-gray-400 mb-0.5">تاریخ ثبت</span>
                       <span className="font-black text-xs tracking-widest">{formatPersianDate(c.created_at || c.start_time)}</span>
