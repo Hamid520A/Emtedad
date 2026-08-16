@@ -131,29 +131,26 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDownloadCertificate = async (contestId: number, contestTitle: string) => {
-    setDownloadingId(contestId);
-    try {
-      const response = await api.get(`/users/me/contests/${contestId}/certificate/download`, {
-        responseType: 'blob' 
-      });
-      
-      const blob = new Blob([response.data], { type: 'image/png' });
-      const url = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `گواهی_مسابقه_${contestTitle.replace(/\s+/g, '_')}.png`;
-      document.body.appendChild(link);
-      link.click();
-      
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error("Error downloading certificate:", error);
-      alert("خطا در دانلود گواهی. لطفا مجدداً تلاش کنید.");
-    } finally {
-      setDownloadingId(null);
+  const handleDownloadCertificate = (contestId: number | string, contestTitle?: string) => {
+    // ۱. دریافت توکن فعلی
+    const token = localStorage.getItem("accessToken") || "";
+    
+    // ۲. خواندن آدرس بک‌اند به صورت کاملاً داینامیک از متغیرهای محیطی (بدون هاردکد)
+    // دقت کنید که متغیر NEXT_PUBLIC_API_URL باید در فایل .env.local شما مقداردهی شده باشد
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    const downloadUrl = `${baseUrl}/users/me/contests/${contestId}/certificate/download?token=${token}`;
+
+    // ۳. دور زدن خطای تایپ‌اسکریپت برای مینی‌اپ‌ها
+    const globalWindow = window as any;
+
+    if (globalWindow.Eitaa && globalWindow.Eitaa.WebApp) {
+      globalWindow.Eitaa.WebApp.openLink(downloadUrl);
+    } else if (globalWindow.Telegram && globalWindow.Telegram.WebApp) {
+      globalWindow.Telegram.WebApp.openLink(downloadUrl);
+    } else {
+      // مرورگر وب عادی
+      window.open(downloadUrl, "_blank");
     }
   };
 

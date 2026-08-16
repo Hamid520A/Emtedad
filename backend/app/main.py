@@ -1291,8 +1291,8 @@ def options_download_certificate():
 @app.get("/users/me/contests/{contest_id}/certificate/download")
 def download_my_certificate(
     contest_id: int, 
-    db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(auth.get_current_user)
+    request: Request, # 🌟 تغییر اصلی: به جای current_user از ریکوئست خام استفاده می‌کنیم
+    db: Session = Depends(database.get_db)
 ):
     cors_headers = {
         "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
@@ -1301,6 +1301,29 @@ def download_my_certificate(
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
     }
 
+    # 🌟 شاه‌کلید فیکس مینی‌اپ: استخراج توکن از آدرس URL (اگر در هدر نبود)
+    token = request.query_params.get("token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            
+    if not token:
+        return JSONResponse(status_code=401, content={"detail": "شما وارد نشده‌اید (توکن یافت نشد)"}, headers=cors_headers)
+        
+    try:
+        # پردازش و رمزگشایی توکن به صورت دستی
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True, "verify_exp": True})
+        phone_number = payload.get("sub")
+        current_user = db.query(models.User).filter(models.User.phone_number == phone_number).first()
+        if not current_user:
+            return JSONResponse(status_code=401, content={"detail": "کاربر معتبر نیست"}, headers=cors_headers)
+    except JWTError:
+        return JSONResponse(status_code=401, content={"detail": "توکن منقضی یا نامعتبر است"}, headers=cors_headers)
+
+    # ==========================================
+    # ادامه منطق استاندارد صدور گواهی
+    # ==========================================
     try:
         subscription = db.query(models.Subscription).filter(
             models.Subscription.user_id == current_user.id,
@@ -1314,7 +1337,6 @@ def download_my_certificate(
         if not contest:
             return JSONResponse(status_code=404, content={"detail": "مسابقه مورد نظر یافت نشد."}, headers=cors_headers)
             
-        # بررسی وجود گواهی در سیستم جدید
         cert = contest.certificates[0] if contest.certificates else None
         if not cert or cert.is_active == 0:
             return JSONResponse(status_code=400, content={"detail": "این مسابقه فاقد امتیاز صدور گواهی نامه است."}, headers=cors_headers)
@@ -1337,7 +1359,7 @@ def download_my_certificate(
     except Exception as global_err:
         print(f"❌ خطای سراسری اندپوینت: {global_err}")
         return JSONResponse(status_code=500, content={"detail": f"خطای سرور: {str(global_err)}"}, headers=cors_headers)
-       
+           
 @app.get("/users/me/submissions/{contest_id}")
 def get_user_submission_review(
     contest_id: int,
