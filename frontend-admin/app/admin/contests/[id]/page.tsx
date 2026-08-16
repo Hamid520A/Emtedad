@@ -14,7 +14,8 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid 
 } from 'recharts';
 
-import { getCleanImageUrl, openExternalLink } from '@/lib/utils/url';
+// 🌟 تابع openExternalLink به کل حذف شد تا ارورهای تایپ‌اسکریپت از بین بروند
+import { getCleanImageUrl } from '@/lib/utils/url';
 
 export default function ContestLandingPage() {
   const router = useRouter();
@@ -114,15 +115,6 @@ export default function ContestLandingPage() {
       seconds: Math.floor(secs % 60)
     });
   }, [totalSecondsLeft]);
-
-  // 🌟 تابع هوشمند دکمه بازگشت (جلوگیری از گیر کردن کاربر در صفحات ورودی مستقیم)
-  const handleBack = () => {
-    if (window.history.length > 2) {
-      router.back();
-    } else {
-      router.push('/'); // هدایت به صفحه اصلی (لیست مسابقات) در صورت نداشتن تاریخچه
-    }
-  };
 
   const changeContestStatus = async (newStatus: string) => {
     if (newStatus === 'active') {
@@ -234,12 +226,24 @@ export default function ContestLandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-[#1a2e44] to-[#2a405a] dark:from-[#182234] dark:to-[#0b0f19]"></div>
         )}
         
-        {/* 🌟 هدر اصلاح شده (بدون دکمه اشتراک گذاری و با تابع بازگشت هوشمند) */}
         <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center justify-between z-20">
           <div className="flex items-center gap-3 sm:gap-4">
-            <button onClick={handleBack} className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white">
+            
+            {/* 🌟 دکمه بازگشت هوشمند با مسیر صحیح (/) برای کاربران */}
+            <button 
+              onClick={() => {
+                if (window.history.length > 2) {
+                  router.back();
+                } else {
+                  if (isAdminUser) router.push('/admin/dashboard');
+                  else router.push('/'); // هدایت مستقیم به صفحه اصلی کاربران در صورت ورود با لینک
+                }
+              }} 
+              className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white"
+            >
               <ArrowRight size={18} />
             </button>
+            
             <div>
               <h1 className="font-black text-lg sm:text-2xl text-white drop-shadow-md">جزئیات و مشخصات مسابقه</h1>
             </div>
@@ -438,6 +442,8 @@ export default function ContestLandingPage() {
                     title="Aparat Video Player"
                   />
                 </div>
+                
+                {/* 🌟 دکمه آپارات بدون ارور (با استفاده از window.open) */}
                 <button
                   type="button"
                   onClick={() => window.open(contest.video_url, '_blank')}
@@ -539,7 +545,7 @@ export default function ContestLandingPage() {
           {contest.status === 'upcoming' && (
             <div className="bg-[#1a2e44] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border border-[#2a405a] dark:border-slate-800">
                <Clock className="absolute -left-6 -top-6 opacity-5" size={100} />
-               <h3 className="text-[#c5a059] text-xs font-black mb-4 flex items-center gap-1.5"><Clock size={16} /> شمارش معکوس تا آغاز مسابقه</h3>
+               <h3 className="text-[#c5a059] text-xs font-black mb-4 flex items-center gap-1.5"><Clock size={16} /> شمار معکوس تا آغاز مسابقه</h3>
                {timeLeft ? (
                  <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center" dir="ltr">
                    <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.days)}</span><span className="text-[9px] text-gray-400 font-bold">روز</span></div>
@@ -787,7 +793,8 @@ export default function ContestLandingPage() {
                   >
                     کپی لینک دانلود
                   </button>
-
+                  
+                  {/* 🌟 دکمه مودال جزوه بدون ارور (با استفاده از window.open) */}
                   <button
                     type="button"
                     onClick={() => {
