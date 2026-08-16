@@ -1,60 +1,68 @@
-// frontend-user/app/contests/[id]/page.tsx
+// frontend-admin/app/admin/contests/[id]/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import api from '../../../lib/api';
-import { 
-  ArrowRight, Download, Gift, FileText, Clock, 
+import {
+  ArrowRight, Download, Gift, FileText, Clock,
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink
+  Crown, Trash2, Award, BarChart3, HelpCircle, X, ExternalLink, MapPin
 } from 'lucide-react';
 
-import { 
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
-  XAxis, YAxis, Tooltip, Legend, CartesianGrid 
+import {
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar,
+  XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell
 } from 'recharts';
 
-// 🌟 تابع openExternalLink به کل حذف شد تا ارورهای تایپ‌اسکریپت از بین بروند
-import { getCleanImageUrl } from '@/lib/utils/url';
+// تابع بیلد تصویر بدون نیاز به فایل‌های اکسترنال (برای جلوگیری از خطای داکر)
+const getCleanImageUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL 
+    ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '') 
+    : 'http://10.10.20.51:8000';
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 export default function ContestLandingPage() {
   const router = useRouter();
   const pathParams = useParams();
-  const contestId = pathParams?.id as string;
+  const contestId = pathParams?.id;
+
   const [contest, setContest] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
+  const [timeLeft, setTimeLeft] = useState<any>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
-  
+
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
+  const [selectedProvince, setSelectedProvince] = useState<any>(null);
+  const [provinceModalOpen, setProvinceModalOpen] = useState(false);
+
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
-  const [showPdfModal, setShowPdfModal] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const adminStatus = localStorage.getItem('isAdmin') === 'true';
-      setIsAdminUser(adminStatus); 
+      setIsAdminUser(localStorage.getItem('isAdmin') === 'true');
     }
     setMounted(true);
-    
+
+    if (!contestId) return;
+
+    const cleanId = parseInt(contestId as string, 10);
+    if (isNaN(cleanId)) {
+      setLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       try {
-        const cleanId = parseInt(contestId);
-        
-        const [contestRes, lbRes, profileRes] = await Promise.all([
-          api.get(`/contests/${cleanId}?t=${Date.now()}`),
-          api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`),
-          api.get(`/users/me/profile?t=${Date.now()}`)
-        ]);
-        
+        const contestRes = await api.get(`/contests/${cleanId}?t=${Date.now()}`);
         setContest(contestRes.data);
-        setLeaderboard(lbRes.data || []);
-        setProfile(profileRes.data);
 
         if (contestRes.data.status === 'upcoming' && contestRes.data.start_time) {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
@@ -62,14 +70,25 @@ export default function ContestLandingPage() {
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
         }
 
-        const adminStatus = localStorage.getItem('isAdmin') === 'true';
-        if (adminStatus) {
-          const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
-          setAnalyticsData(analyticsRes.data);
+        try {
+          const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
+          setLeaderboard(lbRes.data || []);
+        } catch (lbError) {}
+
+        try {
+          const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
+          setProfile(profileRes.data);
+        } catch (profError) {}
+
+        if (localStorage.getItem('isAdmin') === 'true') {
+          try {
+            const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
+            setAnalyticsData(analyticsRes.data);
+          } catch (anError) {}
         }
 
       } catch (error) {
-        console.error("خطا در دریافت اطلاعات جامع مسابقه از سرور", error);
+        console.error("خطا در بلاک اصلی دریافت اطلاعات مسابقه:", error);
       } finally {
         setLoading(false);
       }
@@ -78,35 +97,24 @@ export default function ContestLandingPage() {
   }, [contestId]);
 
   useEffect(() => {
-    if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null) {
-      return;
-    }
-
-    if (totalSecondsLeft <= 0) {
-      setContest((prev: any) => ({ ...prev, status: 'active' }));
+    if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null || totalSecondsLeft <= 0) {
+      if (totalSecondsLeft === 0 && contest?.status === 'upcoming') {
+        setContest((prev: any) => ({ ...prev, status: 'active' }));
+      }
       return;
     }
 
     const timer = setInterval(() => {
-      setTotalSecondsLeft((prev) => {
-        if (prev !== null && prev <= 1) {
-          clearInterval(timer);
-          setContest((prevContest: any) => ({ ...prevContest, status: 'active' }));
-          return 0;
-        }
-        return prev && prev > 0 ? prev - 1 : 0;
-      });
+      setTotalSecondsLeft((prev) => (prev && prev > 0 ? prev - 1 : 0));
     }, 1000);
-
     return () => clearInterval(timer);
-  }, [contest, mounted]);
+  }, [totalSecondsLeft, contest, mounted]);
 
   useEffect(() => {
     if (totalSecondsLeft === null || totalSecondsLeft <= 0) {
       setTimeLeft(null);
       return;
     }
-
     const secs = totalSecondsLeft;
     setTimeLeft({
       days: Math.floor(secs / (3600 * 24)),
@@ -116,7 +124,11 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
-  const changeContestStatus = async (newStatus: string) => {
+  // دکمه تغییر وضعیت با محافظت در برابر افزونه‌های مسدودکننده
+  const changeContestStatus = async (e: React.MouseEvent, newStatus: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (newStatus === 'active') {
       try {
         const questionsRes = await api.get(`/contests/${contest.id}/questions`);
@@ -124,13 +136,12 @@ export default function ContestLandingPage() {
         const targetLimit = parseInt(contest.question_limit || 0, 10);
 
         if (actualQuestionsCount === 0) {
-          alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید از قسمت «مدیریت سوالات» برای مسابقه سوال طرح کنید.");
+          alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید سوال طرح کنید.");
           return;
         }
 
         if (actualQuestionsCount < targetLimit) {
-          const ignoreWarning = window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`);
-          if (!ignoreWarning) return;
+          if (!window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`)) return;
         }
       } catch (error) {
         alert("خطا در اعتبارسنجی سوالات");
@@ -138,19 +149,19 @@ export default function ContestLandingPage() {
       }
     }
 
-    const actionText = 
-      newStatus === 'active' ? 'شروع فوری مسابقه' : 
-      newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' : 
+    const actionText =
+      newStatus === 'active' ? 'شروع فوری مسابقه' :
+      newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' :
       newStatus === 'resume' ? 'فعال‌سازی و انتشار مجدد خودکار' : 'پایان دادن به مسابقه';
-      
+
     if (!window.confirm(`آیا از ${actionText} مطمئن هستید؟`)) return;
 
     try {
       const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
-      setContest({ 
-        ...contest, 
-        status: response.data.status, 
-        start_time: response.data.start_time 
+      setContest({
+        ...contest,
+        status: response.data.status,
+        start_time: response.data.start_time
       });
       if (response.data.status === 'active') setTimeLeft(null);
       alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
@@ -159,15 +170,26 @@ export default function ContestLandingPage() {
     }
   };
 
-  const deleteContest = async () => {
+  // دکمه حذف سالم (دارای e.preventDefault برای جلوگیری از قطع شدن کلیک توسط افزونه‌ها)
+  const deleteContest = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!contest || !contest.id) {
+      alert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
+      return;
+    }
+
     if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
+    
     try {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
-      router.push('/'); 
-    } catch (error) {
+      router.push('/admin/contests');
+      router.refresh(); 
+    } catch (error: any) {
       console.error(error);
-      alert("خطا در حذف مسابقه. لطفاً دوباره تلاش کنید.");
+      alert(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'دوباره تلاش کنید.'}`);
     }
   };
 
@@ -185,17 +207,17 @@ export default function ContestLandingPage() {
     return null;
   };
 
-  if (loading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100"><Loader2 className="animate-spin text-[#1a2e44] dark:text-[#c5a059]" size={40} /></div>;
-  if (!contest) return <div className="p-6 text-center text-[#1a2e44] dark:text-slate-100 font-bold">مسابقه یافت نشد.</div>;
+  if (loading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#faf9f6]"><Loader2 className="animate-spin text-[#1a2e44]" size={40} /></div>;
+  if (!contest) return <div className="p-6 text-center text-[#1a2e44] font-bold">مسابقه یافت نشد.</div>;
 
   const currentUserId = profile?.id || profile?.user_id;
   const leaderboardMatch = currentUserId ? leaderboard.find((user) => String(user.user_id || user.id).trim() == String(currentUserId).trim()) : null;
-  
-  const historyMatch = profile?.history?.find((h:any) => 
-    String(h.contest_id).trim() == String(contestId).trim() || 
+
+  const historyMatch = profile?.history?.find((h: any) =>
+    String(h.contest_id).trim() == String(contestId).trim() ||
     (contest?.title && h.contest_title === contest.title)
   );
-  
+
   const myResult = leaderboardMatch || historyMatch;
   const hasParticipated = !!myResult;
   const topThree = leaderboard.slice(0, 3);
@@ -210,99 +232,75 @@ export default function ContestLandingPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100 pb-24 relative transition-colors duration-200" dir="rtl">
-      
-      <div className="relative w-full h-48 sm:h-64 bg-[#1a2e44] dark:bg-[#182234] rounded-b-[2rem] sm:rounded-b-[2.5rem] overflow-hidden shadow-sm">
+    <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] font-sans pb-24 relative" dir="rtl">
+
+      <div className="relative w-full h-48 sm:h-64 bg-[#1a2e44] rounded-b-[2rem] sm:rounded-b-[2.5rem] overflow-hidden shadow-sm">
         {contest.image_url ? (
           <>
-            <img 
-              src={getCleanImageUrl(contest.image_url)} 
-              alt={contest.title} 
-              className="w-full h-full object-cover" 
-            />
+            <img src={getCleanImageUrl(contest.image_url)} alt={contest.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent"></div>
           </>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1a2e44] to-[#2a405a] dark:from-[#182234] dark:to-[#0b0f19]"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1a2e44] to-[#2a405a]"></div>
         )}
-        
-        <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center justify-between z-20">
-          <div className="flex items-center gap-3 sm:gap-4">
-            
-            {/* 🌟 دکمه بازگشت هوشمند با مسیر صحیح (/) برای کاربران */}
-            <button 
-              onClick={() => {
-                if (window.history.length > 2) {
-                  router.back();
-                } else {
-                  if (isAdminUser) router.push('/admin/dashboard');
-                  else router.push('/'); // هدایت مستقیم به صفحه اصلی کاربران در صورت ورود با لینک
-                }
-              }} 
-              className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white"
-            >
-              <ArrowRight size={18} />
-            </button>
-            
-            <div>
-              <h1 className="font-black text-lg sm:text-2xl text-white drop-shadow-md">جزئیات و مشخصات مسابقه</h1>
-            </div>
+
+        <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center gap-3 sm:gap-4 z-20">
+          <button
+            onClick={() => {
+              if (isAdminUser) {
+                router.push('/admin/dashboard');
+              } else {
+                router.push('/dashboard');
+              }
+            }}
+            className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white"
+          >
+            <ArrowRight size={18} />
+          </button>
+          <div>
+            <h1 className="font-black text-lg sm:text-2xl text-white drop-shadow-md">جزئیات و مشخصات مسابقه</h1>
+            <p className="text-white/70 text-[10px] sm:text-xs font-bold mt-0.5">نمای جامع ادمین و شرکت‌کنندگان</p>
           </div>
         </header>
       </div>
 
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-4 sm:px-8 relative z-30 -mt-8 sm:-mt-12">
-              
+
         <div className="lg:col-span-2 space-y-6">
-          
+
           {isAdminUser && (
-            <div className="bg-white/95 dark:bg-[#182234]/95 backdrop-blur-md border border-red-100 dark:border-red-900/40 p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] flex flex-col gap-4 shadow-md relative overflow-hidden">
+            <div className="bg-white/95 backdrop-blur-md border border-red-100 p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] flex flex-col gap-4 shadow-md relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
-              
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-slate-800 pb-3">
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
                 <div className="flex items-center gap-2">
                   <Settings size={18} className="text-red-500" />
-                  <span className="text-[11px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest">کنسول مدیریتی ابزارها</span>
+                  <span className="text-[11px] font-black text-red-600 uppercase tracking-widest">کنسول مدیریتی ابزارها</span>
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <button onClick={() => {
-                    const host = window.location.hostname;
-                    const protocol = window.location.protocol;
-                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/edit`;
-                  }} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
-                  <button onClick={() => {
-                    const host = window.location.hostname;
-                    const protocol = window.location.protocol;
-                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/questions`;
-                  }} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
-                  <button onClick={() => {
-                    const host = window.location.hostname;
-                    const protocol = window.location.protocol;
-                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/participants`;
-                  }} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
-                  <button onClick={deleteContest} className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
+                  <button onClick={() => router.push(`/admin/contests/${contest.id}/edit`)} className="bg-indigo-50 border border-indigo-200 text-indigo-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
+                  <button onClick={() => router.push(`/admin/contests/${contest.id}/questions`)} className="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 transition-all active:scale-95">📝 مدیریت سوالات</button>
+                  <button onClick={() => router.push(`/admin/contests/${contest.id}/participants`)} className="bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
+                  <button onClick={(e) => deleteContest(e)} className="bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap justify-end gap-2">
                 {(contest.status === 'active' || contest.status === 'upcoming') && (
-                  <button onClick={() => changeContestStatus('draft')} className="w-full sm:w-auto bg-amber-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-amber-600">⏸️ توقف و مخفی‌سازی اضطراری</button>
+                  <button onClick={(e) => changeContestStatus(e, 'draft')} className="w-full sm:w-auto bg-amber-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-amber-600">⏸️ توقف و مخفی‌سازی اضطراری</button>
                 )}
                 {contest.status === 'upcoming' && (
-                  <button onClick={() => changeContestStatus('active')} className="w-full sm:w-auto bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-red-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-red-600"><PlayCircle size={15} /> شروع فوری رقابت</button>
+                  <button onClick={(e) => changeContestStatus(e, 'active')} className="w-full sm:w-auto bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-red-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-red-600"><PlayCircle size={15} /> شروع فوری رقابت</button>
                 )}
                 {contest.status === 'active' && (
-                  <button onClick={() => changeContestStatus('finished')} className="w-full sm:w-auto bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]"><Power size={15} className="text-[#c5a059] dark:text-[#1a2e44]" /> اتمام نهایی مسابقه</button>
+                  <button onClick={(e) => changeContestStatus(e, 'finished')} className="w-full sm:w-auto bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a]"><Power size={15} className="text-[#c5a059]" /> اتمام نهایی مسابقه</button>
                 )}
                 {contest.status === 'draft' && (
-                  <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
+                  <button onClick={(e) => changeContestStatus(e, 'resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
                 )}
-                
                 {contest.status === 'finished' && (
-                  <div className="w-full text-center py-2 bg-gray-100 dark:bg-[#0b0f19] border border-gray-200 dark:border-slate-800 text-gray-500 dark:text-slate-400 rounded-xl text-xs font-black select-none">
-                    🏁 این مسابقه به اتمام رسیده و پاسخنامه‌ها بسته شده‌اند.
-                  </div>
+                  <button onClick={(e) => changeContestStatus(e, 'resume')} className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-indigo-700">🔄 بازگشایی مجدد</button>
                 )}
               </div>
             </div>
@@ -310,19 +308,19 @@ export default function ContestLandingPage() {
 
           {isAdminUser && analyticsData && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
+
+              <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <Clock size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">آنالیز توزیع زمانی حضور شرکت‌کنندگان</h3>
+                  <h3 className="font-black text-sm text-[#1a2e44]">آنالیز توزیع زمانی حضور شرکت‌کنندگان</h3>
                 </div>
                 <div className="w-full h-64 text-xs font-bold font-sans">
                   <ResponsiveContainer width="100%" height={250}>
                     <AreaChart data={analyticsData.time_distribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorTimeTheme" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#c5a059" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#c5a059" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#c5a059" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#c5a059" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
@@ -335,15 +333,15 @@ export default function ContestLandingPage() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
+              <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
                   <BarChart3 size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">پاسخ‌های صحیح و اشتباه به تفکیک سوالات</h3>
+                  <h3 className="font-black text-sm text-[#1a2e44]">پاسخ‌های صحیح و اشتباه به تفکیک سوالات</h3>
                 </div>
                 <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart 
-                      data={analyticsData.questions_stats} 
+                    <BarChart
+                      data={analyticsData.questions_stats}
                       margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
@@ -351,28 +349,28 @@ export default function ContestLandingPage() {
                       <YAxis stroke="#9ca3af" tickLine={false} />
                       <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
                       <Legend verticalAlign="top" height={36} iconType="circle" />
-                      
-                      <Bar 
-                        dataKey="correct" 
-                        name="پاسخ صحیح" 
-                        fill="#0f766e" 
-                        radius={[4, 4, 0, 0]} 
-                        barSize={9} 
+
+                      <Bar
+                        dataKey="correct"
+                        name="پاسخ صحیح"
+                        fill="#0f766e"
+                        radius={[4, 4, 0, 0]}
+                        barSize={9}
                         onClick={(item) => {
-                          if(item && item.payload) {
+                          if (item && item.payload) {
                             setSelectedQuestion(item.payload);
                             setQuestionModalOpen(true);
                           }
                         }}
                       />
-                      <Bar 
-                        dataKey="incorrect" 
-                        name="پاسخ اشتباه" 
-                        fill="#be123c" 
-                        radius={[4, 4, 0, 0]} 
-                        barSize={9} 
+                      <Bar
+                        dataKey="incorrect"
+                        name="پاسخ اشتباه"
+                        fill="#be123c"
+                        radius={[4, 4, 0, 0]}
+                        barSize={9}
                         onClick={(item) => {
-                          if(item && item.payload) {
+                          if (item && item.payload) {
                             setSelectedQuestion(item.payload);
                             setQuestionModalOpen(true);
                           }
@@ -383,128 +381,169 @@ export default function ContestLandingPage() {
                 </div>
               </div>
 
+              <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
+                  <MapPin size={18} className="text-[#c5a059]" />
+                  <h3 className="font-black text-sm text-[#1a2e44]">پراکندگی جغرافیایی شرکت‌کنندگان (استان‌ها)</h3>
+                </div>
+                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart
+                      data={analyticsData.province_stats || []}
+                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+                      <XAxis dataKey="province" stroke="#9ca3af" tickLine={false} />
+                      <YAxis stroke="#9ca3af" tickLine={false} />
+                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
+                      <Bar
+                        dataKey="count"
+                        name="تعداد شرکت‌کننده"
+                        fill="#3b82f6"
+                        radius={[4, 4, 0, 0]}
+                        barSize={12}
+                        onClick={(item) => {
+                          if (item && item.payload) {
+                            setSelectedProvince(item.payload);
+                            setProvinceModalOpen(true);
+                          }
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
+                  <Users size={18} className="text-[#c5a059]" />
+                  <h3 className="font-black text-sm text-[#1a2e44]">تفکیک جنسیت شرکت‌کنندگان</h3>
+                </div>
+                <div className="w-full h-72 text-xs font-bold font-sans">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart
+                      data={analyticsData.gender_stats || []}
+                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+                      <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
+                      <YAxis stroke="#9ca3af" tickLine={false} />
+                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
+                      <Bar
+                        dataKey="count"
+                        name="تعداد شرکت‌کننده"
+                        radius={[4, 4, 0, 0]}
+                        barSize={40}
+                      >
+                        {
+                          (analyticsData.gender_stats || [])
+                          .filter((entry: any) => entry.gender === "مرد" || entry.gender === "زن")
+                          .map((entry: any, index: number) => {
+                            const color = entry.gender === "مرد" ? "#3b82f6" : "#ec4899"; 
+                            return <Cell key={`cell-${index}`} fill={color} />;
+                          })
+                        }
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
             </div>
           )}
 
-          <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4 pt-6 sm:pt-8">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4 pt-6 sm:pt-8">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-[#1a2e44] dark:text-slate-100 line-clamp-2">{contest.title}</h2>
+                <h2 className="text-xl sm:text-2xl font-black text-[#1a2e44] line-clamp-2">{contest.title}</h2>
+                <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-[#faf9f6] text-[#c5a059] text-[10px] font-black rounded-md border border-gray-100">کد آزمون: #{contest.id}</span>
               </div>
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#c5a059] rounded-xl sm:rounded-2xl flex items-center justify-center border border-gray-100 dark:border-slate-800 shadow-sm shrink-0"><Trophy size={24} /></div>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#faf9f6] text-[#c5a059] rounded-xl sm:rounded-2xl flex items-center justify-center border border-gray-100 shadow-sm shrink-0"><Trophy size={24} /></div>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-300 leading-relaxed bg-[#faf9f6] dark:bg-[#0b0f19] p-4 sm:p-5 rounded-2xl text-justify border border-dashed border-gray-200 dark:border-slate-800 break-words">
+            <p className="text-xs sm:text-sm text-gray-500 leading-relaxed bg-[#faf9f6] p-4 sm:p-5 rounded-2xl text-justify border border-dashed border-gray-200 break-words">
               {contest.description || 'توضیحاتی برای این مسابقه ثبت نشده است. برای موفقیت، جزوه را با دقت مطالعه کنید.'}
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 animate-in fade-in duration-300">
-              <div className="bg-[#faf9f6] dark:bg-[#0b0f19] p-3 rounded-xl border border-gray-50 dark:border-slate-800 flex items-center gap-2.5">
+              <div className="bg-[#faf9f6] p-3 rounded-xl border border-gray-50 flex items-center gap-2.5">
                 <Clock size={18} className="text-[#c5a059] shrink-0" />
                 <div className="flex flex-col text-right min-w-0">
-                  <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold">زمان مجاز آزمون</span>
-                  <span className="font-black text-xs text-[#1a2e44] dark:text-slate-100 mt-0.5">{toPersianDigits(contest.time_limit || 10)} دقیقه</span>
+                  <span className="text-[9px] text-gray-400 font-bold">زمان مجاز آزمون</span>
+                  <span className="font-black text-xs text-[#1a2e44] mt-0.5">{toPersianDigits(contest.time_limit || 10)} دقیقه</span>
                 </div>
               </div>
-              <div className="bg-[#faf9f6] dark:bg-[#0b0f19] p-3 rounded-xl border border-gray-50 dark:border-slate-800 flex items-center gap-2.5">
+              <div className="bg-[#faf9f6] p-3 rounded-xl border border-gray-50 flex items-center gap-2.5">
                 <FileText size={18} className="text-[#c5a059] shrink-0" />
                 <div className="flex flex-col text-right min-w-0">
-                  <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold">تعداد کل سوالات</span>
-                  <span className="font-black text-xs text-[#1a2e44] dark:text-slate-100 mt-0.5">{toPersianDigits(contest.question_limit || 15)} سوال</span>
+                  <span className="text-[9px] text-gray-400 font-bold">تعداد کل سوالات</span>
+                  <span className="font-black text-xs text-[#1a2e44] mt-0.5">{toPersianDigits(contest.question_limit || 15)} سوال</span>
                 </div>
               </div>
-              <div className="col-span-2 sm:col-span-1 bg-[#faf9f6] dark:bg-[#0b0f19] p-3 rounded-xl border border-gray-50 dark:border-slate-800 flex items-center gap-2.5">
+              <div className="col-span-2 sm:col-span-1 bg-[#faf9f6] p-3 rounded-xl border border-gray-50 flex items-center gap-2.5">
                 <Download size={18} className="text-[#c5a059] shrink-0" />
                 <div className="flex flex-col text-right min-w-0 w-full">
-                  <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold">منبع و جزوه دوره</span>
+                  <span className="text-[9px] text-gray-400 font-bold">منبع و جزوه دوره</span>
                   {contest.file_url ? (
-                    <button 
-                      type="button"
-                      onClick={() => setShowPdfModal(true)}
-                      className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block text-right flex items-center gap-1"
-                    >
-                      <Eye size={13} /> مشاهده و دانلود جزوه
-                    </button>
+                    <a href={getCleanImageUrl(contest.file_url)} target="_blank" rel="noopener noreferrer" download className="font-black text-xs text-blue-600 hover:underline mt-0.5 truncate block">دانلود فایل ضمیمه</a>
                   ) : (
-                    <span className="font-black text-xs text-gray-400 dark:text-slate-500 mt-0.5">بدون فایل ضمیمه</span>
+                    <span className="font-black text-xs text-gray-400 mt-0.5">بدون فایل ضمیمه</span>
                   )}
                 </div>
               </div>
             </div>
 
             {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
-              <div className="flex flex-col gap-2 mt-2">
-                <div className="w-full rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video overflow-hidden">
-                  <iframe 
-                    src={getAparatEmbedUrl(contest.video_url)} 
-                    allowFullScreen
-                    allow="autoplay; fullscreen"
-                    className="w-full h-full border-0" 
-                    title="Aparat Video Player"
-                  />
-                </div>
-                
-                {/* 🌟 دکمه آپارات بدون ارور (با استفاده از window.open) */}
-                <button
-                  type="button"
-                  onClick={() => window.open(contest.video_url, '_blank')}
-                  className="flex items-center justify-center gap-2 w-full p-2.5 sm:p-3 text-xs font-black rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-[#1a2e44] dark:hover:text-slate-200 transition-all active:scale-[0.98]"
-                >
-                  <ExternalLink size={16} /> تماشای تمام‌صفحه در آپارات
-                </button>
+              <div className="w-full rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 bg-black aspect-video mt-2 overflow-hidden">
+                <iframe
+                  src={getAparatEmbedUrl(contest.video_url)}
+                  allowFullScreen={true}
+                  allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  className="w-full h-full border-0"
+                  title="Aparat Video Player"
+                  {...({ webkitallowfullscreen: "true", mozallowfullscreen: "true", allowfullscreen: "true" } as any)}
+                />
               </div>
             )}
           </div>
 
           {contest.status === 'active' && (
-            <div className="bg-white dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100">
               {hasParticipated ? (
-                <div className="bg-green-50/50 dark:bg-green-950/30 p-4 sm:p-5 rounded-2xl border border-green-100 dark:border-green-900/40 text-center">
+                <div className="bg-green-50/50 p-4 sm:p-5 rounded-2xl border border-green-100 text-center">
                   <CheckCircle size={32} className="text-green-500 mx-auto mb-2" />
-                  <h3 className="font-black text-[#1a2e44] dark:text-slate-100 text-sm sm:text-base mb-0.5">{profile?.first_name} {profile?.last_name}</h3>
-                  <p className="text-green-700 dark:text-green-400 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
-                  <div className="grid grid-cols-3 gap-1.5 sm:gap-3 max-w-md mx-auto">
-                    <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
-                      <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">امتیاز</span>
-                      <span className="font-black text-sm sm:text-base text-[#1a2e44] dark:text-slate-100">
-                        {toPersianDigits(myResult.score?.toString().replace('%', ''))}%
-                      </span>
-                    </div>
-                    <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
-                      <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">رتبه فعلی</span>
-                      <span className="font-black text-sm sm:text-base text-[#c5a059]">
-                        #{toPersianDigits(getLiveRank())}
-                      </span>
-                    </div>
-                    <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
-                      <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">زمان مصرفی</span>
-                      <span className="font-black text-xs sm:text-base text-blue-600 dark:text-blue-400 truncate block">
-                        {toPersianDigits(myResult.time || myResult.time_taken || 0)} ثانیه
-                      </span>
-                    </div>
-                  </div>
+                  <h3 className="font-black text-[#1a2e44] text-sm sm:text-base mb-0.5">{profile?.first_name} {profile?.last_name}</h3>
+                  <p className="text-green-700 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
 
-                  <button 
-                    onClick={() => router.push(`/review-final/${contest.id}`)}
-                    className="w-full mt-4 bg-white dark:bg-[#182234] hover:bg-gray-50 dark:hover:bg-[#233044] text-[#1a2e44] dark:text-slate-100 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 dark:border-slate-700 shadow-sm"
+                  <button
+                    onClick={() => alert("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
+                    className="w-full mt-4 bg-white hover:bg-gray-50 text-[#1a2e44] py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 shadow-sm"
                   >
                     <FileText size={15} className="text-[#c5a059]" />
-                    مشاهده پاسخنامه و مرور مجدد سوالات
+                    مشاهده پاسخنامه
                   </button>
                 </div>
               ) : (
-              <button onClick={() => {
-                  if (window.confirm('⚠️ توجه!\n\nپس از ورود به آزمون، امکان خروج و ادامه مجدد آزمون وجود ندارد.\nدر صورت خروج از آزمون پس از شروع، نتیجه شما ثبت نخواهد شد و از آزمون محروم خواهید شد.\n\nآیا مطمئن هستید که می‌خواهید وارد آزمون شوید؟')) {
-                    router.push(`/exam/${contest.id}`);
-                  }
-                }} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]"><PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به محیط رقابت و شروع آزمون</button>
+                <button
+                  onClick={() => {
+                    const token = localStorage.getItem('accessToken') || '';
+                    const refreshToken = localStorage.getItem('refreshToken') || '';
+                    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+                    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+                    const userAppUrl = `${protocol}//${host}:63000/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
+                    window.open(userAppUrl, '_blank');
+                  }}
+                  className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"
+                >
+                  <PlayCircle size={20} className="text-[#c5a059]" /> تست آزمون در سامانه کاربران
+                </button>
               )}
             </div>
           )}
 
           {contest.status === 'finished' && hasParticipated && leaderboard.length > 3 && (
-            <div className="bg-white dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-50 dark:border-slate-800">
-                <h4 className="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14} /> تحلیل جایگاه و رقبای هم‌سطح نزدیک به شما</h4>
+            <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-50">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14} /> تحلیل جایگاه و رقبای هم‌سطح نزدیک به شما</h4>
                 <span className="bg-[#c5a059]/10 text-[#c5a059] px-2.5 py-1 rounded-md text-[10px] font-black self-start sm:self-auto">رتبه نهایی شما: #{toPersianDigits(getLiveRank())}</span>
               </div>
               <div className="space-y-2">
@@ -518,19 +557,19 @@ export default function ContestLandingPage() {
                     const isMe = String(user.user_id || user.id).trim() == String(profile?.id).trim();
                     const shortNationalId = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
                     return (
-                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] dark:bg-[#c5a059] border-[#1a2e44] dark:border-[#c5a059] shadow-md text-white dark:text-[#1a2e44]' : 'bg-white dark:bg-[#0b0f19] border-gray-100 dark:border-slate-800 shadow-sm text-[#1a2e44] dark:text-slate-100'}`}>
+                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] border-[#1a2e44] shadow-md text-white' : 'bg-white border-gray-100 shadow-sm'}`}>
                         <div className="flex items-center gap-2.5">
-                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ${isMe ? 'bg-[#c5a059] dark:bg-[#1a2e44] text-[#1a2e44] dark:text-white' : 'bg-[#faf9f6] dark:bg-[#182234] text-[#c5a059]'}`}>{toPersianDigits(user.rank)}</span>
+                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ${isMe ? 'bg-[#c5a059] text-[#1a2e44]' : 'bg-[#faf9f6] text-[#c5a059]'}`}>{toPersianDigits(user.rank)}</span>
                           <div className="flex flex-col text-right">
                             <span className="font-bold text-xs">{user.name} {shortNationalId} {isMe && "(شما)"}</span>
-                            <div className={`flex items-center gap-2 mt-0.5 text-[9px] font-bold ${isMe ? 'text-gray-300 dark:text-slate-800' : 'text-gray-400 dark:text-slate-400'}`}>
+                            <div className={`flex items-center gap-2 mt-0.5 text-[9px] font-bold ${isMe ? 'text-gray-300' : 'text-gray-400'}`}>
                               <span>نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}%</span>
                               <span>•</span>
                               <span>زمان: {toPersianDigits(user.time_taken || user.time || 0)} ثانیه</span>
                             </div>
                           </div>
                         </div>
-                        {isMe && <div className="bg-[#c5a059] dark:bg-[#1a2e44] p-0.5 rounded-full text-[#1a2e44] dark:text-white shrink-0"><CheckCircle size={12} /></div>}
+                        {isMe && <div className="bg-[#c5a059] p-0.5 rounded-full text-[#1a2e44] shrink-0"><CheckCircle size={12} /></div>}
                       </div>
                     );
                   });
@@ -543,23 +582,23 @@ export default function ContestLandingPage() {
 
         <div className="lg:col-span-1 space-y-6">
           {contest.status === 'upcoming' && (
-            <div className="bg-[#1a2e44] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border border-[#2a405a] dark:border-slate-800">
-               <Clock className="absolute -left-6 -top-6 opacity-5" size={100} />
-               <h3 className="text-[#c5a059] text-xs font-black mb-4 flex items-center gap-1.5"><Clock size={16} /> شمار معکوس تا آغاز مسابقه</h3>
-               {timeLeft ? (
-                 <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center" dir="ltr">
-                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.days)}</span><span className="text-[9px] text-gray-400 font-bold">روز</span></div>
-                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.hours)}</span><span className="text-[9px] text-gray-400 font-bold">ساعت</span></div>
-                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.minutes)}</span><span className="text-[9px] text-gray-400 font-bold">دقیقه</span></div>
-                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(timeLeft.seconds)}</span><span className="text-[9px] text-gray-400 font-bold">ثانیه</span></div>
-                 </div>
-               ) : <span className="text-xs font-bold text-gray-300">در انتظار کلید شروع مسابقه توسط مدیر...</span>}
+            <div className="bg-[#1a2e44] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border border-[#2a405a]">
+              <Clock className="absolute -left-6 -top-6 opacity-5" size={100} />
+              <h3 className="text-[#c5a059] text-xs font-black mb-4 flex items-center gap-1.5"><Clock size={16} /> شمارش معکوس تا آغاز مسابقه</h3>
+              {timeLeft ? (
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center" dir="ltr">
+                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.days)}</span><span className="text-[9px] text-gray-400 font-bold">روز</span></div>
+                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.hours)}</span><span className="text-[9px] text-gray-400 font-bold">ساعت</span></div>
+                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.minutes)}</span><span className="text-[9px] text-gray-400 font-bold">دقیقه</span></div>
+                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(timeLeft.seconds)}</span><span className="text-[9px] text-gray-400 font-bold">ثانیه</span></div>
+                </div>
+              ) : <span className="text-xs font-bold text-gray-300">در انتظار کلید شروع مسابقه توسط مدیر...</span>}
             </div>
           )}
 
           {contest.status === 'finished' && hasParticipated && (
-            <div className="bg-white dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-3">
-              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] dark:from-[#0b0f19] dark:to-[#182234] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-3 gap-1 border border-transparent dark:border-slate-800">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-3">
+              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-3 gap-1">
                 <div className="text-center border-l border-white/10 flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">رتبه نهایی</span>
                   <span className="font-black text-sm sm:text-lg text-white">#{toPersianDigits(getLiveRank())}</span>
@@ -573,21 +612,21 @@ export default function ContestLandingPage() {
                   <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}ثانیه</span>
                 </div>
               </div>
-              <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-[#233044] py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100 dark:border-slate-800"><FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات</button>
+              <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full bg-[#faf9f6] text-[#1a2e44] hover:bg-gray-100 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100"><FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات</button>
             </div>
           )}
 
           {contest.awards && Array.isArray(contest.awards) && contest.awards.length > 0 && (
-            <div className="bg-white dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-2.5 text-right animate-in fade-in duration-300">
-              <h4 className="font-black text-xs text-amber-800 dark:text-amber-400 flex items-center gap-1.5 mb-2">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 space-y-2.5 text-right animate-in fade-in duration-300">
+              <h4 className="font-black text-xs text-amber-800 flex items-center gap-1.5 mb-2">
                 <Trophy size={14} className="text-[#c5a059]" /> لیست جوایز برندگان بر اساس رتبه:
               </h4>
               {contest.awards.map((item: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-center gap-2 text-xs bg-[#faf9f6] dark:bg-[#0b0f19] p-2.5 rounded-xl border border-gray-100 dark:border-slate-800">
-                  <span className="font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md text-[10px] shrink-0">
+                <div key={idx} className="flex justify-between items-center gap-2 text-xs bg-[#faf9f6] p-2.5 rounded-xl border border-gray-100">
+                  <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md text-[10px] shrink-0">
                     رتبه {toPersianDigits(item.rank)}
                   </span>
-                  <span className="font-bold text-[#1a2e44] dark:text-slate-200 text-right break-words min-w-0 flex-1">
+                  <span className="font-bold text-[#1a2e44] text-right break-words min-w-0 flex-1">
                     {item.title}
                   </span>
                 </div>
@@ -596,11 +635,11 @@ export default function ContestLandingPage() {
           )}
 
           {contest.certificate_type && contest.certificate_type !== 'none' && (
-            <div className="p-4 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl sm:rounded-[2rem] border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3 shadow-sm">
+            <div className="p-4 bg-emerald-50/60 rounded-xl sm:rounded-[2rem] border border-emerald-100 flex items-center gap-3 shadow-sm">
               <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-md shrink-0"><Award size={20} /></div>
               <div className="flex flex-col text-right min-w-0">
-                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-wider">امتیاز و گواهی دوره</span>
-                <p className="text-xs font-black text-emerald-950 dark:text-emerald-200 mt-0.5 leading-tight truncate">
+                <span className="text-[9px] text-emerald-600 font-black uppercase tracking-wider">امتیاز و گواهی دوره</span>
+                <p className="text-xs font-black text-emerald-950 mt-0.5 leading-tight truncate">
                   دارای {contest.certificate_type === 'excellent' ? 'گواهی رتبه عالی' : contest.certificate_type === 'very_good' ? 'گواهی رتبه خیلی خوب' : 'گواهی رتبه خوب'} معتبر.
                 </p>
               </div>
@@ -609,22 +648,22 @@ export default function ContestLandingPage() {
 
           {contest.status === 'finished' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between bg-white dark:bg-[#182234] p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center gap-1.5 text-gray-500 dark:text-slate-400 font-bold text-xs"><Users size={16} className="text-[#c5a059]" /> کل شرکت‌کنندگان:</div>
-                <span className="font-black text-base text-[#1a2e44] dark:text-slate-100">{toPersianDigits(leaderboard.length)} نفر</span>
+              <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-1.5 text-gray-500 font-bold text-xs"><Users size={16} className="text-[#c5a059]" /> کل شرکت‌کنندگان:</div>
+                <span className="font-black text-base text-[#1a2e44]">{toPersianDigits(leaderboard.length)} نفر</span>
               </div>
-              <div className="bg-white dark:bg-[#182234] rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-slate-800">
-                <h3 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> سکوی افتخار و برندگان برتر</h3>
+              <div className="bg-white rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-5 shadow-sm border border-gray-100">
+                <h3 className="font-black text-xs text-[#1a2e44] mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> سکوی افتخار و برندگان برتر</h3>
                 <div className="space-y-2">
-                  {topThree.length === 0 ? <p className="text-center text-xs text-gray-400 dark:text-slate-400 italic">آمار لیدربرد هنوز ثبت نشده است.</p> : topThree.map((user: any) => {
+                  {topThree.length === 0 ? <p className="text-center text-xs text-gray-400 italic">آمار لیدربرد هنوز ثبت نشده است.</p> : topThree.map((user: any) => {
                     const shortIdForTop = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
                     return (
-                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${user.rank === 1 ? 'bg-[#faf9f6] dark:bg-[#0b0f19] border-[#c5a059] shadow-sm' : 'border-gray-50 dark:border-slate-800'}`}>
+                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${user.rank === 1 ? 'bg-[#faf9f6] border-[#c5a059] shadow-sm' : 'border-gray-50'}`}>
                         <div className="flex items-center gap-2">
-                          {user.rank === 1 ? <Crown size={18} className="text-yellow-500 shrink-0" /> : <Medal size={16} className="text-gray-400 dark:text-slate-500 shrink-0" />}
+                          {user.rank === 1 ? <Crown size={18} className="text-yellow-500 shrink-0" /> : <Medal size={16} className="text-gray-400 shrink-0" />}
                           <div className="flex flex-col text-right">
-                            <span className="font-bold text-xs text-[#1a2e44] dark:text-slate-100">{user.name} {shortIdForTop}</span>
-                            <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold mt-0.5">
+                            <span className="font-bold text-xs text-[#1a2e44]">{user.name} {shortIdForTop}</span>
+                            <span className="text-[9px] text-gray-400 font-bold mt-0.5">
                               نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}% | زمان: {toPersianDigits(user.time_taken || user.time || 0)}ثانیه
                             </span>
                           </div>
@@ -640,23 +679,24 @@ export default function ContestLandingPage() {
         </div>
       </main>
 
+      {/* مدال تحلیل سوالات */}
       {questionModalOpen && selectedQuestion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 dark:border-slate-800 overflow-hidden flex flex-col text-right">
-            
-            <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-[#faf9f6] dark:bg-[#0b0f19]">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col text-right">
+
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f6]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#1a2e44] dark:bg-[#182234] text-[#c5a059] rounded-xl flex items-center justify-center shadow-md">
+                <div className="w-10 h-10 bg-[#1a2e44] text-[#c5a059] rounded-xl flex items-center justify-center shadow-md">
                   <HelpCircle size={20} />
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-[#1a2e44] dark:text-slate-100">پرونده آماری سوال {toPersianDigits(selectedQuestion.question_index)}</h3>
-                  <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold mt-0.5">بررسی متن صورت سوال و کلید گزینه‌ها</p>
+                  <h3 className="font-black text-base text-[#1a2e44]">پرونده آماری سوال {toPersianDigits(selectedQuestion.question_index)}</h3>
+                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">بررسی متن صورت سوال و کلید گزینه‌ها</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => { setQuestionModalOpen(false); setSelectedQuestion(null); }}
-                className="p-2 bg-white dark:bg-[#182234] border border-gray-100 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-[#233044] text-gray-400 dark:text-slate-400 hover:text-red-500 rounded-full transition-all shadow-sm"
+                className="p-2 bg-white border border-gray-100 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all shadow-sm"
               >
                 <X size={18} />
               </button>
@@ -664,39 +704,38 @@ export default function ContestLandingPage() {
 
             <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
               <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 p-3 rounded-2xl">
-                  <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-black mb-0.5">پاسخ‌های صحیح</span>
-                  <span className="font-mono font-black text-base text-emerald-700 dark:text-emerald-300">{toPersianDigits(selectedQuestion.correct)} نفر</span>
+                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl">
+                  <span className="block text-[10px] text-emerald-600 font-black mb-0.5">پاسخ‌های صحیح</span>
+                  <span className="font-mono font-black text-base text-emerald-700">{toPersianDigits(selectedQuestion.correct)} نفر</span>
                 </div>
-                <div className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40 p-3 rounded-2xl">
-                  <span className="block text-[10px] text-red-600 dark:text-red-400 font-black mb-0.5">پاسخ‌های اشتباه</span>
-                  <span className="font-mono font-black text-base text-red-700 dark:text-red-300">{toPersianDigits(selectedQuestion.incorrect)} نفر</span>
+                <div className="bg-red-50 border border-red-100 p-3 rounded-2xl">
+                  <span className="block text-[10px] text-red-600 font-black mb-0.5">پاسخ‌های اشتباه</span>
+                  <span className="font-mono font-black text-base text-red-700">{toPersianDigits(selectedQuestion.incorrect)} نفر</span>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-[10px] text-gray-400 dark:text-slate-400 font-black uppercase tracking-widest">صورت سوال ثبت شده:</span>
-                <p className="text-sm font-bold text-[#1a2e44] dark:text-slate-100 bg-[#faf9f6] dark:bg-[#0b0f19] p-4 rounded-2xl border border-gray-100 dark:border-slate-800 leading-relaxed text-justify">
+                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">صورت سوال ثبت شده:</span>
+                <p className="text-sm font-bold text-[#1a2e44] bg-[#faf9f6] p-4 rounded-2xl border border-gray-100 leading-relaxed text-justify">
                   {selectedQuestion.title}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <span className="text-[10px] text-gray-400 dark:text-slate-400 font-black uppercase tracking-widest">گزینه‌های آزمون:</span>
+                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">گزینه‌های آزمون:</span>
                 <div className="space-y-2">
                   {selectedQuestion.options?.map((opt: string, index: number) => {
                     const isCorrect = (index + 1) === selectedQuestion.correct_answer;
                     return (
-                      <div 
+                      <div
                         key={index}
-                        className={`p-3.5 rounded-xl text-xs font-bold flex items-center justify-between border transition-all ${
-                          isCorrect 
-                            ? 'bg-emerald-50/80 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 shadow-sm' 
-                            : 'bg-white dark:bg-[#0b0f19] border-gray-100 dark:border-slate-800 text-[#1a2e44] dark:text-slate-200'
-                        }`}
+                        className={`p-3.5 rounded-xl text-xs font-bold flex items-center justify-between border transition-all ${isCorrect
+                            ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900 shadow-sm'
+                            : 'bg-white border-gray-100 text-[#1a2e44]'
+                          }`}
                       >
                         <span className="flex items-center gap-2">
-                          <span className={`w-5 h-5 rounded-md text-[10px] font-black flex items-center justify-center ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-[#faf9f6] dark:bg-[#182234] text-gray-400 dark:text-slate-400'}`}>
+                          <span className={`w-5 h-5 rounded-md text-[10px] font-black flex items-center justify-center ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-[#faf9f6] text-gray-400'}`}>
                             {toPersianDigits(index + 1)}
                           </span>
                           <span>{opt}</span>
@@ -713,107 +752,49 @@ export default function ContestLandingPage() {
         </div>
       )}
 
-      {/* 🌟 مودال هوشمند پیش‌نمایش و دانلود جزوه راهنمای دوره */}
-      {showPdfModal && contest?.file_url && (() => {
-        const cleanPath = getCleanImageUrl(contest.file_url);
-        const fullUrl = cleanPath.startsWith('/') 
-          ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
-          : cleanPath;
-        const fileName = cleanPath.split('/').pop() || 'منبع و جزوه مسابقه.pdf';
-        
-        const handleCopyLink = () => {
-          const downloadUrl = fullUrl.includes('?') ? fullUrl + '&download=true' : fullUrl + '?download=true';
-          
-          const fallbackCopy = (text: string) => {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-999999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-              document.execCommand('copy');
-              alert("لینک مستقیم دانلود فایل با موفقیت کپی شد.");
-            } catch (err) {
-              console.error('Fallback copy failed', err);
-              alert("امکان کپی خودکار وجود ندارد. لطفاً لینک را دستی کپی کنید.");
-            }
-            document.body.removeChild(textArea);
-          };
+      {provinceModalOpen && selectedProvince && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col text-right">
 
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(downloadUrl)
-              .then(() => alert("لینک مستقیم دانلود فایل با موفقیت کپی شد."))
-              .catch(() => fallbackCopy(downloadUrl));
-          } else {
-            fallbackCopy(downloadUrl);
-          }
-        };
-
-        const googleDocsViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" dir="rtl">
-            <div className="bg-white dark:bg-[#182234] w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 dark:border-slate-800 flex flex-col max-h-[92vh]">
-              
-              {/* هدر مودال */}
-              <div className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText size={20} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">جزوه و منبع راهنمای مسابقه</h3>
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f6]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#1a2e44] text-[#c5a059] rounded-xl flex items-center justify-center shadow-md">
+                  <MapPin size={20} />
                 </div>
-                <button 
-                  onClick={() => setShowPdfModal(false)}
-                  className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-500 transition"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* کارت مشخصات فایل و دکمه‌های عملیاتی */}
-              <div className="p-4 bg-gray-50 dark:bg-[#111827] border-b border-gray-100 dark:border-slate-800 space-y-3">
-                <div className="flex items-center justify-between gap-2 bg-white dark:bg-[#182234] p-3 rounded-2xl border border-gray-100 dark:border-slate-800">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="p-2 bg-amber-50 dark:bg-amber-950/50 text-[#c5a059] rounded-xl shrink-0">
-                      <FileText size={18} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-[#1a2e44] dark:text-slate-100 truncate">{fileName}</p>
-                      <p className="text-[10px] text-gray-400 font-bold">فایل ضمیمه آموزشی</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={handleCopyLink}
-                    className="bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 hover:bg-blue-100 transition shrink-0"
-                  >
-                    کپی لینک دانلود
-                  </button>
-                  
-                  {/* 🌟 دکمه مودال جزوه بدون ارور (با استفاده از window.open) */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cb = Date.now();
-                      const freshUrl = fullUrl.includes('?') ? `${fullUrl}&cb=${cb}` : `${fullUrl}?cb=${cb}`;
-                      const finalUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(freshUrl)}&embedded=true`;
-                      window.open(finalUrl, '_blank');
-                    }}
-                    className="bg-[#1a2e44] dark:bg-[#c5a059] text-white p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition active:scale-95"
-                  >
-                    <ExternalLink size={16} /> مشاهده جزوه
-                  </button>
+                <div>
+                  <h3 className="font-black text-base text-[#1a2e44]">آمار شهرستان‌های استان {selectedProvince.province}</h3>
+                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">تعداد کل شرکت‌کنندگان در این استان: {toPersianDigits(selectedProvince.count)} نفر</p>
                 </div>
               </div>
-
+              <button
+                onClick={() => { setProvinceModalOpen(false); setSelectedProvince(null); }}
+                className="p-2 bg-white border border-gray-100 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all shadow-sm"
+              >
+                <X size={18} />
+              </button>
             </div>
+
+            <div className="p-6 space-y-3 overflow-y-auto max-h-[60vh]">
+              {selectedProvince.cities && selectedProvince.cities.length > 0 ? (
+                selectedProvince.cities.map((cityData: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center p-4 bg-[#faf9f6] border border-gray-100 rounded-2xl hover:border-[#c5a059] transition-all">
+                    <span className="font-bold text-sm text-[#1a2e44] flex items-center gap-2">
+                      <div className="w-2 h-2 bg-[#c5a059] rounded-full"></div> 
+                      {cityData.city || 'نامشخص'}
+                    </span>
+                    <span className="font-black text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm">
+                      {toPersianDigits(cityData.count)} نفر
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-xs text-gray-400 font-bold py-6">اطلاعات تفکیکی شهرستان‌ها برای این استان ثبت نشده است.</p>
+              )}
+            </div>
+
           </div>
-        );
-      })()}
+        </div>
+      )}
 
     </div>
   );
