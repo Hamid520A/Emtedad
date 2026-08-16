@@ -37,7 +37,6 @@ export default function ContestLandingPage() {
 
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
 
-  // 🌟 توابع هوشمند جایگزین alert و confirm با پشتیبانی از مینی‌اپ ایتا و تلگرام
   const smartAlert = (message: string) => {
     const globalWindow = window as any;
     if (globalWindow.Telegram?.WebApp?.showAlert) {
@@ -51,18 +50,28 @@ export default function ContestLandingPage() {
 
   const smartConfirm = (message: string, onConfirm: () => void) => {
     const globalWindow = window as any;
-    if (globalWindow.Telegram?.WebApp?.showConfirm) {
-      globalWindow.Telegram.WebApp.showConfirm(message, (res: boolean) => {
-        if (res) onConfirm();
-      });
-    } else if (globalWindow.Eitaa?.WebApp?.showConfirm) {
-      globalWindow.Eitaa.WebApp.showConfirm(message, (res: boolean) => {
-        if (res) onConfirm();
-      });
-    } else {
+    try {
+      if (globalWindow.Telegram?.WebApp?.showConfirm) {
+        globalWindow.Telegram.WebApp.showConfirm(message, (res: boolean) => {
+          if (res) onConfirm();
+        });
+        return;
+      } 
+      if (globalWindow.Eitaa?.WebApp?.showConfirm) {
+        globalWindow.Eitaa.WebApp.showConfirm(message, (res: boolean) => {
+          if (res) onConfirm();
+        });
+        return;
+      }
+    } catch(e) { console.error("WebApp Error:", e); }
+
+    try {
       if (window.confirm(message)) {
         onConfirm();
       }
+    } catch(e) {
+      // اگر مرورگر پاپ‌آپ را مسدود کرده باشد این پیام لاگ می‌شود
+      console.error("مرورگر اجازه تایید را نمی‌دهد", e);
     }
   };
 
@@ -145,7 +154,6 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
-  // 🌟 تابع آپدیت وضعیت مجهز شده به smartConfirm
   const executeStatusChange = async (newStatus: string) => {
     try {
       const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
@@ -161,7 +169,11 @@ export default function ContestLandingPage() {
     }
   };
 
-  const changeContestStatus = async (newStatus: string) => {
+  // 🌟 محافظت از تابع تغییر وضعیت در برابر افزونه‌ها
+  const changeContestStatus = async (e: React.MouseEvent, newStatus: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (newStatus === 'active') {
       try {
         const questionsRes = await api.get(`/contests/${contest.id}/questions`);
@@ -195,8 +207,11 @@ export default function ContestLandingPage() {
     });
   };
 
-  // 🌟 تابع حذف مجهز شده به smartConfirm
-  const deleteContest = () => {
+  // 🌟 محافظت از تابع حذف در برابر افزونه‌ها
+  const deleteContest = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!contest || !contest.id) {
       smartAlert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
       return;
@@ -305,27 +320,26 @@ export default function ContestLandingPage() {
                   <button onClick={() => router.push(`/admin/contests/${contest.id}/questions`)} className="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 transition-all active:scale-95">📝 مدیریت سوالات</button>
                   <button onClick={() => router.push(`/admin/contests/${contest.id}/participants`)} className="bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
                   
-                  {/* دکمه حذف به روزرسانی شده */}
-                  <button onClick={deleteContest} className="bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
+                  {/* 🌟 دکمه حذف به روزرسانی شده مجهز به e.preventDefault */}
+                  <button onClick={(e) => deleteContest(e)} className="bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
               </div>
 
               <div className="flex flex-wrap justify-end gap-2">
                 {(contest.status === 'active' || contest.status === 'upcoming') && (
-                  <button onClick={() => changeContestStatus('draft')} className="w-full sm:w-auto bg-amber-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-amber-600">⏸️ توقف و مخفی‌سازی اضطراری</button>
+                  <button onClick={(e) => changeContestStatus(e, 'draft')} className="w-full sm:w-auto bg-amber-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-amber-600">⏸️ توقف و مخفی‌سازی اضطراری</button>
                 )}
                 {contest.status === 'upcoming' && (
-                  <button onClick={() => changeContestStatus('active')} className="w-full sm:w-auto bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-red-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-red-600"><PlayCircle size={15} /> شروع فوری رقابت</button>
+                  <button onClick={(e) => changeContestStatus(e, 'active')} className="w-full sm:w-auto bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-red-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-red-600"><PlayCircle size={15} /> شروع فوری رقابت</button>
                 )}
                 {contest.status === 'active' && (
-                  <button onClick={() => changeContestStatus('finished')} className="w-full sm:w-auto bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a]"><Power size={15} className="text-[#c5a059]" /> اتمام نهایی مسابقه</button>
+                  <button onClick={(e) => changeContestStatus(e, 'finished')} className="w-full sm:w-auto bg-[#1a2e44] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a]"><Power size={15} className="text-[#c5a059]" /> اتمام نهایی مسابقه</button>
                 )}
                 {contest.status === 'draft' && (
-                  <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
+                  <button onClick={(e) => changeContestStatus(e, 'resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
                 )}
-
                 {contest.status === 'finished' && (
-                  <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-indigo-700">🔄 بازگشایی مجدد</button>
+                  <button onClick={(e) => changeContestStatus(e, 'resume')} className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-indigo-700">🔄 بازگشایی مجدد</button>
                 )}
               </div>
             </div>

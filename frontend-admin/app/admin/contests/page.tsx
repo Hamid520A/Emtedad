@@ -51,32 +51,23 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع کمکی هوشمند برای سازگاری هشدارهای پاپ‌آپ با مینی‌اپ‌های تلگرام/ایتا
-  const smartAlert = (message: string) => {
-    const globalWindow = window as any;
-    if (globalWindow.Telegram?.WebApp?.showAlert) {
-      globalWindow.Telegram.WebApp.showAlert(message);
-    } else if (globalWindow.Eitaa?.WebApp?.showAlert) {
-      globalWindow.Eitaa.WebApp.showAlert(message);
-    } else {
-      alert(message);
-    }
-  };
+  // 🌟 تابع ۱۰۰٪ همگام و محافظت شده در برابر افزونه‌های مزاحم مرورگر
+  const handleShareContest = (e: React.MouseEvent, contestId: number | string, contestTitle: string) => {
+    // قطع دسترسی افزونه‌ها به این کلیک
+    e.preventDefault();
+    e.stopPropagation();
 
-  // 🌟 تابع کپی ۱۰۰٪ تضمینی (بدون وقفه)
-  const handleShareContest = (contestId: number | string, contestTitle: string) => {
     const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
     const shareUrl = `${userAppBaseUrl}/exam/${contestId}`;
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
-    // تکنیک کپی سنتی که دقیقاً همزمان با کلیک اجرا می‌شود تا مسدود نشود
     const fallbackCopy = () => {
       try {
         const textArea = document.createElement("textarea");
         textArea.value = fullTextToCopy;
         textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
+        textArea.style.opacity = "0";
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
@@ -84,19 +75,22 @@ export default function AdminContestsPage() {
         document.body.removeChild(textArea);
         
         if (successful) {
-          smartAlert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دیگران پیست کنید.");
+          alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را پیست کنید.");
         } else {
-          smartAlert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+          alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
         }
       } catch (err) {
-        smartAlert("❌ خطا در کپی کردن لینک.");
+        alert("❌ خطا در کپی کردن لینک.");
       }
     };
 
-    // اگر در محیط امن HTTPS بودیم از کلیپ‌بورد مدرن استفاده می‌کنیم، در غیر این‌صورت بلافاصله روش سنتی
-    if (window.isSecureContext && navigator.clipboard) {
+    // بدون استفاده از await تا پردازش کلیک قطع نشود
+    if (navigator.share && window.isSecureContext) {
+      navigator.share({ title: contestTitle, text: shareText, url: shareUrl })
+        .catch(() => { /* نادیده گرفتن انصراف کاربر */ });
+    } else if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(fullTextToCopy)
-        .then(() => smartAlert("✅ لینک مسابقه با موفقیت کپی شد!"))
+        .then(() => alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید."))
         .catch(() => fallbackCopy());
     } else {
       fallbackCopy();
@@ -159,7 +153,7 @@ export default function AdminContestsPage() {
 
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => handleShareContest(c.id, c.title)} 
+                      onClick={(e) => handleShareContest(e, c.id, c.title)} 
                       className="p-3 bg-white rounded-xl shadow-sm text-gray-400 hover:text-green-600 hover:scale-110 hover:bg-green-50 transition-all"
                       title="اشتراک‌گذاری لینک مسابقه"
                     >
