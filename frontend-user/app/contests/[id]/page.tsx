@@ -6,7 +6,7 @@ import api from '../../../lib/api';
 import { 
   ArrowRight, Download, Gift, FileText, Clock, 
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink
+  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, Share2
 } from 'lucide-react';
 
 
@@ -195,6 +195,33 @@ export default function ContestLandingPage() {
     return null;
   };
 
+  // 🌟 تابع هوشمند اشتراک‌گذاری با استفاده از آدرس فعلی صفحه
+  const handleShareContest = async () => {
+    const shareUrl = window.location.href; // آدرس همین صفحه‌ای که کاربر در آن است
+    const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contest.title}» روی لینک زیر کلیک کنید:\n`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: contest.title,
+          text: shareText,
+          url: shareUrl,
+        });
+        return;
+      } catch (error) {
+        console.log("اشتراک‌گذاری لغو شد یا پشتیبانی نشد:", error);
+      }
+    }
+
+    // فال‌بک برای دسکتاپ و مینی‌اپ‌هایی که وب‌شیر بومی ندارند
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید.");
+    } catch (err) {
+      alert("❌ خطا در کپی کردن لینک.");
+    }
+  };
+
   if (loading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100"><Loader2 className="animate-spin text-[#1a2e44] dark:text-[#c5a059]" size={40} /></div>;
   if (!contest) return <div className="p-6 text-center text-[#1a2e44] dark:text-slate-100 font-bold">مسابقه یافت نشد.</div>;
 
@@ -250,6 +277,15 @@ export default function ContestLandingPage() {
               <h1 className="font-black text-lg sm:text-2xl text-white drop-shadow-md">جزئیات و مشخصات مسابقه</h1>
             </div>
           </div>
+
+          <button 
+            onClick={handleShareContest}
+            className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white flex items-center gap-2 active:scale-95"
+            title="ارسال مسابقه برای دوستان"
+          >
+            <span className="hidden sm:inline text-xs font-black drop-shadow-md">ارسال برای دوستان</span>
+            <Share2 size={18} />
+          </button>
         </header>
       </div>
 

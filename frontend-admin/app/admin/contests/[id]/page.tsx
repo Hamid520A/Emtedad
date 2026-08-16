@@ -322,7 +322,7 @@ export default function ContestLandingPage() {
                       <XAxis dataKey="name" stroke="#9ca3af" tickLine={false} />
                       <YAxis stroke="#9ca3af" tickLine={false} />
                       <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right', fontSize: '11px', fontFamily: 'sans-serif' }} />
-                      <Area type="monotone" dataKey="users" name="تعداد شرکت‌کننده" stroke="#1a2e44" strokeWidth={3} fillOpacity={1} fill="url(#colorTimeTheme)" />
+                      <Area type="monotone" dataKey="users" name="تعداد شرکت‌کننده" stroke="#f5f7f8" strokeWidth={3} fillOpacity={1} fill="url(#colorTimeTheme)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -434,10 +434,11 @@ export default function ContestLandingPage() {
                         barSize={40}
                       >
                         {
-                          (analyticsData.gender_stats || []).map((entry: any, index: number) => {
-                            let color = "#9ca3af"; // خاکستری برای نامشخص
-                            if (entry.gender === "مرد") color = "#3b82f6"; // آبی
-                            if (entry.gender === "زن") color = "#ec4899"; // صورتی
+                          (analyticsData.gender_stats || [])
+                          .filter((entry: any) => entry.gender === "مرد" || entry.gender === "زن")
+                          .map((entry: any, index: number) => {
+                            const color = entry.gender === "مرد" ? "#3b82f6" : "#ec4899"; 
+                            
                             return <Cell key={`cell-${index}`} fill={color} />;
                           })
                         }

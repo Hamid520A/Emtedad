@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';
-import { Trophy, ArrowRight, ArrowUpRight, Plus, Pencil } from 'lucide-react';
+import { Trophy, ArrowRight, ArrowUpRight, Plus, Pencil, Share2 } from 'lucide-react';
 
 export default function AdminContestsPage() {
   const router = useRouter();
@@ -49,6 +49,40 @@ export default function AdminContestsPage() {
       }).format(new Date(dateString));
     } catch (e) {
       return 'نامشخص';
+    }
+  };
+
+  // 🌟 تابع هوشمند اشتراک‌گذاری مسابقه (پشتیبانی از مینی‌اپ، موبایل و دسکتاپ)
+  const handleShareContest = async (contestId: number | string, contestTitle: string) => {
+    // ۱. ساخت آدرس دقیق سامانه کاربران (فرانت‌ند اصلی)
+    // اگر متغیر محیطی ست نشده بود، پورت 63000 را به عنوان پیش‌فرض کاربران در نظر می‌گیرد
+    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
+    
+    // آدرس لندینگ مسابقه در پنل کاربران (مسیر را بر اساس روتر خودتان تنظیم کنید، مثلا /exam/1)
+    const shareUrl = `${userAppBaseUrl}/exam/${contestId}`;
+    const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
+
+    // ۲. بررسی پشتیبانی مرورگر/مینی‌اپ از قابلیت Share بومی (Native Share)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: contestTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        return; // اگر موفق بود از تابع خارج شو
+      } catch (error) {
+        console.log("اشتراک‌گذاری لغو شد یا مرورگر پشتیبانی نکرد:", error);
+        // در صورت لغو یا خطا، به سراغ کپی کردن در کلیپ‌بورد می‌رویم
+      }
+    }
+
+    // ۳. فال‌بک (Fallback) برای دسکتاپ یا مرورگرهایی که Share بومی ندارند: کپی در حافظه
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید.");
+    } catch (err) {
+      alert("❌ خطا در کپی کردن لینک.");
     }
   };
 
@@ -111,6 +145,14 @@ export default function AdminContestsPage() {
 
                   {/* 👈 باکس دکمه‌های اکشن */}
                   <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleShareContest(c.id, c.title)} 
+                      className="p-3 bg-white rounded-xl shadow-sm text-gray-400 hover:text-green-600 hover:scale-110 hover:bg-green-50 transition-all"
+                      title="اشتراک‌گذاری لینک مسابقه"
+                    >
+                      <Share2 size={18} />
+                    </button>
+
                     <button 
                       onClick={() => router.push(`/admin/contests/${c.id}/edit`)} 
                       className="p-3 bg-white rounded-xl shadow-sm text-gray-400 hover:text-indigo-600 hover:scale-110 transition-all"
