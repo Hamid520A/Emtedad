@@ -440,7 +440,7 @@ export default function ContestLandingPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={(e) => openExternalLink(contest.video_url, e)}
+                  onClick={() => window.open(contest.video_url, '_blank')}
                   className="flex items-center justify-center gap-2 w-full p-2.5 sm:p-3 text-xs font-black rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-[#1a2e44] dark:hover:text-slate-200 transition-all active:scale-[0.98]"
                 >
                   <ExternalLink size={16} /> تماشای تمام‌صفحه در آپارات
@@ -790,11 +790,11 @@ export default function ContestLandingPage() {
 
                   <button
                     type="button"
-                    onClick={(e) => {
+                    onClick={() => {
                       const cb = Date.now();
                       const freshUrl = fullUrl.includes('?') ? `${fullUrl}&cb=${cb}` : `${fullUrl}?cb=${cb}`;
-                      const finalUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(freshUrl)}`;
-                      openExternalLink(finalUrl, e);
+                      const finalUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(freshUrl)}&embedded=true`;
+                      window.open(finalUrl, '_blank');
                     }}
                     className="bg-[#1a2e44] dark:bg-[#c5a059] text-white p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition active:scale-95"
                   >
