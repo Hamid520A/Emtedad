@@ -17,10 +17,10 @@ import {
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  // 🌟 جایگزینی آی‌پی با دامنه
+  // 🌟 جایگزینی آی‌پی با دامنه HTTPS
   const baseUrl = process.env.NEXT_PUBLIC_API_URL 
     ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '') 
-    : 'http://emtedad.ir-ma.ir:8000';
+    : 'https://emtedad.ir-ma.ir:8000';
   return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
@@ -130,7 +130,7 @@ export default function ContestLandingPage() {
   const handleBack = () => {
     if (isAdminUser) {
       // 🌟 آی‌پی با دامنه جایگزین شد
-      window.location.href = `http://emtedad.ir-ma.ir:63001/admin/dashboard`;
+      window.location.href = `https://emtedad.ir-ma.ir:63001/admin/dashboard`;
     } else {
       router.push('/');
     }
@@ -138,8 +138,8 @@ export default function ContestLandingPage() {
 
   const handleShareContest = () => {
     if (!contest) return;
-    // 🌟 آدرس وب‌اپ با دامنه جدید (بدون پورت اضافی) جایگزین شد
-    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `http://emtedad.ir-ma.ir`;
+    // 🌟 آدرس وب‌اپ با دامنه جدید HTTPS
+    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `https://emtedad.ir-ma.ir`;
     const shareUrl = `${userAppBaseUrl}/contests/${contest.id}`;
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contest.title}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
@@ -220,7 +220,7 @@ export default function ContestLandingPage() {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
       if (isAdminUser) {
-        window.location.href = `http://emtedad.ir-ma.ir:63001/admin/dashboard`;
+        window.location.href = `https://emtedad.ir-ma.ir:63001/admin/dashboard`;
       } else {
         router.push('/'); 
       }
@@ -325,13 +325,13 @@ export default function ContestLandingPage() {
                 
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <button onClick={() => {
-                    window.location.href = `http://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/edit`;
+                    window.location.href = `https://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/edit`;
                   }} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
                   <button onClick={() => {
-                    window.location.href = `http://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/questions`;
+                    window.location.href = `https://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/questions`;
                   }} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
                   <button onClick={() => {
-                    window.location.href = `http://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/participants`;
+                    window.location.href = `https://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/participants`;
                   }} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
                   <button onClick={deleteContest} className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>

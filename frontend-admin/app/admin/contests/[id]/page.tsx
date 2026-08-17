@@ -14,7 +14,6 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell
 } from 'recharts';
 
-// 🌟 جایگزینی آی‌پی با دامنه برای دریافت تصاویر
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
@@ -525,8 +524,8 @@ export default function ContestLandingPage() {
                   onClick={() => {
                     const token = localStorage.getItem('accessToken') || '';
                     const refreshToken = localStorage.getItem('refreshToken') || '';
-                    // 🌟 آی‌پی با دامنه تمیز جایگزین شد
-                    const userAppUrl = `http://emtedad.ir-ma.ir/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
+                    // 🌟 آدرس وب‌اپ مدیریت تست با دامنه جدید
+                    const userAppUrl = `https://emtedad.ir-ma.ir/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
                     window.open(userAppUrl, '_blank');
                   }}
                   className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"
@@ -588,8 +587,8 @@ export default function ContestLandingPage() {
                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.hours)}</span><span className="text-[9px] text-gray-400 font-bold">ساعت</span></div>
                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.minutes)}</span><span className="text-[9px] text-gray-400 font-bold">دقیقه</span></div>
                   <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(timeLeft.seconds)}</span><span className="text-[9px] text-gray-400 font-bold">ثانیه</span></div>
-                </div>
-              ) : <span className="text-xs font-bold text-gray-300">در انتظار کلید شروع مسابقه توسط مدیر...</span>}
+                 </div>
+               ) : <span className="text-xs font-bold text-gray-300">در انتظار کلید شروع مسابقه توسط مدیر...</span>}
             </div>
           )}
 

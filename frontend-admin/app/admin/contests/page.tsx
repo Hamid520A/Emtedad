@@ -52,8 +52,8 @@ export default function AdminContestsPage() {
   };
 
   const handleShareContest = (contestId: number | string, contestTitle: string) => {
-    // 🌟 آدرس تمیز و بدون پورت جایگزین شد
-    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `http://emtedad.ir-ma.ir`;
+    // 🌟 لینک به صورت https ایمن شد
+    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `https://emtedad.ir-ma.ir`;
     const shareUrl = `${userAppBaseUrl}/contests/${contestId}`;
     
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
