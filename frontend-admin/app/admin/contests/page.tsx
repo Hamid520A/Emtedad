@@ -51,25 +51,24 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع تولید دیپ‌لینک مینی‌اپ ایتا
+  // 🌟 تابع استاندارد اشتراک‌گذاری (لینک وب مستقیم و پایدار)
   const handleShareContest = (contestId: number | string, contestTitle: string) => {
-    const eitaaUsername = "emtedad_emam_app";
+    // گرفتن آدرس پایه سامانه کاربران (پورت 63000)
+    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
     
-    // 🔴 نکته بسیار مهم: کلمه 'app' را پاک کنید و نام کوتاه برنامک خودتان را که در بات‌فادر ثبت کرده‌اید داخل کوتیشن بنویسید!
-    // مثلاً اگر نام کوتاه شما emtedad است، باید بنویسید: "emtedad"
-    const appShortName = "app"; 
-    
-    // ساختار لینک اختصاصی برای باز شدن پاپ‌آپ برنامک
-    const shareUrl = `https://eitaa.com/${eitaaUsername}/${appShortName}?startapp=contest_${contestId}`;
+    // ساخت لینک صفحه لندینگ مسابقه
+    const shareUrl = `${userAppBaseUrl}/contests/${contestId}`;
     
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
+    // تلاش برای کپی با کلیپ‌بورد مدرن (محیط امن)
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(fullTextToCopy)
         .then(() => alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید."))
         .catch(() => alert("❌ خطا در کپی کردن لینک."));
     } else {
+      // روش قطعی کپی برای محیط‌های تست (مثل HTTP و آی‌پی لوکال)
       try {
         const textArea = document.createElement("textarea");
         textArea.value = fullTextToCopy;
@@ -82,7 +81,7 @@ export default function AdminContestsPage() {
         document.body.removeChild(textArea);
         
         if (successful) {
-          alert("✅ لینک مسابقه در کلیپ‌بورد کپی شد! در پیام‌رسان ایتا ارسال کنید.");
+          alert("✅ لینک مسابقه با موفقیت در کلیپ‌بورد کپی شد! می‌توانید آن را پیست کنید.");
         } else {
           alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
         }
