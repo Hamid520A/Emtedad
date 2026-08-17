@@ -4,18 +4,25 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { 
-  ArrowRight, Download, Gift, FileText, Clock, 
+  ArrowRight, Download, FileText, Clock, 
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, Share2
+  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, MapPin
 } from 'lucide-react';
-
 
 import { 
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
-  XAxis, YAxis, Tooltip, Legend, CartesianGrid 
+  XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell 
 } from 'recharts';
 
-import { getCleanImageUrl, openExternalLink } from '../../../lib/utils/url';
+// 🌟 تابع امن و توکار برای دریافت تصویر (بدون نیاز به فایل‌های اکسترنال که باعث ارور داکر شوند)
+const getCleanImageUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL 
+    ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '') 
+    : 'http://10.10.20.51:8000';
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 export default function ContestLandingPage() {
   const router = useRouter();
@@ -32,11 +39,11 @@ export default function ContestLandingPage() {
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
+  const [selectedProvince, setSelectedProvince] = useState<any>(null);
+  const [provinceModalOpen, setProvinceModalOpen] = useState(false);
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
-  const [isFullVideoModal, setIsFullVideoModal] = useState(false);
 
-  // ۱. افکت دریافت اطلاعات جامع با تکنیک ضد کش و محاسبه اختلاف زمان سرور
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const adminStatus = localStorage.getItem('isAdmin') === 'true';
@@ -58,7 +65,6 @@ export default function ContestLandingPage() {
         setLeaderboard(lbRes.data || []);
         setProfile(profileRes.data);
 
-        // 🌟 سنگر امنیت: محاسبه مستقل ثانیه‌های باقی‌مانده بر اساس ساعت واقعی سرور (نه کلاینت)
         if (contestRes.data.status === 'upcoming' && contestRes.data.start_time) {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
           const diffSec = Math.floor(diffMs / 1000);
@@ -67,8 +73,10 @@ export default function ContestLandingPage() {
 
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
         if (adminStatus) {
-          const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
-          setAnalyticsData(analyticsRes.data);
+          try {
+             const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
+             setAnalyticsData(analyticsRes.data);
+          } catch(e) {}
         }
 
       } catch (error) {
@@ -80,7 +88,6 @@ export default function ContestLandingPage() {
     fetchData();
   }, [contestId]);
 
-  // ۲. 🌟 موتور شمارش معکوس جدید: کاملاً خطی، ضد هک و ایزوله از دستکاری ساعت سیستم
   useEffect(() => {
     if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null) {
       return;
@@ -103,9 +110,8 @@ export default function ContestLandingPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [contest, mounted]);
+  }, [contest, mounted, totalSecondsLeft]);
 
-  // ۳. 🌟 افکت کمکی رندر: تبدیل ثانیه‌های زنده به فرمت روز/ساعت/دقیقه/ثانیه برای لایه UI
   useEffect(() => {
     if (totalSecondsLeft === null || totalSecondsLeft <= 0) {
       setTimeLeft(null);
@@ -120,6 +126,19 @@ export default function ContestLandingPage() {
       seconds: Math.floor(secs % 60)
     });
   }, [totalSecondsLeft]);
+
+  // 🌟 تابع هوشمند، قطعی و تضمینی برای دکمه بازگشت (بدون باگ مرورگر ناشناس)
+  const handleBack = () => {
+    if (isAdminUser) {
+      // اگر ادمین بود، تحت هر شرایطی برگردد به داشبورد ادمین (پورت 63001)
+      const host = window.location.hostname;
+      const protocol = window.location.protocol;
+      window.location.href = `${protocol}//${host}:63001/admin/dashboard`;
+    } else {
+      // اگر کاربر بود، تحت هر شرایطی برگردد به صفحه اصلی سامانه کاربری
+      router.push('/');
+    }
+  };
 
   const changeContestStatus = async (newStatus: string) => {
     if (newStatus === 'active') {
@@ -152,16 +171,12 @@ export default function ContestLandingPage() {
 
     try {
       const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
-      
       setContest({ 
         ...contest, 
         status: response.data.status, 
         start_time: response.data.start_time 
       });
-      
-      if (response.data.status === 'active') {
-        setTimeLeft(null);
-      }
+      if (response.data.status === 'active') setTimeLeft(null);
       alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
     } catch (error) {
       alert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
@@ -170,11 +185,17 @@ export default function ContestLandingPage() {
 
   const deleteContest = async () => {
     if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
-
     try {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
-      router.push('/'); 
+      // پس از حذف مسابقه کاربر را به داشبورد پرتاب می‌کنیم
+      if (isAdminUser) {
+        const host = window.location.hostname;
+        const protocol = window.location.protocol;
+        window.location.href = `${protocol}//${host}:63001/admin/dashboard`;
+      } else {
+        router.push('/'); 
+      }
     } catch (error) {
       console.error(error);
       alert("خطا در حذف مسابقه. لطفاً دوباره تلاش کنید.");
@@ -195,78 +216,10 @@ export default function ContestLandingPage() {
     return null;
   };
 
-  // 🌟 تابع هوشمند اشتراک‌گذاری با استفاده از آدرس فعلی صفحه
-  // 🌟 تابع هوشمند اشتراک‌گذاری با پشتیبانی کامل از محیط‌های HTTP (تست) و HTTPS (پروداکشن)
-  const handleShareContest = async () => {
-    const shareUrl = window.location.href; // آدرس همین صفحه‌ای که کاربر در آن است
-    const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contest.title}» روی لینک زیر کلیک کنید:\n`;
-    const fullTextToCopy = `${shareText}\n${shareUrl}`;
-
-    // ۱. تلاش برای باز کردن منوی شیر بومی گوشی (فقط در HTTPS یا Localhost کار می‌کند)
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: contest.title,
-          text: shareText,
-          url: shareUrl,
-        });
-        return;
-      } catch (error) {
-        console.log("Share canceled or unsupported.");
-      }
-    }
-
-    // ۲. فال‌بک اول: استفاده از کلیپ‌بورد مدرن (اگر در محیط امن باشیم)
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(fullTextToCopy);
-        alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید.");
-        return;
-      } catch (err) {
-        console.log("Clipboard API failed:", err);
-      }
-    }
-
-    // ۳. 🌟 فال‌بک نهایی و تضمینی: تکنیک Textarea برای محیط‌های HTTP (مثل 10.10.20.51)
-    try {
-      const textArea = document.createElement("textarea");
-      textArea.value = fullTextToCopy;
-      
-      // مخفی کردن کامل textarea از دید کاربر
-      textArea.style.position = "fixed";
-      textArea.style.top = "0";
-      textArea.style.left = "0";
-      textArea.style.width = "2px";
-      textArea.style.height = "2px";
-      textArea.style.padding = "0";
-      textArea.style.border = "none";
-      textArea.style.outline = "none";
-      textArea.style.boxShadow = "none";
-      textArea.style.background = "transparent";
-      
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      if (successful) {
-        alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود پیست کنید.");
-      } else {
-        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد. آدرس را از بالای صفحه کپی کنید.");
-      }
-    } catch (err) {
-      alert("❌ خطا در کپی کردن لینک.");
-    }
-  };
-
   if (loading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100"><Loader2 className="animate-spin text-[#1a2e44] dark:text-[#c5a059]" size={40} /></div>;
   if (!contest) return <div className="p-6 text-center text-[#1a2e44] dark:text-slate-100 font-bold">مسابقه یافت نشد.</div>;
 
   const currentUserId = profile?.id || profile?.user_id;
-  
-  // 🌟 اصلاح کلیدی: استفاده از ساختار مقایسه نرم و حذف فضاهای خالی برای حل مشکل عدم تطابق آیدی‌ها
   const leaderboardMatch = currentUserId ? leaderboard.find((user) => String(user.user_id || user.id).trim() == String(currentUserId).trim()) : null;
   
   const historyMatch = profile?.history?.find((h:any) => 
@@ -278,15 +231,12 @@ export default function ContestLandingPage() {
   const hasParticipated = !!myResult;
   const topThree = leaderboard.slice(0, 3);
 
-  // 🌟 اصلاح کلیدی: محاسبه پویای رتبه آنلاین کاربر بدون کاراکتر منفی
   const getLiveRank = () => {
     if (leaderboardMatch?.rank) return leaderboardMatch.rank;
     if (!currentUserId || !leaderboard.length) return '-';
-    
     const indexInLeaderboard = leaderboard.findIndex(
       (u) => String(u.user_id || u.id).trim() == String(currentUserId).trim()
     );
-    
     return indexInLeaderboard !== -1 ? indexInLeaderboard + 1 : '-';
   };
 
@@ -307,24 +257,19 @@ export default function ContestLandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-[#1a2e44] to-[#2a405a] dark:from-[#182234] dark:to-[#0b0f19]"></div>
         )}
         
+        {/* 🌟 هدر کاملا پاک‌سازی شده: دکمه اشتراک‌گذاری کلاً حذف شد */}
         <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center justify-between z-20">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <button onClick={() => router.back()} className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white">
+          <div className="flex items-center gap-3 sm:gap-4 w-full">
+            <button 
+              onClick={handleBack} 
+              className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white"
+            >
               <ArrowRight size={18} />
             </button>
             <div>
               <h1 className="font-black text-lg sm:text-2xl text-white drop-shadow-md">جزئیات و مشخصات مسابقه</h1>
             </div>
           </div>
-
-          <button 
-            onClick={handleShareContest}
-            className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white flex items-center gap-2 active:scale-95"
-            title="ارسال مسابقه برای دوستان"
-          >
-            <span className="hidden sm:inline text-xs font-black drop-shadow-md">ارسال برای دوستان</span>
-            <Share2 size={18} />
-          </button>
         </header>
       </div>
 
@@ -460,6 +405,74 @@ export default function ContestLandingPage() {
                 </div>
               </div>
 
+              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
+                  <MapPin size={18} className="text-[#c5a059]" />
+                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">پراکندگی جغرافیایی شرکت‌کنندگان (استان‌ها)</h3>
+                </div>
+                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart
+                      data={analyticsData.province_stats || []}
+                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+                      <XAxis dataKey="province" stroke="#9ca3af" tickLine={false} />
+                      <YAxis stroke="#9ca3af" tickLine={false} />
+                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
+                      <Bar
+                        dataKey="count"
+                        name="تعداد شرکت‌کننده"
+                        fill="#3b82f6"
+                        radius={[4, 4, 0, 0]}
+                        barSize={12}
+                        onClick={(item) => {
+                          if (item && item.payload) {
+                            setSelectedProvince(item.payload);
+                            setProvinceModalOpen(true);
+                          }
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
+                  <Users size={18} className="text-[#c5a059]" />
+                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">تفکیک جنسیت شرکت‌کنندگان</h3>
+                </div>
+                <div className="w-full h-72 text-xs font-bold font-sans">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart
+                      data={analyticsData.gender_stats || []}
+                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+                      <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
+                      <YAxis stroke="#9ca3af" tickLine={false} />
+                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
+                      <Bar
+                        dataKey="count"
+                        name="تعداد شرکت‌کننده"
+                        radius={[4, 4, 0, 0]}
+                        barSize={40}
+                      >
+                        {
+                          (analyticsData.gender_stats || [])
+                          .filter((entry: any) => entry.gender === "مرد" || entry.gender === "زن")
+                          .map((entry: any, index: number) => {
+                            const color = entry.gender === "مرد" ? "#3b82f6" : "#ec4899"; 
+                            return <Cell key={`cell-${index}`} fill={color} />;
+                          })
+                        }
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -521,7 +534,7 @@ export default function ContestLandingPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={(e) => openExternalLink(contest.video_url, e)}
+                  onClick={() => window.open(contest.video_url, '_blank')}
                   className="flex items-center justify-center gap-2 w-full p-2.5 sm:p-3 text-xs font-black rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-[#1a2e44] dark:hover:text-slate-200 transition-all active:scale-[0.98]"
                 >
                   <ExternalLink size={16} /> تماشای تمام‌صفحه در آپارات
@@ -788,7 +801,51 @@ export default function ContestLandingPage() {
         </div>
       )}
 
-      {/* 🌟 مودال هوشمند پیش‌نمایش و دانلود جزوه راهنمای دوره */}
+      {provinceModalOpen && selectedProvince && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 dark:border-slate-800 overflow-hidden flex flex-col text-right">
+
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-[#faf9f6] dark:bg-[#0b0f19]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#1a2e44] dark:bg-[#182234] text-[#c5a059] rounded-xl flex items-center justify-center shadow-md">
+                  <MapPin size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-[#1a2e44] dark:text-slate-100">آمار شهرستان‌های استان {selectedProvince.province}</h3>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold mt-0.5">تعداد کل شرکت‌کنندگان در این استان: {toPersianDigits(selectedProvince.count)} نفر</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setProvinceModalOpen(false); setSelectedProvince(null); }}
+                className="p-2 bg-white dark:bg-[#182234] border border-gray-100 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-[#233044] text-gray-400 dark:text-slate-400 hover:text-red-500 rounded-full transition-all shadow-sm"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3 overflow-y-auto max-h-[60vh]">
+              {selectedProvince.cities && selectedProvince.cities.length > 0 ? (
+                selectedProvince.cities.map((cityData: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center p-4 bg-[#faf9f6] dark:bg-[#0b0f19] border border-gray-100 dark:border-slate-800 rounded-2xl hover:border-[#c5a059] transition-all">
+                    <span className="font-bold text-sm text-[#1a2e44] dark:text-slate-100 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-[#c5a059] rounded-full"></div> 
+                      {cityData.city || 'نامشخص'}
+                    </span>
+                    <span className="font-black text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-slate-800 shadow-sm">
+                      {toPersianDigits(cityData.count)} نفر
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-xs text-gray-400 dark:text-slate-400 font-bold py-6">اطلاعات تفکیکی شهرستان‌ها برای این استان ثبت نشده است.</p>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 مودال پیش‌نمایش و دانلود جزوه راهنمای دوره بدون ارور */}
       {showPdfModal && contest?.file_url && (() => {
         const cleanPath = getCleanImageUrl(contest.file_url);
         const fullUrl = cleanPath.startsWith('/') 
@@ -826,13 +883,10 @@ export default function ContestLandingPage() {
           }
         };
 
-        const googleDocsViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
-
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" dir="rtl">
             <div className="bg-white dark:bg-[#182234] w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-gray-100 dark:border-slate-800 flex flex-col max-h-[92vh]">
               
-              {/* هدر مودال */}
               <div className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText size={20} className="text-[#c5a059]" />
@@ -846,7 +900,6 @@ export default function ContestLandingPage() {
                 </button>
               </div>
 
-              {/* کارت مشخصات فایل و دکمه‌های عملیاتی */}
               <div className="p-4 bg-gray-50 dark:bg-[#111827] border-b border-gray-100 dark:border-slate-800 space-y-3">
                 <div className="flex items-center justify-between gap-2 bg-white dark:bg-[#182234] p-3 rounded-2xl border border-gray-100 dark:border-slate-800">
                   <div className="flex items-center gap-2 min-w-0">
@@ -868,14 +921,14 @@ export default function ContestLandingPage() {
                   >
                     کپی لینک دانلود
                   </button>
-
+                  
                   <button
                     type="button"
-                    onClick={(e) => {
+                    onClick={() => {
                       const cb = Date.now();
                       const freshUrl = fullUrl.includes('?') ? `${fullUrl}&cb=${cb}` : `${fullUrl}?cb=${cb}`;
-                      const finalUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(freshUrl)}`;
-                      openExternalLink(finalUrl, e);
+                      const finalUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(freshUrl)}&embedded=true`;
+                      window.open(finalUrl, '_blank');
                     }}
                     className="bg-[#1a2e44] dark:bg-[#c5a059] text-white p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition active:scale-95"
                   >
