@@ -1,9 +1,9 @@
 // frontend-user/app/(auth)/register/page.tsx
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
-import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar } from 'lucide-react';
+import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, MessageSquare, Edit2, ArrowLeft, CheckCircle } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -14,14 +14,18 @@ const DatePickerComponent = DatePicker as any;
 export default function RegisterPage() {
   const router = useRouter();
 
-  // استیت فرم منطبق بر فیلدهای دقیق مدل هویتی جدید پایتون
+  // 🌟 استیت‌های کنترل مراحل
+  const [step, setStep] = useState(1);
+  const [otpCode, setOtpCode] = useState('');
+  const [timer, setTimer] = useState(120);
+
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     phone: '',
     national_id: '',
-    province_id: '', // ذخیره شناسه استان انتخابی
-    city_id: '',     // ذخیره شناسه نهایی شهر انتخابی برای دیتابیس
+    province_id: '', 
+    city_id: '',     
     birth_date: '',
     gender: 'male',
     password: '',
@@ -31,20 +35,22 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [provinces, setProvinces] = useState<{ id: number; title: string }[]>([]);
   const [availableCities, setAvailableCities] = useState<{ id: number; title: string }[]>([]);
-  const [mounted, setMounted] = useState(false); // 🌟 استیت جدید برای مانیتورینگ پایداری لایوت کلاینت
+  const [mounted, setMounted] = useState(false);
 
-  // تبدیل داینامیک و استاندارد اعداد فارسی/عربی به انگلیسی (اصلاح شده)
   const toEnglishDigits = (str: string) => {
     return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728))
       .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584));
   };
 
-  // الگوریتم رسمی و ریاضی اعتبارسنجی کد ملی ایران
+  const toPersianDigits = (str: string | number) => {
+    const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
+  };
+
   const isValidNationalId = (id: string): boolean => {
     const cleanId = toEnglishDigits(id).trim();
     if (!/^\d{10}$/.test(cleanId)) return false;
     if (/^(\d)\1{9}$/.test(cleanId)) return false;
-
     const check = parseInt(cleanId[9]);
     let sum = 0;
     for (let i = 0; i < 9; i++) {
@@ -55,30 +61,26 @@ export default function RegisterPage() {
     return control === check;
   };
 
-  // سیستم کنترل ساختار شماره موبایل ایران
   const isValidPhoneNumber = (phone: string): boolean => {
     const cleanPhone = toEnglishDigits(phone).trim();
     return /^09\d{9}$/.test(cleanPhone);
   };
 
   useEffect(() => {
-    // 🌟 رفع ارور تایپ‌اسکریپت و تعریف سنگر حفاظتی زنده برای رویدادهای تزریقی ایتا
     if (typeof window !== 'undefined') {
       const globalWindow = window as any;
       globalWindow.Eitaa = globalWindow.Eitaa || {};
       globalWindow.Eitaa.WebView = globalWindow.Eitaa.WebView || {};
-      globalWindow.Eitaa.WebView.receiveEvent = globalWindow.Eitaa.WebView.receiveEvent || function(event: any, data: any) {
-      };
+      globalWindow.Eitaa.WebView.receiveEvent = globalWindow.Eitaa.WebView.receiveEvent || function(event: any, data: any) {};
     }
-
-    setMounted(true); // 🌟 تایید پایدار شدن لایوت کلاینت در محیط موبایل
+    setMounted(true);
 
     const fetchProvinces = async () => {
       try {
         const response = await api.get('/cities?parents_only=true');
         setProvinces(response.data || []);
       } catch (error) {
-        console.error("خطا در فراخوانی اطلاعات لوکیشن‌ها از دیتابیس سرور", error);
+        console.error("خطا در فراخوانی لوکیشن‌ها", error);
       }
     };
     fetchProvinces();
@@ -101,85 +103,98 @@ export default function RegisterPage() {
     }
   }, [formData.province_id]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 🌟 تایمر معکوس پیامک
+  useEffect(() => {
+    let interval: any;
+    if (step === 2 && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [step, timer]);
+
+  // 🌟 مرحله اول: اعتبارسنجی لوکال و درخواست پیامک
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.password.length < 6) {
-      alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
-      return;
-    }
-
+    if (formData.password.length < 6) return alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
+    if (formData.password !== formData.confirmPassword) return alert("⚠️ رمز عبور و تکرار آن با هم مطابقت ندارند!");
+    
     const finalPhone = toEnglishDigits(formData.phone || '').trim();
     const finalNationalId = toEnglishDigits(formData.national_id || '').trim();
 
-    if (!isValidPhoneNumber(finalPhone)) {
-      alert("⚠️ شماره موبایل وارد شده معتبر نیست! باید ۱۱ رقم داشته و با ۰۹ آغاز شود.");
-      return;
-    }
+    if (!isValidPhoneNumber(finalPhone)) return alert("⚠️ شماره موبایل معتبر نیست! (باید با ۰۹ شروع شود)");
+    if (!isValidNationalId(finalNationalId)) return alert("⚠️ کد ملی وارد شده معتبر نیست!");
+    if (!formData.city_id) return alert("⚠️ لطفاً شهر محل سکونت خود را انتخاب کنید.");
 
-    if (!isValidNationalId(finalNationalId)) {
-      alert("⚠️ کد ملی وارد شده معتبر نیست!");
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      alert("⚠️ رمز عبور و تکرار آن با هم مطابقت ندارند!");
-      return;
-    }
-
-    if (!formData.city_id) {
-      alert("⚠️ لطفاً شهر محل سکونت خود را انتخاب کنید.");
-      return;
-    }
-    let formattedBirthDate = formData.birth_date
-      ? toEnglishDigits(formData.birth_date).replace(/\//g, '-')
-      : null;
     setLoading(true);
     try {
+      // ارسال درخواست پیامک
+      await api.post('/send-otp', { phone_number: finalPhone });
+      setStep(2);
+      setTimer(120); // شروع تایمر ۱۲۰ ثانیه‌ای
+    } catch (error: any) {
+      alert("خطا در ارسال پیامک: " + (error.response?.data?.detail || "لطفاً دوباره تلاش کنید."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🌟 مرحله دوم: تایید کد و ثبت در دیتابیس
+  const handleVerifyAndRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.length < 4) return alert("لطفاً کد تایید را به درستی وارد کنید.");
+
+    setLoading(true);
+    const finalPhone = toEnglishDigits(formData.phone).trim();
+    let formattedBirthDate = formData.birth_date ? toEnglishDigits(formData.birth_date).replace(/\//g, '-') : null;
+
+    try {
+      // ۱. تایید کد پیامک
+      await api.post('/verify-otp', { 
+        phone_number: finalPhone, 
+        code: toEnglishDigits(otpCode) 
+      });
+
+      // ۲. در صورت موفقیت، ثبت‌نام در دیتابیس
       await api.post('/register', {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone_number: finalPhone,
-        national_id: finalNationalId,
+        national_id: toEnglishDigits(formData.national_id).trim(),
         city_id: Number(formData.city_id),
         birth_date: formattedBirthDate,
         gender: formData.gender,
         password: formData.password
       });
 
-      alert("ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.");
-      if (typeof window !== 'undefined') {
-        window.location.replace('/login');
-      } else {
-        router.push('/login');
-      }
+      alert("🎉 ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.");
+      window.location.replace('/login');
+      
     } catch (error: any) {
       console.error(error.response?.data);
       const detail = error.response?.data?.detail;
       let errorMsg = "مشکل ارتباط با سرور. اطلاعات را بررسی کنید.";
-
+      
       if (Array.isArray(detail)) {
-        const firstError = detail[0];
-        if (firstError && firstError.msg) {
-          errorMsg = firstError.msg.replace("Value error, ", "");
-        }
+        if (detail[0]?.msg) errorMsg = detail[0].msg.replace("Value error, ", "");
       } else if (detail) {
-        if (detail === "شماره قبلاً ثبت شده" || String(detail).includes("phone_number")) {
-          errorMsg = "این شماره موبایل قبلاً در سیستم ثبت شده است.";
-        } else if (detail === "کد ملی قبلاً ثبت شده" || String(detail).includes("national_id")) {
-          errorMsg = "این کد ملی قبلاً در سیستم ثبت شده است.";
-        } else {
-          errorMsg = String(detail);
-        }
+        if (detail === "شماره قبلاً ثبت شده" || String(detail).includes("phone_number")) errorMsg = "این شماره موبایل قبلاً در سیستم ثبت شده است.";
+        else if (detail === "کد ملی قبلاً ثبت شده" || String(detail).includes("national_id")) errorMsg = "این کد ملی قبلاً در سیستم ثبت شده است.";
+        else errorMsg = String(detail);
       }
-
-      alert("خطا در ثبت‌نام: " + errorMsg);
+      alert("خطا: " + errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🛑 سنگر امنیتی هیدریشن: تا زمانیکه محیط کلاینت موبایل پایدار نشده المان‌ها را رندر نکن
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${toPersianDigits(m)}:${s < 10 ? '۰' : ''}${toPersianDigits(s)}`;
+  };
 
   if (!mounted) {
     return (
@@ -192,219 +207,170 @@ export default function RegisterPage() {
   }
 
   return (
-    <div 
-      className="font-sans min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 overflow-y-auto overflow-x-hidden p-6 relative transition-colors duration-200"
-      dir="rtl"
-    >
-      {/* کارت اصلی فرم */}
-      <div className="w-full max-w-md mx-auto bg-white dark:bg-[#182234] rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 p-6 sm:p-8 text-[#1a2e44] dark:text-slate-100 transition-colors duration-200">
+    <div className="font-sans min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 overflow-y-auto overflow-x-hidden p-6 relative transition-colors duration-200" dir="rtl">
+      
+      <div className="w-full max-w-md mx-auto bg-white dark:bg-[#182234] rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 p-6 sm:p-8 transition-colors duration-200">
         
-        {/* هدر فرم */}
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-[#1a2e44] dark:bg-[#0b0f19] text-[#c5a059] mx-auto rounded-2xl flex items-center justify-center shadow-lg rotate-3 mb-4 border border-transparent dark:border-slate-800">
             <Trophy size={32} />
           </div>
-          <h2 className="text-2xl font-black text-[#1a2e44] dark:text-slate-100">ساخت حساب جدید</h2>
-          <p className="text-gray-500 dark:text-slate-400 text-xs mt-1 font-medium">برای شرکت در مسابقات اطلاعات خود را وارد کنید</p>
+          <h2 className="text-2xl font-black text-[#1a2e44] dark:text-slate-100">
+            {step === 1 ? 'ساخت حساب جدید' : 'تایید شماره موبایل'}
+          </h2>
+          <p className="text-gray-500 dark:text-slate-400 text-xs mt-1 font-medium">
+            {step === 1 ? 'برای شرکت در مسابقات اطلاعات خود را وارد کنید' : `کد ۵ رقمی ارسال شده به ${toPersianDigits(formData.phone)} را وارد کنید`}
+          </p>
         </div>
 
-        {/* فرم اصلی */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 🌟 فرم مرحله اول (دریافت اطلاعات) */}
+        {step === 1 && (
+          <form onSubmit={handleSendOtp} className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام</label>
+                <div className="relative">
+                  <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                  <input type="text" required value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="علی" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام خانوادگی</label>
+                <div className="relative">
+                  <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                  <input type="text" required value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="احمدی" />
+                </div>
+              </div>
+            </div>
 
-          {/* نام و نام خانوادگی */}
-          <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">کد ملی</label>
+                <div className="relative">
+                  <CreditCard className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                  <input type="text" required dir="ltr" maxLength={10} value={formData.national_id} onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="0012345678" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">شماره موبایل</label>
+                <div className="relative">
+                  <Phone className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                  <input type="text" required dir="ltr" maxLength={11} value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="0912..." />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">استان</label>
+                <SearchableDropdown options={provinces} value={formData.province_id} onChange={(id) => setFormData({ ...formData, province_id: String(id) })} placeholder="انتخاب استان" icon={MapPin} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">شهرستان</label>
+                <SearchableDropdown options={availableCities} value={formData.city_id} onChange={(id) => setFormData({ ...formData, city_id: String(id) })} placeholder={formData.province_id ? "انتخاب شهر" : "ابتدا استان"} icon={MapPin} disabled={!formData.province_id || availableCities.length === 0} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">تاریخ تولد</label>
+                <div className="relative">
+                  <Calendar className="absolute right-3 top-3.5 text-gray-400 z-10" size={16} />
+                  <DatePickerComponent calendar={persian} locale={persian_fa} calendarPosition="bottom-right"
+                    value={formData.birth_date} onChange={(date: any) => setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" })}
+                    containerClassName="w-full" inputClass="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none rounded-xl font-bold text-sm text-left focus:ring-2 focus:ring-[#c5a059] outline-none" placeholder="1380/01/01" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">جنسیت</label>
+                <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-xl border border-transparent dark:border-slate-800">
+                  <button type="button" onClick={() => setFormData({ ...formData, gender: 'male' })}
+                    className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'male' ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>آقا</button>
+                  <button type="button" onClick={() => setFormData({ ...formData, gender: 'female' })}
+                    className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'female' ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>خانم</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">رمز عبور</label>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-3.5 text-gray-400" size={16} />
+                  <input type="password" required dir="ltr" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="••••••••" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">تکرار رمز</label>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-3.5 text-[#c5a059]" size={16} />
+                  <input type="password" required dir="ltr" value={formData.confirmPassword} onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="••••••••" />
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70">
+              {loading ? 'در حال ارسال پیامک...' : 'ثبت اطلاعات و دریافت کد'}
+              {!loading && <ArrowRight size={18} />}
+            </button>
+          </form>
+        )}
+
+        {/* 🌟 فرم مرحله دوم (دریافت کد تایید) */}
+        {step === 2 && (
+          <form onSubmit={handleVerifyAndRegister} className="space-y-5 animate-in slide-in-from-right-8 duration-300">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">نام</label>
-              <div className="relative">
-                <User className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
-                <input
-                  type="text" required
-                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  placeholder="علی"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 text-center">کد تایید ۵ رقمی</label>
+              <div className="relative max-w-[200px] mx-auto">
+                <MessageSquare className="absolute right-3 top-4 text-gray-400" size={20} />
+                <input 
+                  type="text" required dir="ltr" maxLength={5}
+                  className="w-full p-4 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-2 border-transparent focus:border-[#c5a059] rounded-2xl font-black text-center text-xl tracking-[0.5em] outline-none transition-all shadow-inner"
+                  placeholder="-----"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">نام خانوادگی</label>
-              <div className="relative">
-                <User className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
-                <input
-                  type="text" required
-                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  placeholder="احمدی"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* کد ملی و شماره موبایل */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">کد ملی</label>
-              <div className="relative">
-                <CreditCard className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
-                <input
-                  type="text" required dir="ltr" maxLength={10}
-                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  placeholder="0012345678"
-                  value={formData.national_id}
-                  onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
-                />
-              </div>
+            <div className="text-center text-xs font-bold text-gray-500">
+              {timer > 0 ? (
+                <span dir="ltr">{formatTime(timer)} تا ارسال مجدد</span>
+              ) : (
+                <button type="button" onClick={handleSendOtp} className="text-blue-600 dark:text-blue-400 hover:underline">ارسال مجدد کد تایید</button>
+              )}
             </div>
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">شماره موبایل</label>
-              <div className="relative">
-                <Phone className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
-                <input
-                  type="text" required dir="ltr" maxLength={11}
-                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  placeholder="0912..."
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* استان و شهرستان */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">استان</label>
-              <SearchableDropdown
-                options={provinces}
-                value={formData.province_id}
-                onChange={(id) => setFormData({ ...formData, province_id: String(id) })}
-                placeholder="انتخاب استان"
-                icon={MapPin}
-              />
+            <div className="flex gap-3 mt-6">
+              <button 
+                type="button" 
+                onClick={() => setStep(1)}
+                className="w-1/3 bg-gray-100 dark:bg-[#233044] text-gray-600 dark:text-slate-300 p-4 rounded-2xl font-black flex items-center justify-center hover:bg-gray-200 transition-colors"
+              >
+                <Edit2 size={18} />
+              </button>
+              
+              <button 
+                type="submit" disabled={loading}
+                className="w-2/3 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] transition-all shadow-md active:scale-95 disabled:opacity-70"
+              >
+                {loading ? 'در حال بررسی...' : 'تایید نهایی و ثبت‌نام'}
+                {!loading && <CheckCircle size={18} />}
+              </button>
             </div>
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">شهرستان</label>
-              <SearchableDropdown
-                options={availableCities}
-                value={formData.city_id}
-                onChange={(id) => setFormData({ ...formData, city_id: String(id) })}
-                placeholder={formData.province_id ? "انتخاب شهر" : "ابتدا استان"}
-                icon={MapPin}
-                disabled={!formData.province_id || availableCities.length === 0}
-              />
-            </div>
-          </div>
+          </form>
+        )}
 
-          {/* تاریخ تولد و جنسیت */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">تاریخ تولد</label>
-              <div className="relative">
-                <Calendar className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500 z-10" size={16} />
-                <DatePickerComponent
-                  calendar={persian}
-                  locale={persian_fa}
-                  calendarPosition="bottom-right"
-                  value={formData.birth_date}
-                  onChange={(date: any) => {
-                    setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" });
-                  }}
-                  containerClassName="w-full"
-                  inputClass="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left focus:ring-2 focus:ring-[#c5a059] outline-none"
-                  placeholder="1380/01/01"
-                  name="birth_date"
-                  id="birth_date"
-                  autoComplete="bday"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">جنسیت</label>
-              <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-xl border border-transparent dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, gender: 'male' })}
-                  className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'male'
-                      ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm'
-                      : 'bg-transparent text-gray-400 dark:text-slate-500'
-                    }`}
-                >
-                  آقا
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, gender: 'female' })}
-                  className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'female'
-                      ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm'
-                      : 'bg-transparent text-gray-400 dark:text-slate-500'
-                    }`}
-                >
-                  خانم
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* رمز عبور و تکرار آن */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">رمز عبور</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  name="fake_username_to_prevent_autofill"
-                  style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}
-                  tabIndex={-1}
-                  autoComplete="username"
-                  readOnly
-                />
-                <Lock className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-500" size={16} />
-                <input
-                  type="password" required dir="ltr"
-                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1">تکرار رمز</label>
-              <div className="relative">
-                <Lock className="absolute right-3 top-3.5 text-[#c5a059]" size={16} />
-                <input
-                  type="password" required dir="ltr"
-                  className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none dark:border dark:border-slate-800 rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="submit" disabled={loading}
-            className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70"
-          >
-            {loading ? 'در حال ثبت...' : 'ثبت‌نام در سیستم'}
-            {!loading && <ArrowRight size={18} className="text-[#c5a059] dark:text-[#1a2e44]" />}
-          </button>
-
-        </form>
-
-        <div className="text-center mt-4">
+        <div className="text-center mt-6">
           <p className="text-xs font-bold text-gray-500 dark:text-slate-400">
             قبلاً حساب کاربری ساخته‌اید؟{' '}
-            <button 
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.location.replace('/login');
-                }
-              }} 
-              className="text-[#c5a059] hover:underline bg-transparent border-none cursor-pointer inline font-bold"
-            >
+            <button onClick={() => window.location.replace('/login')} className="text-[#c5a059] hover:underline bg-transparent border-none cursor-pointer inline font-bold">
               وارد شوید
             </button>
           </p>

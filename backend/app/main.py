@@ -591,6 +591,87 @@ def get_cities(
         
     return query.all()
 
+# =====================================================================
+# کدهای مدیریت پیامک و OTP (ذخیره در کانکشن Redis اصلی پروژه)
+# =====================================================================
+class OTPRequest(BaseModel):
+    phone_number: str
+
+class OTPVerify(BaseModel):
+    phone_number: str
+    code: str
+
+@app.post("/send-otp", tags=["Auth"])
+def send_otp(payload: OTPRequest):
+    mobile = fa_to_en_digits(payload.phone_number)
+    
+    # ۱. تولید کد ۵ رقمی کاملاً تصادفی
+    otp_code = str(random.randint(10000, 99999))
+    
+    try:
+        # ۲. ذخیره در ردیس با استفاده از کانکشن r موجود در خود main.py (انقضا: ۱۲۰ ثانیه)
+        r.setex(f"otp:{mobile}", 120, otp_code)
+    except Exception as e:
+        logger.error(f"Redis OTP Error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در ارتباط با حافظه موقت (ردیس).")
+        
+    # ۳. ساخت متن و ارسال پیامک از طریق سرویس TSMS
+    from app.services.sms_service import sms_service
+    text = f"سامانه مسابقات امتداد\nکد تایید شما: {otp_code}\nاز در اختیار گذاشتن این کد به دیگران خودداری کنید."
+    success = sms_service.send_sms(receiver_mobile=mobile, message_text=text)
+    
+    if success:
+        return {"message": "کد تایید با موفقیت پیامک شد."}
+    else:
+        raise HTTPException(status_code=500, detail="خطا در ارسال پیامک. لطفا دقایقی دیگر تلاش کنید.")
+
+@app.post("/verify-otp", tags=["Auth"])
+def verify_otp(payload: OTPVerify):
+    mobile = fa_to_en_digits(payload.phone_number)
+    
+    # واکشی کد ذخیره شده در ردیس
+    stored_code = r.get(f"otp:{mobile}")
+    if not stored_code:
+        raise HTTPException(status_code=400, detail="کد تایید منقضی شده یا وجود ندارد. لطفا مجددا درخواست دهید.")
+        
+    if stored_code != fa_to_en_digits(payload.code):
+        raise HTTPException(status_code=400, detail="کد تایید وارد شده اشتباه است.")
+        
+    # 🌟 در صورت موفقیت، کد را می‌سوزانیم تا دوباره استفاده نشود
+    r.delete(f"otp:{mobile}")
+    return {"message": "شماره موبایل تایید شد."}
+
+class PasswordReset(BaseModel):
+    phone_number: str
+    otp_code: str
+    new_password: str
+
+@app.post("/reset-password", tags=["Auth"])
+def reset_password_with_otp(payload: PasswordReset, db: Session = Depends(database.get_db)):
+    mobile = fa_to_en_digits(payload.phone_number)
+    
+    # ۱. بررسی صحت کد تایید (OTP)
+    stored_code = r.get(f"otp:{mobile}")
+    if not stored_code or stored_code != fa_to_en_digits(payload.otp_code):
+        raise HTTPException(status_code=400, detail="کد تایید اشتباه یا منقضی شده است.")
+        
+    # ۲. پیدا کردن کاربر در دیتابیس
+    user = db.query(models.User).filter(models.User.phone_number == mobile).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="کاربری با این شماره یافت نشد.")
+        
+    # ۳. اعتبارسنجی و تغییر رمز عبور
+    if len(fa_to_en_digits(payload.new_password)) < 6:
+        raise HTTPException(status_code=400, detail="رمز عبور باید حداقل ۶ کاراکتر باشد.")
+        
+    user.password = auth.get_password_hash(fa_to_en_digits(payload.new_password))
+    db.commit()
+    
+    # ۴. سوزاندن کد تایید تا دیگر قابل استفاده نباشد
+    r.delete(f"otp:{mobile}")
+    
+    return {"message": "رمز عبور با موفقیت تغییر کرد. اکنون میتوانید وارد شوید."}
+
 @app.post("/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     # یکدست‌سازی شماره تلفن و رمز عبور به اعداد انگلیسی

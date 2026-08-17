@@ -1,3 +1,4 @@
+# backend/app/auth.py
 import bcrypt, os
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
@@ -51,7 +52,6 @@ def get_current_user(db: Session = Depends(database.get_db), token: str = Depend
         raise credentials_exception
     return user
 
-# 🌟 فیکس اصلی: اصلاح auth.get_current_user به get_current_user
 def require_admin(current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
     """بررسی سطح دسترسی مدیر در سنگر نهایی بک‌ند بر اساس جدول جدید admins"""
     if not current_user:
