@@ -6,7 +6,7 @@ import api from '../../../lib/api';
 import { 
   ArrowRight, Download, FileText, Clock, 
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, MapPin
+  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, MapPin, Share2
 } from 'lucide-react';
 
 import { 
@@ -14,7 +14,7 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell 
 } from 'recharts';
 
-// 🌟 تابع امن و توکار برای دریافت تصویر (بدون نیاز به فایل‌های اکسترنال که باعث ارور داکر شوند)
+// تابع امن و توکار برای دریافت تصویر
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
@@ -127,16 +127,49 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
-  // 🌟 تابع هوشمند، قطعی و تضمینی برای دکمه بازگشت (بدون باگ مرورگر ناشناس)
+  // 🌟 تابع هوشمند دکمه بازگشت
   const handleBack = () => {
     if (isAdminUser) {
-      // اگر ادمین بود، تحت هر شرایطی برگردد به داشبورد ادمین (پورت 63001)
       const host = window.location.hostname;
       const protocol = window.location.protocol;
       window.location.href = `${protocol}//${host}:63001/admin/dashboard`;
     } else {
-      // اگر کاربر بود، تحت هر شرایطی برگردد به صفحه اصلی سامانه کاربری
       router.push('/');
+    }
+  };
+
+  // 🌟 تابع تولید و کپی لینک اشتراک‌گذاری (مخصوص پنل کاربران)
+  const handleShareContest = () => {
+    if (!contest) return;
+    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
+    const shareUrl = `${userAppBaseUrl}/contests/${contest.id}`;
+    const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contest.title}» روی لینک زیر کلیک کنید:\n`;
+    const fullTextToCopy = `${shareText}\n${shareUrl}`;
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(fullTextToCopy)
+        .then(() => alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید."))
+        .catch(() => alert("❌ خطا در کپی کردن لینک."));
+    } else {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = fullTextToCopy;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+          alert("✅ لینک مسابقه با موفقیت در کلیپ‌بورد کپی شد! می‌توانید آن را پیست کنید.");
+        } else {
+          alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+        }
+      } catch (err) {
+        alert("❌ خطا در کپی کردن لینک.");
+      }
     }
   };
 
@@ -188,7 +221,6 @@ export default function ContestLandingPage() {
     try {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
-      // پس از حذف مسابقه کاربر را به داشبورد پرتاب می‌کنیم
       if (isAdminUser) {
         const host = window.location.hostname;
         const protocol = window.location.protocol;
@@ -257,9 +289,9 @@ export default function ContestLandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-[#1a2e44] to-[#2a405a] dark:from-[#182234] dark:to-[#0b0f19]"></div>
         )}
         
-        {/* 🌟 هدر کاملا پاک‌سازی شده: دکمه اشتراک‌گذاری کلاً حذف شد */}
+        {/* 🌟 هدر شامل دکمه بازگشت و دکمه جدیدِ اشتراک‌گذاری */}
         <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center justify-between z-20">
-          <div className="flex items-center gap-3 sm:gap-4 w-full">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button 
               onClick={handleBack} 
               className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white"
@@ -270,6 +302,16 @@ export default function ContestLandingPage() {
               <h1 className="font-black text-lg sm:text-2xl text-white drop-shadow-md">جزئیات و مشخصات مسابقه</h1>
             </div>
           </div>
+          
+          {/* 🌟 دکمه اشتراک‌گذاری */}
+          <button 
+            onClick={handleShareContest}
+            className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95"
+            title="کپی لینک مسابقه"
+          >
+            <Share2 size={16} />
+            <span className="hidden sm:inline">ارسال برای دوستان</span>
+          </button>
         </header>
       </div>
 

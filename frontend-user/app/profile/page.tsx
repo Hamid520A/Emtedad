@@ -20,7 +20,6 @@ export default function ProfilePage() {
   const [profileImg, setProfileImg] = useState<string | null>(null);
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [myCertificates, setMyCertificates] = useState<any[]>([]);
-  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   
   // استیت‌های مدیریت پاسخنامه کاربر
   const [answerSheet, setAnswerSheet] = useState<any>(null);
@@ -111,7 +110,6 @@ export default function ProfilePage() {
     setCertModalOpen(true);
   };
 
-  // 🌟 اصلاح شد: دریافت وضعیت مسابقه جهت رندر داینامیک رنگ‌ها
   const handleViewMyAnswers = async (contestId: number, contestTitle: string, contestStatus: string) => {
     setAnswerLoading(true);
     setAnswerModalOpen(true);
@@ -119,7 +117,7 @@ export default function ProfilePage() {
       const response = await api.get(`/users/me/contests/${contestId}/answers`);
       setAnswerSheet({
         contest_title: contestTitle,
-        contest_status: contestStatus, // ذخیره وضعیت برای بررسی زنده در کامپوننت
+        contest_status: contestStatus, 
         questions: response.data || []
       });
     } catch (error) {
@@ -131,26 +129,36 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDownloadCertificate = (contestId: number | string, contestTitle?: string) => {
-    // ۱. دریافت توکن فعلی
+  // 🌟 تابع جدید جایگزین دانلود: ساخت لینک و کپی در کلیپ‌بورد
+  const handleCopyCertificateLink = (contestId: number | string) => {
     const token = localStorage.getItem("accessToken") || "";
-    
-    // ۲. خواندن آدرس بک‌اند به صورت کاملاً داینامیک از متغیرهای محیطی (بدون هاردکد)
-    // دقت کنید که متغیر NEXT_PUBLIC_API_URL باید در فایل .env.local شما مقداردهی شده باشد
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-    
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://10.10.20.51:8000/api";
     const downloadUrl = `${baseUrl}/users/me/contests/${contestId}/certificate/download?token=${token}`;
 
-    // ۳. دور زدن خطای تایپ‌اسکریپت برای مینی‌اپ‌ها
-    const globalWindow = window as any;
+    const fallbackCopy = (text: string) => {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert("✅ لینک دانلود گواهی کپی شد!\nلطفاً مرورگر (کروم/سافاری) را باز کرده و لینک را در آن پیست کنید تا دانلود انجام شود.");
+      } catch (err) {
+        console.error('Fallback copy failed', err);
+        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+      }
+      document.body.removeChild(textArea);
+    };
 
-    if (globalWindow.Eitaa && globalWindow.Eitaa.WebApp) {
-      globalWindow.Eitaa.WebApp.openLink(downloadUrl);
-    } else if (globalWindow.Telegram && globalWindow.Telegram.WebApp) {
-      globalWindow.Telegram.WebApp.openLink(downloadUrl);
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(downloadUrl)
+        .then(() => alert("✅ لینک دانلود گواهی کپی شد!\nلطفاً مرورگر (کروم/سافاری) را باز کرده و لینک را در آن پیست کنید تا دانلود انجام شود."))
+        .catch(() => fallbackCopy(downloadUrl));
     } else {
-      // مرورگر وب عادی
-      window.open(downloadUrl, "_blank");
+      fallbackCopy(downloadUrl);
     }
   };
 
@@ -252,7 +260,7 @@ export default function ProfilePage() {
               <button onClick={openCertificateModal} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-amber-50 dark:bg-amber-950/30 text-[#c5a059] rounded-2xl group-hover:scale-105 transition-transform"><Award size={22} /></div>
-                  <span className="font-black text-[#1a2e44] dark:text-slate-100">دانلود گواهی</span>
+                  <span className="font-black text-[#1a2e44] dark:text-slate-100">دریافت گواهی‌ها</span>
                 </div>
                 <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
@@ -316,7 +324,7 @@ export default function ProfilePage() {
         </main>
       </div>
 
-      {/* مُدال نمایش و دانلود تصاویر گواهی‌ها */}
+      {/* 🌟 مُدال نمایش و کپی لینک گواهی‌ها */}
       {certModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-sm shadow-2xl border border-gray-100 dark:border-slate-800 p-6 flex flex-col text-right">
@@ -327,22 +335,25 @@ export default function ProfilePage() {
               </div>
               <button onClick={() => setCertModalOpen(false)} className="p-1.5 bg-gray-50 dark:bg-[#0b0f19] hover:bg-gray-100 dark:hover:bg-[#233044] text-gray-400 dark:text-slate-400 rounded-full"><X size={16} /></button>
             </div>
-            <div className="space-y-3 max-h-[45vh] overflow-y-auto">
+            <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
               {myCertificates.length === 0 ? (
                 <p className="text-center text-xs text-gray-400 dark:text-slate-400 font-bold py-8">شما هنوز گواهی فعالی در سیستم ندارید.</p>
               ) : (
                 myCertificates.map((cert: any, idx: number) => {
                   const s = typeof cert.score === 'string' ? parseFloat(cert.score.replace('%', '')) : cert.score;
                   const rankLabel = s >= 85 ? 'رتبه عالی' : s >= 70 ? 'رتبه خیلی خوب' : 'رتبه خوب';
-                  const isCurrentDownloading = downloadingId === (cert.contest_id || cert.id);
+                  
                   return (
                     <div key={idx} className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3 shadow-inner">
-                      <div>
-                        <h5 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 leading-tight">{cert.contest_title}</h5>
+                      <div className="flex-1 min-w-0">
+                        <h5 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 leading-tight truncate">{cert.contest_title}</h5>
                         <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded mt-1.5 inline-block">سطح: {rankLabel} ({toPersianDigits(s)}%)</span>
                       </div>
-                      <button disabled={isCurrentDownloading} onClick={() => handleDownloadCertificate(cert.contest_id || cert.id, cert.contest_title)} className="p-2.5 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-xl text-[10px] font-black flex items-center gap-1 transition-all shadow-md shrink-0 disabled:opacity-50 min-w-[105px] justify-center">
-                        {isCurrentDownloading ? <><span className="w-3 h-3 border-2 border-white dark:border-[#1a2e44] border-t-transparent rounded-full animate-spin"></span><span>در حال دانلود...</span></> : <><Download size={12} className="text-[#c5a059] dark:text-[#1a2e44]" /> دانلود تصویر لوح</>}
+                      <button 
+                        onClick={() => handleCopyCertificateLink(cert.contest_id || cert.id)} 
+                        className="p-2.5 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all shadow-md shrink-0 justify-center active:scale-95"
+                      >
+                        <Download size={14} className="text-[#c5a059] dark:text-[#1a2e44]" /> کپی لینک
                       </button>
                     </div>
                   );
