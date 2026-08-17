@@ -14,13 +14,13 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell 
 } from 'recharts';
 
-// تابع امن و توکار برای دریافت تصویر
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  // 🌟 جایگزینی آی‌پی با دامنه
   const baseUrl = process.env.NEXT_PUBLIC_API_URL 
     ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '') 
-    : 'http://10.10.20.51:8000';
+    : 'http://emtedad.ir-ma.ir:8000';
   return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
@@ -127,21 +127,19 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
-  // 🌟 تابع هوشمند دکمه بازگشت
   const handleBack = () => {
     if (isAdminUser) {
-      const host = window.location.hostname;
-      const protocol = window.location.protocol;
-      window.location.href = `${protocol}//${host}:63001/admin/dashboard`;
+      // 🌟 آی‌پی با دامنه جایگزین شد
+      window.location.href = `http://emtedad.ir-ma.ir:63001/admin/dashboard`;
     } else {
       router.push('/');
     }
   };
 
-  // 🌟 تابع تولید و کپی لینک اشتراک‌گذاری (مخصوص پنل کاربران)
   const handleShareContest = () => {
     if (!contest) return;
-    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
+    // 🌟 آدرس وب‌اپ با دامنه جدید (بدون پورت اضافی) جایگزین شد
+    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `http://emtedad.ir-ma.ir`;
     const shareUrl = `${userAppBaseUrl}/contests/${contest.id}`;
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contest.title}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
@@ -222,9 +220,7 @@ export default function ContestLandingPage() {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
       if (isAdminUser) {
-        const host = window.location.hostname;
-        const protocol = window.location.protocol;
-        window.location.href = `${protocol}//${host}:63001/admin/dashboard`;
+        window.location.href = `http://emtedad.ir-ma.ir:63001/admin/dashboard`;
       } else {
         router.push('/'); 
       }
@@ -289,7 +285,6 @@ export default function ContestLandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-[#1a2e44] to-[#2a405a] dark:from-[#182234] dark:to-[#0b0f19]"></div>
         )}
         
-        {/* 🌟 هدر شامل دکمه بازگشت و دکمه جدیدِ اشتراک‌گذاری */}
         <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center justify-between z-20">
           <div className="flex items-center gap-3 sm:gap-4">
             <button 
@@ -303,7 +298,6 @@ export default function ContestLandingPage() {
             </div>
           </div>
           
-          {/* 🌟 دکمه اشتراک‌گذاری */}
           <button 
             onClick={handleShareContest}
             className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95"
@@ -331,19 +325,13 @@ export default function ContestLandingPage() {
                 
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <button onClick={() => {
-                    const host = window.location.hostname;
-                    const protocol = window.location.protocol;
-                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/edit`;
+                    window.location.href = `http://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/edit`;
                   }} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
                   <button onClick={() => {
-                    const host = window.location.hostname;
-                    const protocol = window.location.protocol;
-                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/questions`;
+                    window.location.href = `http://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/questions`;
                   }} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
                   <button onClick={() => {
-                    const host = window.location.hostname;
-                    const protocol = window.location.protocol;
-                    window.location.href = `${protocol}//${host}:63001/admin/contests/${contest.id}/participants`;
+                    window.location.href = `http://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/participants`;
                   }} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
                   <button onClick={deleteContest} className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
@@ -887,7 +875,7 @@ export default function ContestLandingPage() {
         </div>
       )}
 
-      {/* 🌟 مودال پیش‌نمایش و دانلود جزوه راهنمای دوره بدون ارور */}
+      {/* 🌟 مودال پیش‌نمایش و دانلود جزوه راهنمای دوره */}
       {showPdfModal && contest?.file_url && (() => {
         const cleanPath = getCleanImageUrl(contest.file_url);
         const fullUrl = cleanPath.startsWith('/') 

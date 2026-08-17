@@ -145,7 +145,7 @@ export default function ProfilePage() {
       textArea.select();
       try {
         document.execCommand('copy');
-        alert("✅ لینک دانلود گواهی کپی شد!\nلطفاً مرورگر (کروم/سافاری) را باز کرده و لینک را در آن پیست کنید تا دانلود انجام شود.");
+        alert("✅ لینک دانلود گواهی کپی شد!\nلطفاً مرورگر را باز کرده و لینک را در آن پیست کنید تا دانلود انجام شود.");
       } catch (err) {
         console.error('Fallback copy failed', err);
         alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");

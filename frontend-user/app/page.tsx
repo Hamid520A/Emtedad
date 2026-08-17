@@ -20,45 +20,16 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    // 🌟 ۱. شکار پارامتر دیپ‌لینک از ایتا (برای زمانی که کاربر روی لینک ارسالی در تلگرام/ایتا زده است)
-    const globalWindow = window as any;
-    const startParam = 
-      globalWindow.Eitaa?.WebApp?.initDataUnsafe?.start_param || 
-      globalWindow.Telegram?.WebApp?.initDataUnsafe?.start_param ||
-      new URLSearchParams(window.location.search).get('startapp');
-
-    let targetContestPath: string | null = null;
-    
-    // اگر پارامتری مثل contest_1 بود، مسیر هدف را آماده می‌کنیم
-    if (startParam && startParam.startsWith('contest_')) {
-      const targetId = startParam.split('_')[1];
-      if (targetId) {
-        targetContestPath = `/contests/${targetId}`;
-      }
-    }
-
-    // ۲. بررسی وضعیت لاگین
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      if (targetContestPath) {
-        // ذخیره آدرس تا اگر کاربر لاگین نبود، پس از ورود به صفحه مسابقه پرتاب شود
-        localStorage.setItem('redirect_after_login', targetContestPath);
-      }
       router.push('/login');
       return; 
-    }
-
-    // 🌟 ۳. اگر مسیر دیپ‌لینک پیدا شد و کاربر لاگین بود -> پرتاب مستقیم به صفحه مسابقه
-    if (targetContestPath) {
-      router.push(targetContestPath);
-      return; // جلوگیری از اجرای بقیه کدهای لود دشبورد
     }
     
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
     if (isAdmin) {
-      const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-      const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
-      window.location.href = `${protocol}//${host}:63001/admin/dashboard`;
+      // 🌟 آی‌پی هاردکد شده ادمین با آدرس تمیز دامنه جایگزین شد
+      window.location.href = `http://emtedad.ir-ma.ir:63001/admin/dashboard`;
       return;
     }
 

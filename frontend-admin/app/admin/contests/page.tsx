@@ -51,24 +51,19 @@ export default function AdminContestsPage() {
     }
   };
 
-  // 🌟 تابع استاندارد اشتراک‌گذاری (لینک وب مستقیم و پایدار)
   const handleShareContest = (contestId: number | string, contestTitle: string) => {
-    // گرفتن آدرس پایه سامانه کاربران (پورت 63000)
-    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `${window.location.protocol}//${window.location.hostname}:63000`;
-    
-    // ساخت لینک صفحه لندینگ مسابقه
+    // 🌟 آدرس تمیز و بدون پورت جایگزین شد
+    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `http://emtedad.ir-ma.ir`;
     const shareUrl = `${userAppBaseUrl}/contests/${contestId}`;
     
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contestTitle}» روی لینک زیر کلیک کنید:\n`;
     const fullTextToCopy = `${shareText}\n${shareUrl}`;
 
-    // تلاش برای کپی با کلیپ‌بورد مدرن (محیط امن)
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(fullTextToCopy)
         .then(() => alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید."))
         .catch(() => alert("❌ خطا در کپی کردن لینک."));
     } else {
-      // روش قطعی کپی برای محیط‌های تست (مثل HTTP و آی‌پی لوکال)
       try {
         const textArea = document.createElement("textarea");
         textArea.value = fullTextToCopy;

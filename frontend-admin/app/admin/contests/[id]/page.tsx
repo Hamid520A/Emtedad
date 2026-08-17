@@ -14,13 +14,13 @@ import {
   XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell
 } from 'recharts';
 
-// تابع بیلد تصویر بدون نیاز به فایل‌های اکسترنال (برای جلوگیری از خطای داکر)
+// 🌟 جایگزینی آی‌پی با دامنه برای دریافت تصاویر
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   const baseUrl = process.env.NEXT_PUBLIC_API_URL 
     ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '') 
-    : 'http://10.10.20.51:8000';
+    : 'http://emtedad.ir-ma.ir:8000';
   return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
@@ -124,7 +124,6 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
-  // دکمه تغییر وضعیت با محافظت در برابر افزونه‌های مسدودکننده
   const changeContestStatus = async (e: React.MouseEvent, newStatus: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -170,7 +169,6 @@ export default function ContestLandingPage() {
     }
   };
 
-  // دکمه حذف سالم (دارای e.preventDefault برای جلوگیری از قطع شدن کلیک توسط افزونه‌ها)
   const deleteContest = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -527,9 +525,8 @@ export default function ContestLandingPage() {
                   onClick={() => {
                     const token = localStorage.getItem('accessToken') || '';
                     const refreshToken = localStorage.getItem('refreshToken') || '';
-                    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-                    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
-                    const userAppUrl = `${protocol}//${host}:63000/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
+                    // 🌟 آی‌پی با دامنه تمیز جایگزین شد
+                    const userAppUrl = `http://emtedad.ir-ma.ir/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
                     window.open(userAppUrl, '_blank');
                   }}
                   className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"
