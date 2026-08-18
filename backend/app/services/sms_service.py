@@ -1,6 +1,7 @@
 # backend/app/services/sms_service.py
 import os
 import requests
+import re
 
 class TSMSService:
     def __init__(self):
@@ -49,19 +50,33 @@ class TSMSService:
         try:
             response = requests.post(self.api_url, data=payload.encode('utf-8'), headers=headers, timeout=5)
             
-            # 🌟 شاه‌کلید عیب‌یابی: چاپ دقیق کدی که TSMS برمی‌گرداند
             print(f"\n--- 📡 پاسخ خام سرور TSMS ---\n{response.text}\n-----------------------------\n")
             
             if response.status_code == 200 and "sendSmsResponse" in response.text:
-                # سامانه‌های پیامکی برای خطاها کدهای منفی (مثل -1 یا -3) یا صفر برمی‌گردانند
-                if "<item>-" in response.text or "<item>0</item>" in response.text:
-                    print("❌ درخواست به TSMS رسید، اما پنل ارور داد (به لاگ بالا دقت کنید).")
-                    return False
+                # 🌟 استخراج کاملاً هوشمندانه عدد از داخل تگ‌های پیچیده XML
+                match = re.search(r'>\s*(-?\d+)\s*</item>', response.text)
+                
+                if match:
+                    result_code = int(match.group(1))
                     
-                print("✅ پیامک با موفقیت در صف ارسال مخابرات/TSMS قرار گرفت.")
-                return True
+                    if result_code <= 0:
+                        print(f"❌ درخواست به TSMS رسید، اما پنل ارور داد! کد خطای مخابرات: {result_code}")
+                        if result_code == -8:
+                            print("💡 راهنمایی: خطای -8 یعنی شماره فرستنده (TSMS_SENDER_NUMBER) اشتباه است یا به پنل شما تعلق ندارد.")
+                        elif result_code == -1:
+                            print("💡 راهنمایی: خطای -1 یعنی یوزرنیم یا پسورد پنل پیامک در env. اشتباه است.")
+                        elif result_code == -2:
+                            print("💡 راهنمایی: خطای -2 یعنی شارژ پنل پیامک شما تمام شده است.")
+                        
+                        return False
+                    else:
+                        print(f"✅ پیامک با موفقیت ارسال شد. کد رهگیری مخابرات: {result_code}")
+                        return True
+                else:
+                    print("❌ خروجی TSMS قابل خواندن نیست و عدد نتیجه یافت نشد.")
+                    return False
             else:
-                print(f"❌ خطای ناشناخته از سمت TSMS: {response.text}")
+                print(f"❌ خطای اتصال به سرور TSMS: {response.text}")
                 return False
                 
         except requests.exceptions.Timeout:
