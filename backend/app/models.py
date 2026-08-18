@@ -26,6 +26,7 @@ class User(Base):
     phone_number = Column(String(20), unique=True, index=True)
     password = Column(String(255), nullable=False)
     national_id = Column(String(20), unique=True, index=True)
+    is_iranian = Column(Boolean, default=True)
     city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)
     birth_date = Column(Date, nullable=True)
     gender = Column(String(20), nullable=True)

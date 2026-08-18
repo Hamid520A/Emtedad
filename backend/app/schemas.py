@@ -1,5 +1,7 @@
 # backend/app/schemas.py
-from pydantic import BaseModel, field_validator, Field
+import re
+
+from pydantic import BaseModel, field_validator, Field, model_validator
 from typing import List, Optional
 from datetime import datetime, date, time
 import jdatetime
@@ -20,11 +22,21 @@ class City(CityBase):
 # ==========================================
 # User Schemas
 # ==========================================
+def is_valid_iranian_national_id(code: str) -> bool:
+    if not re.match(r'^\d{10}$', code): 
+        return False
+    if len(set(code)) == 1: # جلوگیری از کدهای فیک مثل 1111111111
+        return False
+    check_digit = int(code[9])
+    sum_digits = sum(int(code[i]) * (10 - i) for i in range(9)) % 11
+    return check_digit == sum_digits if sum_digits < 2 else check_digit + sum_digits == 11
+
 class UserBase(BaseModel):
     first_name: str = Field(..., min_length=2, max_length=50, strip_whitespace=True)
     last_name: Optional[str] = Field(None, max_length=50, strip_whitespace=True)
     phone_number: str = Field(..., pattern=r"^09\d{9}$", strip_whitespace=True)
-    national_id: str = Field(..., pattern=r"^\d{10}$", strip_whitespace=True)
+    national_id: str = Field(..., strip_whitespace=True) # پترن حذف شد تا در ولیدیتور کنترل شود
+    is_iranian: bool = True  # 🌟 فلگ تشخیص ملیت (پیش‌فرض: ایرانی)
     city_id: Optional[int] = None
     birth_date: Optional[date] = None
     gender: str = Field("male", max_length=10)
@@ -36,24 +48,37 @@ class UserBase(BaseModel):
         trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
         return str(value).translate(trans_table)
 
+    # 🌟 شاه‌کلید معماری: ولیدیشن داینامیک بر اساس ملیت
+    @model_validator(mode="after")
+    def validate_identity(self):
+        nat_id = self.national_id
+        if not nat_id:
+            raise ValueError("کد هویتی نمی‌تواند خالی باشد")
+        
+        if self.is_iranian:
+            # بررسی سخت‌گیرانه ریاضی برای ایرانی‌ها
+            if not is_valid_iranian_national_id(nat_id):
+                raise ValueError("کد ملی وارد شده نامعتبر یا جعلی است.")
+        else:
+            # بررسی انعطاف‌پذیر برای اتباع (فقط عدد بین ۹ تا ۱۶ رقم)
+            if not re.match(r'^\d{9,16}$', nat_id):
+                raise ValueError("شناسه اتباع باید فقط شامل اعداد و بین ۹ تا ۱۶ رقم باشد.")
+                
+        return self
+
     @field_validator("birth_date", mode="before")
     @classmethod
     def validate_min_age(cls, value):
+        # ... (دقیقاً همان کدهای قبلی تاریخ تولد شما اینجا بماند) ...
         if not value:
             return None
-            
-        # 🌟 فیکس اصلی: اگر دیتا مستقیماً از دیتابیس آمده باشد (آبجکت Date پایتون)
         if isinstance(value, date):
             gregorian_date = value.date() if hasattr(value, "date") else value
         else:
-            # ۱. یکدست‌سازی اعداد و پردازش دیتای متنی فرانت‌ند
             val_str = str(value)
             trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
             val_str = val_str.translate(trans_table).replace("-", "/")
-            
-            # ۲. تبدیل هوشمند تاریخ شمسی به میلادی
             try:
-                # سوپاپ اطمینان: اگر تاریخ با 13 یا 14 شروع شده، قطعاً شمسی است
                 if val_str.startswith("13") or val_str.startswith("14"):
                     parsed_jalali = jdatetime.datetime.strptime(val_str, '%Y/%m/%d')
                     gregorian_date = parsed_jalali.togregorian().date()
@@ -62,14 +87,10 @@ class UserBase(BaseModel):
             except ValueError:
                 raise ValueError("فرمت تاریخ تولد نامعتبر است (مثال صحیح: 1390/01/01)")
 
-        # ۳. محاسبه دقیق سن بر اساس سال میلادی
         today = date.today()
         age = today.year - gregorian_date.year - ((today.month, today.day) < (gregorian_date.month, gregorian_date.day))
-        
         if age < 10:
             raise ValueError("حداقل سن برای ثبت‌نام در مسابقات ۱۰ سال است.")
-            
-        # ۴. پاس دادن تاریخ استاندارد میلادی
         return gregorian_date
 
 class UserCreate(UserBase):
