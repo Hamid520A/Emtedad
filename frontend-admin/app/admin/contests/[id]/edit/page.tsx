@@ -1,7 +1,7 @@
 // frontend-admin/app/admin/contests/[id]/edit/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import api from '@/app/lib/api';
 import { 
   ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, 
@@ -14,12 +14,17 @@ import TimePicker from "react-multi-date-picker/plugins/time_picker";
 const DatePickerComponent = DatePicker as any;
 const TimePickerPlugin = TimePicker as any;
 
-export default function EditContestPage({ params }: { params: { id: string } }) {
+export default function EditContestPage() {
+  // 🌟 استخراج صحیح آیدی از URL با هوک استاندارد Next.js
+  const pathParams = useParams();
+  const contestId = pathParams?.id as string;
+  const router = useRouter();
+  
   const toEnglishDigits = (str: string) => {
     return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
               .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
   };
-  const router = useRouter();
+  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -40,9 +45,12 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
   });
 
   useEffect(() => {
+    // 🌟 جلوگیری از اجرای ریکوئست زمانی که آیدی هنوز در دسترس نیست
+    if (!contestId || contestId === 'undefined') return;
+
     const fetchContestData = async () => {
       try {
-        const response = await api.get(`/contests/${params.id}`);
+        const response = await api.get(`/contests/${contestId}`);
         const data = response.data;
         
         setFormData({
@@ -87,7 +95,7 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
       }
     };
     fetchContestData();
-  }, [params.id]);
+  }, [contestId]);
 
   const handleAwardChange = (index: number, field: 'rank' | 'title', value: string) => {
     const updated = [...awards];
@@ -110,8 +118,9 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    if (!contestId) return;
     
+    setSubmitting(true);
     const now = new Date();
     const startTime = formData.start_time ? new Date(formData.start_time) : now;
     const endTime = formData.end_time ? new Date(formData.end_time) : null;
@@ -134,9 +143,9 @@ export default function EditContestPage({ params }: { params: { id: string } }) 
     };
 
     try {
-      await api.patch(`/admin/contests/${params.id}`, finalData);
+      await api.patch(`/admin/contests/${contestId}`, finalData);
       if (formData.certificate_type !== 'none') {
-        await api.put(`/admin/contests/${params.id}/certificate-template`, certData);
+        await api.put(`/admin/contests/${contestId}/certificate-template`, certData);
       }
       alert("تمامی تغییرات با موفقیت ذخیره شد! 🎉");
       router.push('/admin/dashboard'); 
