@@ -14,7 +14,6 @@ const DatePickerComponent = DatePicker as any;
 export default function RegisterPage() {
   const router = useRouter();
 
-  // 🌟 استیت‌های کنترل مراحل
   const [step, setStep] = useState(1);
   const [otpCode, setOtpCode] = useState('');
   const [timer, setTimer] = useState(120);
@@ -24,6 +23,7 @@ export default function RegisterPage() {
     last_name: '',
     phone: '',
     national_id: '',
+    is_iranian: true, // 🌟 فلگ ملیت برای تفکیک هوشمند ایرانی/اتباع
     province_id: '', 
     city_id: '',     
     birth_date: '',
@@ -47,18 +47,25 @@ export default function RegisterPage() {
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
 
-  const isValidNationalId = (id: string): boolean => {
+  // 🌟 اعتبارسنجی هوشمند بر اساس ملیت انتخاب شده
+  const isValidIdentity = (id: string, isIranian: boolean): boolean => {
     const cleanId = toEnglishDigits(id).trim();
-    if (!/^\d{10}$/.test(cleanId)) return false;
-    if (/^(\d)\1{9}$/.test(cleanId)) return false;
-    const check = parseInt(cleanId[9]);
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += parseInt(cleanId[i]) * (10 - i);
+    if (isIranian) {
+      // فرمول ریاضی قطعی کد ملی ایرانی
+      if (!/^\d{10}$/.test(cleanId)) return false;
+      if (/^(\d)\1{9}$/.test(cleanId)) return false;
+      const check = parseInt(cleanId[9]);
+      let sum = 0;
+      for (let i = 0; i < 9; i++) {
+        sum += parseInt(cleanId[i]) * (10 - i);
+      }
+      const remainder = sum % 11;
+      const control = remainder < 2 ? remainder : 11 - remainder;
+      return control === check;
+    } else {
+      // بررسی شناسه فراگیر اتباع (۹ تا ۱۶ رقم)
+      return /^\d{9,16}$/.test(cleanId);
     }
-    const remainder = sum % 11;
-    const control = remainder < 2 ? remainder : 11 - remainder;
-    return control === check;
   };
 
   const isValidPhoneNumber = (phone: string): boolean => {
@@ -103,7 +110,6 @@ export default function RegisterPage() {
     }
   }, [formData.province_id]);
 
-  // 🌟 تایمر معکوس پیامک
   useEffect(() => {
     let interval: any;
     if (step === 2 && timer > 0) {
@@ -114,7 +120,6 @@ export default function RegisterPage() {
     return () => clearInterval(interval);
   }, [step, timer]);
 
-  // 🌟 مرحله اول: اعتبارسنجی لوکال و درخواست پیامک
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -122,18 +127,22 @@ export default function RegisterPage() {
     if (formData.password !== formData.confirmPassword) return alert("⚠️ رمز عبور و تکرار آن با هم مطابقت ندارند!");
     
     const finalPhone = toEnglishDigits(formData.phone || '').trim();
-    const finalNationalId = toEnglishDigits(formData.national_id || '').trim();
+    const finalIdentity = toEnglishDigits(formData.national_id || '').trim();
 
     if (!isValidPhoneNumber(finalPhone)) return alert("⚠️ شماره موبایل معتبر نیست! (باید با ۰۹ شروع شود)");
-    if (!isValidNationalId(finalNationalId)) return alert("⚠️ کد ملی وارد شده معتبر نیست!");
+    
+    // 🌟 اعمال خطای تفکیک شده برای ایرانی/اتباع
+    if (!isValidIdentity(finalIdentity, formData.is_iranian)) {
+      return alert(`⚠️ ${formData.is_iranian ? 'کد ملی' : 'شناسه اتباع'} وارد شده نامعتبر است!`);
+    }
+    
     if (!formData.city_id) return alert("⚠️ لطفاً شهر محل سکونت خود را انتخاب کنید.");
 
     setLoading(true);
     try {
-      // ارسال درخواست پیامک
       await api.post('/send-otp', { phone_number: finalPhone });
       setStep(2);
-      setTimer(120); // شروع تایمر ۱۲۰ ثانیه‌ای
+      setTimer(120); 
     } catch (error: any) {
       alert("خطا در ارسال پیامک: " + (error.response?.data?.detail || "لطفاً دوباره تلاش کنید."));
     } finally {
@@ -141,7 +150,6 @@ export default function RegisterPage() {
     }
   };
 
-  // 🌟 مرحله دوم: تایید کد و ثبت در دیتابیس
   const handleVerifyAndRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode || otpCode.length < 4) return alert("لطفاً کد تایید را به درستی وارد کنید.");
@@ -151,18 +159,18 @@ export default function RegisterPage() {
     let formattedBirthDate = formData.birth_date ? toEnglishDigits(formData.birth_date).replace(/\//g, '-') : null;
 
     try {
-      // ۱. تایید کد پیامک
       await api.post('/verify-otp', { 
         phone_number: finalPhone, 
         code: toEnglishDigits(otpCode) 
       });
 
-      // ۲. در صورت موفقیت، ثبت‌نام در دیتابیس
+      // 🌟 ارسال فلگ is_iranian به بک‌اند
       await api.post('/register', {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone_number: finalPhone,
         national_id: toEnglishDigits(formData.national_id).trim(),
+        is_iranian: formData.is_iranian,
         city_id: Number(formData.city_id),
         birth_date: formattedBirthDate,
         gender: formData.gender,
@@ -181,7 +189,7 @@ export default function RegisterPage() {
         if (detail[0]?.msg) errorMsg = detail[0].msg.replace("Value error, ", "");
       } else if (detail) {
         if (detail === "شماره قبلاً ثبت شده" || String(detail).includes("phone_number")) errorMsg = "این شماره موبایل قبلاً در سیستم ثبت شده است.";
-        else if (detail === "کد ملی قبلاً ثبت شده" || String(detail).includes("national_id")) errorMsg = "این کد ملی قبلاً در سیستم ثبت شده است.";
+        else if (detail === "کد ملی قبلاً ثبت شده" || String(detail).includes("national_id")) errorMsg = "این کد ملی/شناسه اتباع قبلاً در سیستم ثبت شده است.";
         else errorMsg = String(detail);
       }
       alert("خطا: " + errorMsg);
@@ -223,7 +231,6 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* 🌟 فرم مرحله اول (دریافت اطلاعات) */}
         {step === 1 && (
           <form onSubmit={handleSendOtp} className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
             <div className="grid grid-cols-2 gap-3">
@@ -245,13 +252,27 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* 🌟 بخش جدید انتخاب ملیت */}
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ملیت</label>
+              <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-xl border border-transparent dark:border-slate-800">
+                <button type="button" onClick={() => setFormData({ ...formData, is_iranian: true, national_id: '' })}
+                  className={`py-2 text-xs font-black rounded-lg transition-all ${formData.is_iranian ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>ایرانی هستم</button>
+                <button type="button" onClick={() => setFormData({ ...formData, is_iranian: false, national_id: '' })}
+                  className={`py-2 text-xs font-black rounded-lg transition-all ${!formData.is_iranian ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>اتباع غیرایرانی</button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">کد ملی</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                  {formData.is_iranian ? 'کد ملی' : 'شناسه فراگیر اتباع'}
+                </label>
                 <div className="relative">
                   <CreditCard className="absolute right-3 top-3.5 text-gray-400" size={16} />
-                  <input type="text" required dir="ltr" maxLength={10} value={formData.national_id} onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
-                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="0012345678" />
+                  <input type="text" required dir="ltr" maxLength={formData.is_iranian ? 10 : 16} value={formData.national_id} onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" 
+                    placeholder={formData.is_iranian ? "0012345678" : "مثال: 1234567890"} />
                 </div>
               </div>
               <div>
@@ -322,7 +343,6 @@ export default function RegisterPage() {
           </form>
         )}
 
-        {/* 🌟 فرم مرحله دوم (دریافت کد تایید) */}
         {step === 2 && (
           <form onSubmit={handleVerifyAndRegister} className="space-y-5 animate-in slide-in-from-right-8 duration-300">
             <div>
