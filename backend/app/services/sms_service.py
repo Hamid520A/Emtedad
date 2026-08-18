@@ -4,20 +4,16 @@ import requests
 
 class TSMSService:
     def __init__(self):
-        # آدرس مستقیم وب‌سرویس (بدون نیاز به WSDL و پارس کردن فایل‌های خراب)
         self.api_url = 'http://www.tsms.ir/soapWSDL/'
-        
-        # خواندن اطلاعات از فایل env.
         self.username = os.getenv("TSMS_USERNAME")
         self.password = os.getenv("TSMS_PASSWORD")
         self.sender_number = os.getenv("TSMS_SENDER_NUMBER")
 
     def send_sms(self, receiver_mobile: str, message_text: str):
         if not self.username or not self.password or not self.sender_number:
-            print("❌ خطا: اطلاعات پنل پیامک (TSMS_USERNAME, ...) در فایل env. تنظیم نشده است.")
+            print("❌ خطا: اطلاعات پنل پیامک در فایل env. تنظیم نشده است.")
             return False
 
-        # ساختار خام و دقیق XML (SOAP Payload) برای ارسال دستور پیامک
         payload = f"""<?xml version="1.0" encoding="utf-8"?>
         <soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
                           xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
@@ -51,22 +47,28 @@ class TSMSService:
         }
 
         try:
-            # ارسال مستقیم و سریع ریکوئست (با تایم‌اوت ۵ ثانیه برای جلوگیری از هنگ کردن سرور شما)
             response = requests.post(self.api_url, data=payload.encode('utf-8'), headers=headers, timeout=5)
             
+            # 🌟 شاه‌کلید عیب‌یابی: چاپ دقیق کدی که TSMS برمی‌گرداند
+            print(f"\n--- 📡 پاسخ خام سرور TSMS ---\n{response.text}\n-----------------------------\n")
+            
             if response.status_code == 200 and "sendSmsResponse" in response.text:
-                print("✅ پیامک از طریق TSMS با موفقیت ارسال شد.")
+                # سامانه‌های پیامکی برای خطاها کدهای منفی (مثل -1 یا -3) یا صفر برمی‌گردانند
+                if "<item>-" in response.text or "<item>0</item>" in response.text:
+                    print("❌ درخواست به TSMS رسید، اما پنل ارور داد (به لاگ بالا دقت کنید).")
+                    return False
+                    
+                print("✅ پیامک با موفقیت در صف ارسال مخابرات/TSMS قرار گرفت.")
                 return True
             else:
-                print(f"❌ خطای سامانه پیامکی TSMS: {response.text}")
+                print(f"❌ خطای ناشناخته از سمت TSMS: {response.text}")
                 return False
                 
         except requests.exceptions.Timeout:
-            print("❌ خطا: سرور سامانه پیامکی پاسخی نداد (Timeout).")
+            print("❌ خطا: سرور TSMS پاسخی نداد (Timeout).")
             return False
         except Exception as e:
-            print(f"❌ خطای سیستمی در ارتباط با وب‌سرویس پیامک: {e}")
+            print(f"❌ خطای سیستمی در ارتباط با پیامک: {e}")
             return False
 
-# ساخت یک نمونه (Instance) برای استفاده در تمام بخش‌های بک‌اند
 sms_service = TSMSService()
