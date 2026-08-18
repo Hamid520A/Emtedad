@@ -17,10 +17,11 @@ import {
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  // 🌟 جایگزینی آی‌پی با دامنه HTTPS
+  
+  // وقتی از پروکسی rewrites استفاده می‌کنیم، آدرس‌های نسبی بهترین گزینه هستند
   const baseUrl = process.env.NEXT_PUBLIC_API_URL 
     ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '') 
-    : 'https://emtedad.ir-ma.ir:8000';
+    : '';
   return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
@@ -55,21 +56,27 @@ export default function ContestLandingPage() {
       try {
         const cleanId = parseInt(contestId);
         
-        const [contestRes, lbRes, profileRes] = await Promise.all([
-          api.get(`/contests/${cleanId}?t=${Date.now()}`),
-          api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`),
-          api.get(`/users/me/profile?t=${Date.now()}`)
-        ]);
-        
+        // 🌟 فیکس اصلی: اول اطلاعات مسابقه را می‌گیریم تا صفحه برای همه باز شود
+        const contestRes = await api.get(`/contests/${cleanId}?t=${Date.now()}`);
         setContest(contestRes.data);
-        setLeaderboard(lbRes.data || []);
-        setProfile(profileRes.data);
 
         if (contestRes.data.status === 'upcoming' && contestRes.data.start_time) {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
           const diffSec = Math.floor(diffMs / 1000);
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
         }
+
+        // 🌟 دریافت لیدربرد (مستقل)
+        try {
+          const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
+          setLeaderboard(lbRes.data || []);
+        } catch(e) {}
+
+        // 🌟 دریافت پروفایل (مستقل - اگر کاربر لاگین نبود صفحه خراب نشود)
+        try {
+          const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
+          setProfile(profileRes.data);
+        } catch(e) {}
 
         const adminStatus = localStorage.getItem('isAdmin') === 'true';
         if (adminStatus) {
@@ -129,8 +136,7 @@ export default function ContestLandingPage() {
 
   const handleBack = () => {
     if (isAdminUser) {
-      // 🌟 آی‌پی با دامنه جایگزین شد
-      window.location.href = `https://emtedad.ir-ma.ir:63001/admin/dashboard`;
+      window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
     } else {
       router.push('/');
     }
@@ -138,7 +144,6 @@ export default function ContestLandingPage() {
 
   const handleShareContest = () => {
     if (!contest) return;
-    // 🌟 آدرس وب‌اپ با دامنه جدید HTTPS
     const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || `https://emtedad.ir-ma.ir`;
     const shareUrl = `${userAppBaseUrl}/contests/${contest.id}`;
     const shareText = `🏆 دعوت به رقابت!\n\nبرای شرکت در مسابقه «${contest.title}» روی لینک زیر کلیک کنید:\n`;
@@ -220,7 +225,7 @@ export default function ContestLandingPage() {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
       if (isAdminUser) {
-        window.location.href = `https://emtedad.ir-ma.ir:63001/admin/dashboard`;
+        window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
       } else {
         router.push('/'); 
       }
@@ -325,13 +330,13 @@ export default function ContestLandingPage() {
                 
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <button onClick={() => {
-                    window.location.href = `https://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/edit`;
+                    window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/edit`;
                   }} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
                   <button onClick={() => {
-                    window.location.href = `https://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/questions`;
+                    window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/questions`;
                   }} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
                   <button onClick={() => {
-                    window.location.href = `https://emtedad.ir-ma.ir:63001/admin/contests/${contest.id}/participants`;
+                    window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/participants`;
                   }} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
                   <button onClick={deleteContest} className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
@@ -611,10 +616,17 @@ export default function ContestLandingPage() {
                 </div>
               ) : (
               <button onClick={() => {
+                  if (!profile) {
+                    alert("⚠️ برای شرکت در مسابقه ابتدا باید وارد حساب کاربری خود شوید.");
+                    router.push('/login');
+                    return;
+                  }
                   if (window.confirm('⚠️ توجه!\n\nپس از ورود به آزمون، امکان خروج و ادامه مجدد آزمون وجود ندارد.\nدر صورت خروج از آزمون پس از شروع، نتیجه شما ثبت نخواهد شد و از آزمون محروم خواهید شد.\n\nآیا مطمئن هستید که می‌خواهید وارد آزمون شوید؟')) {
                     router.push(`/exam/${contest.id}`);
                   }
-                }} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]"><PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به محیط رقابت و شروع آزمون</button>
+                }} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]">
+                  <PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به محیط رقابت و شروع آزمون
+                </button>
               )}
             </div>
           )}
