@@ -1,7 +1,7 @@
 // frontend-admin/app/admin/contests/[id]/participants/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation'; // 🌟 اضافه شدن useParams
+import { useRouter, useParams } from 'next/navigation';
 import api from '@/app/lib/api';
 import { 
   ArrowRight, Users, Loader2, Search, Trophy, Medal, Crown, 
@@ -9,9 +9,9 @@ import {
   CheckCircle2, XCircle
 } from 'lucide-react';
 
-export default function ParticipantsPage() { // 🌟 حذف params از ورودی
+export default function ParticipantsPage() {
   const router = useRouter();
-  const pathParams = useParams(); // 🌟 خواندن امن آیدی از مسیر
+  const pathParams = useParams(); 
   const contestId = pathParams?.id as string;
   
   const [participants, setParticipants] = useState<any[]>([]);
@@ -45,8 +45,21 @@ export default function ParticipantsPage() { // 🌟 حذف params از ورود
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
 
+  // 🌟 توابع کمکی برای استخراج نوع و رنگ گواهی بر اساس تنظیمات مسابقه
+  const getCertLabel = (type: string) => {
+    if (type === 'excellent') return 'عالی';
+    if (type === 'very_good') return 'خیلی خوب';
+    if (type === 'good') return 'خوب';
+    return 'عمومی';
+  };
+
+  const getCertStyle = (type: string) => {
+    if (type === 'excellent') return 'bg-green-50 text-green-700';
+    if (type === 'very_good') return 'bg-blue-50 text-blue-700';
+    return 'bg-amber-50 text-amber-700';
+  };
+
   useEffect(() => {
-    // 🌟 گارد امنیتی: اگر آیدی هنوز لود نشده یا undefined است، هیچ ریکوئستی نزن!
     if (!contestId || contestId === 'undefined') return;
 
     const fetchPageData = async () => {
@@ -67,7 +80,7 @@ export default function ParticipantsPage() { // 🌟 حذف params از ورود
     };
 
     fetchPageData();
-  }, [contestId]); // 🌟 وابستگی مستقیم به تغییرات contestId
+  }, [contestId]);
 
   useEffect(() => {
     const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
@@ -115,8 +128,9 @@ export default function ParticipantsPage() { // 🌟 حذف params از ورود
       return;
     }
 
+    const hasCertificate = contest?.certificate_type && contest.certificate_type !== 'none';
     const headers = ["رتبه", "نام شرکت‌کننده", "زمان مصرفی (ثانیه)", "کد شناسایی (۴ رقم آخر)", "نمره نهایی"];
-    if (contest?.certificate_type !== 'none') {
+    if (hasCertificate) {
       headers.push("وضعیت گواهی");
     }
 
@@ -128,8 +142,9 @@ export default function ParticipantsPage() { // 🌟 حذف params از ورود
         user.last_four_id || '---',
         `${user.score}%`
       ];
-      if (contest?.certificate_type !== 'none') {
-        const certStatus = user.score >= 85 ? 'عالی' : user.score >= 70 ? 'خیلی خوب' : user.score >= 50 ? 'خوب' : 'عدم احراز';
+      if (hasCertificate) {
+        // 🌟 فیکس: استفاده از نوع گواهی مسابقه در فایل اکسل
+        const certStatus = user.score >= 50 ? getCertLabel(contest.certificate_type) : 'عدم احراز';
         rowData.push(certStatus);
       }
       return rowData;
@@ -238,6 +253,9 @@ export default function ParticipantsPage() { // 🌟 حذف params از ورود
     );
   }
 
+  // بررسی وضعیت داشتن گواهی برای این مسابقه
+  const hasCertificate = contest?.certificate_type && contest.certificate_type !== 'none';
+
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
       
@@ -331,7 +349,10 @@ export default function ParticipantsPage() { // 🌟 حذف params از ورود
                   <th onClick={() => handleSortRequest('last_four_id')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
                     کد ملی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
-                  {contest?.certificate_type !== 'none' && <th className="pb-4 font-black">وضعیت گواهی</th>}
+                  
+                  {/* 🌟 مخفی شدن کامل ستون در صورت نداشتن گواهی */}
+                  {hasCertificate && <th className="pb-4 font-black">وضعیت گواهی</th>}
+                  
                   <th onClick={() => handleSortRequest('score')} className="pb-4 font-black text-center cursor-pointer hover:text-[#c5a059] transition-colors">
                     نمره نهایی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
@@ -340,7 +361,7 @@ export default function ParticipantsPage() { // 🌟 حذف params از ورود
               <tbody className="divide-y divide-gray-50 text-sm">
                 {filteredParticipants.length === 0 ? (
                   <tr>
-                    <td colSpan={contest?.certificate_type !== 'none' ? 6 : 5} className="text-center py-12 text-gray-400 font-bold">هیچ شرکت‌کننده‌ای یافت نشد.</td>
+                    <td colSpan={hasCertificate ? 6 : 5} className="text-center py-12 text-gray-400 font-bold">هیچ شرکت‌کننده‌ای یافت نشد.</td>
                   </tr>
                 ) : (
                   filteredParticipants.map((user: any) => (
@@ -357,15 +378,18 @@ export default function ParticipantsPage() { // 🌟 حذف params از ورود
                       <td className="py-4 font-bold text-[#1a2e44] group-hover:text-[#c5a059] transition-colors">{user.name}</td>
                       <td className="py-4 font-bold text-blue-600 font-mono">{user.time || user.time_taken || 0} ثانیه</td>
                       <td className="py-4 font-mono text-gray-500">****{user.last_four_id || '****'}</td>
-                      {contest?.certificate_type !== 'none' && (
+                      
+                      {/* 🌟 فیکس محاسبه نوع گواهی بر اساس دیتای مسابقه */}
+                      {hasCertificate && (
                         <td className="py-4">
                           {user.score >= 50 ? (
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${user.score >= 85 ? 'bg-green-50 text-green-700' : user.score >= 70 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
-                              لوح {user.score >= 85 ? 'عالی' : user.score >= 70 ? 'خیلی خوب' : 'خوب'}
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${getCertStyle(contest.certificate_type)}`}>
+                              لوح {getCertLabel(contest.certificate_type)}
                             </span>
-                          ) : <span className="text-gray-300 text-xs">-</span>}
+                          ) : <span className="text-gray-300 text-xs font-bold">-</span>}
                         </td>
                       )}
+
                       <td className="py-4 text-center">
                         <span className={`font-black text-sm ${user.score >= 50 ? 'text-emerald-600' : 'text-red-500'}`}>{user.score}%</span>
                       </td>
