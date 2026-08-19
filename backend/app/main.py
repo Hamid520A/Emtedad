@@ -617,7 +617,7 @@ def send_otp(payload: OTPRequest):
         
     # ۳. ساخت متن و ارسال پیامک از طریق سرویس TSMS
     from app.services.sms_service import sms_service
-    text = f"سامانه مسابقات امتداد\nکد تایید شما: {otp_code}\nاز در اختیار گذاشتن این کد به دیگران خودداری کنید."
+    text = f"سامانه مسابقات امتداد امام\nکد تایید شما: {otp_code}\nاز در اختیار گذاشتن این کد به دیگران خودداری کنید."
     success = sms_service.send_sms(receiver_mobile=mobile, message_text=text)
     
     if success:

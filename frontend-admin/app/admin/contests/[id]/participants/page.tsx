@@ -1,17 +1,19 @@
 // frontend-admin/app/admin/contests/[id]/participants/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation'; // 🌟 اضافه شدن useParams
 import api from '@/app/lib/api';
 import { 
   ArrowRight, Users, Loader2, Search, Trophy, Medal, Crown, 
   X, Edit2, Save, ArrowUpDown, Smartphone, FileText, MapPin, Calendar, Download,
-  CheckCircle2, XCircle // 🌟 اضافه شدن آیکون‌های مورد نیاز مدال پاسخنامه
+  CheckCircle2, XCircle
 } from 'lucide-react';
 
-export default function ParticipantsPage({ params }: { params: { id: string } }) {
+export default function ParticipantsPage() { // 🌟 حذف params از ورودی
   const router = useRouter();
-  const contestId = params.id;
+  const pathParams = useParams(); // 🌟 خواندن امن آیدی از مسیر
+  const contestId = pathParams?.id as string;
+  
   const [participants, setParticipants] = useState<any[]>([]);
   const [filteredParticipants, setFilteredParticipants] = useState<any[]>([]); 
   const [contest, setContest] = useState<any>(null); 
@@ -29,7 +31,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
   const [editFormData, setEditFormData] = useState<any>({});
   const [saveLoading, setSaveLoading] = useState(false);
 
-  // 🌟 استیت‌های جدید: همگام‌سازی لایه مدال پاسخنامه کاربران در این صفحه
   const [answerSheet, setAnswerSheet] = useState<any>(null);
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [answerLoading, setAnswerLoading] = useState(false);
@@ -44,26 +45,29 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
 
-  const fetchPageData = async () => {
-    try {
-      const [participantsRes, contestRes] = await Promise.all([
-        api.get(`/admin/contests/${contestId}/participants?t=${Date.now()}`),
-        api.get(`/contests/${contestId}?t=${Date.now()}`)
-      ]);
-      
-      setParticipants(participantsRes.data || []);
-      setFilteredParticipants(participantsRes.data || []);
-      setContest(contestRes.data);
-    } catch (error) {
-      console.error("خطا در دریافت اطلاعات صفحه مدیریت", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    // 🌟 گارد امنیتی: اگر آیدی هنوز لود نشده یا undefined است، هیچ ریکوئستی نزن!
+    if (!contestId || contestId === 'undefined') return;
+
+    const fetchPageData = async () => {
+      try {
+        const [participantsRes, contestRes] = await Promise.all([
+          api.get(`/admin/contests/${contestId}/participants?t=${Date.now()}`),
+          api.get(`/contests/${contestId}?t=${Date.now()}`)
+        ]);
+        
+        setParticipants(participantsRes.data || []);
+        setFilteredParticipants(participantsRes.data || []);
+        setContest(contestRes.data);
+      } catch (error) {
+        console.error("خطا در دریافت اطلاعات صفحه مدیریت", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchPageData();
-  }, [contestId]);
+  }, [contestId]); // 🌟 وابستگی مستقیم به تغییرات contestId
 
   useEffect(() => {
     const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
@@ -175,7 +179,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
     }
   };
 
-  // 🌟 تابع اختصاصی جدید: لود درجا و نمایش پاپ‌آپ پاسخنامه بدون خروج از صفحه
   const handleViewAnswerSheet = async (targetContestId: number, targetContestTitle: string) => {
     if (!selectedUser) return;
     setAnswerLoading(true);
@@ -215,7 +218,11 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
         birth_date: editFormData.birth_date
       });
       
-      fetchPageData();
+      const [participantsRes] = await Promise.all([
+        api.get(`/admin/contests/${contestId}/participants?t=${Date.now()}`)
+      ]);
+      setParticipants(participantsRes.data || []);
+      
     } catch (error) {
       alert("خطا در ذخیره‌سازی تغییرات پرونده");
     } finally {
@@ -547,7 +554,6 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                             {(selectedUser.history).map((h: any, idx: number) => (
                               <tr 
                                 key={idx} 
-                                // 🌟 فیکس اصلی: تغییر روت به باز کردن مدال درون‌برنامه‌ایِ پاسخنامه به جای شوت کردن کاربر به آدرس دیگر
                                 onClick={() => handleViewAnswerSheet(h.contest_id, h.contest_title)}
                                 className="hover:bg-gray-50/50 cursor-pointer transition-colors group"
                                 title="کلیک کنید تا جزئیات پاسخنامه باز شود"
@@ -619,9 +625,9 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
 
                       <div className="grid grid-cols-1 gap-2">
                         {q.options?.map((opt: any, optIdx: number) => {
-                          const isUserSelected = String(q.selected_option_id) === String(opt.id);
-                          const isKeyOption = String(q.correct_option_id) === String(opt.id);
-                          const isCorrect = String(q.selected_option_id) === String(q.correct_option_id);
+                          const isUserSelected = String(q.selected_option) === String(optIdx + 1);
+                          const isKeyOption = String(q.correct_answer) === String(optIdx + 1);
+                          const isCorrect = String(q.selected_option) === String(q.correct_answer);
 
                           let cardStyle = "bg-[#faf9f6] border-gray-50 text-gray-600";
                           if (isKeyOption) cardStyle = "bg-emerald-50 border-emerald-200 text-emerald-900";
@@ -633,7 +639,7 @@ export default function ParticipantsPage({ params }: { params: { id: string } })
                                 <span className={`w-5 h-5 rounded-md text-[9px] font-black flex items-center justify-center ${isKeyOption ? 'bg-emerald-500 text-white' : isUserSelected ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
                                   {toPersianDigits(optIdx + 1)}
                                 </span>
-                                <span>{opt.title}</span> 
+                                <span>{opt}</span> 
                               </span>
 
                               <div className="flex items-center gap-1 shrink-0 font-black text-[9px]">
