@@ -330,7 +330,6 @@ export default function ExamPage() {
 
         <div className="w-full flex flex-col gap-2.5 mb-6">
           <button type="button" onClick={(e) => openExternalLink("https://eitaa.com/emtedadeemam", e)} className="w-full text-center bg-orange-50 dark:bg-amber-950/40 hover:bg-orange-100 dark:hover:bg-amber-900/60 text-orange-700 dark:text-amber-300 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-orange-100 dark:border-amber-800">📢 عضویت در کانال امتداد</button>
-          <button type="button" onClick={(e) => openExternalLink("https://emtedad.com", e)} className="w-full text-center bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 py-3.5 rounded-3xl text-xs font-black transition-all flex items-center justify-center gap-2 border border-amber-100 dark:border-amber-800">🌐 ورود به وب‌سایت امتداد امام</button>
         </div>
 
         <div className="w-full space-y-3">

@@ -52,18 +52,6 @@ export default function SupportPage() {
               </div>
             </div>
           </a>
-
-          <a href="mailto:support@emtedad.com" className="bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between hover:border-[#c5a059] hover:shadow-md transition-all group">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-[#faf9f6] dark:bg-[#0b0f19] text-gray-500 dark:text-slate-400 rounded-2xl flex items-center justify-center group-hover:bg-orange-50 dark:group-hover:bg-amber-950/40 group-hover:text-[#c5a059] transition-colors">
-                <Mail size={24} />
-              </div>
-              <div>
-                <span className="font-black text-[#1a2e44] dark:text-slate-100 block mb-1">ارسال ایمیل</span>
-                <span className="text-xs text-gray-400 dark:text-slate-400 font-bold">پاسخگویی در ۲۴ ساعت</span>
-              </div>
-            </div>
-          </a>
         </div>
 
       </main>

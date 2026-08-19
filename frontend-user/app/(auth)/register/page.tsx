@@ -239,7 +239,7 @@ export default function RegisterPage() {
                 <div className="relative">
                   <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
                   <input type="text" required value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="علی" />
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="" />
                 </div>
               </div>
               <div>
@@ -247,7 +247,7 @@ export default function RegisterPage() {
                 <div className="relative">
                   <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
                   <input type="text" required value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="احمدی" />
+                    className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="" />
                 </div>
               </div>
             </div>
@@ -257,7 +257,7 @@ export default function RegisterPage() {
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ملیت</label>
               <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-xl border border-transparent dark:border-slate-800">
                 <button type="button" onClick={() => setFormData({ ...formData, is_iranian: true, national_id: '' })}
-                  className={`py-2 text-xs font-black rounded-lg transition-all ${formData.is_iranian ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>ایرانی هستم</button>
+                  className={`py-2 text-xs font-black rounded-lg transition-all ${formData.is_iranian ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>ایرانی</button>
                 <button type="button" onClick={() => setFormData({ ...formData, is_iranian: false, national_id: '' })}
                   className={`py-2 text-xs font-black rounded-lg transition-all ${!formData.is_iranian ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>اتباع غیرایرانی</button>
               </div>
@@ -272,7 +272,7 @@ export default function RegisterPage() {
                   <CreditCard className="absolute right-3 top-3.5 text-gray-400" size={16} />
                   <input type="text" required dir="ltr" maxLength={formData.is_iranian ? 10 : 16} value={formData.national_id} onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
                     className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" 
-                    placeholder={formData.is_iranian ? "0012345678" : "مثال: 1234567890"} />
+                    placeholder={formData.is_iranian ? "0012345678" : ""} />
                 </div>
               </div>
               <div>
