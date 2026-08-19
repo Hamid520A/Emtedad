@@ -18,7 +18,6 @@ const getCleanImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   
-  // وقتی از پروکسی rewrites استفاده می‌کنیم، آدرس‌های نسبی بهترین گزینه هستند
   const baseUrl = process.env.NEXT_PUBLIC_API_URL 
     ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '') 
     : '';
@@ -29,6 +28,7 @@ export default function ContestLandingPage() {
   const router = useRouter();
   const pathParams = useParams();
   const contestId = pathParams?.id as string;
+  
   const [contest, setContest] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
@@ -52,11 +52,13 @@ export default function ContestLandingPage() {
     }
     setMounted(true);
     
+    // 🌟 گارد امنیتی جلوگیری از اجرای زودهنگام در Next.js
+    if (!contestId || contestId === 'undefined') return;
+
     const fetchData = async () => {
       try {
         const cleanId = parseInt(contestId);
         
-        // 🌟 فیکس اصلی: اول اطلاعات مسابقه را می‌گیریم تا صفحه برای همه باز شود
         const contestRes = await api.get(`/contests/${cleanId}?t=${Date.now()}`);
         setContest(contestRes.data);
 
@@ -66,20 +68,17 @@ export default function ContestLandingPage() {
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
         }
 
-        // 🌟 دریافت لیدربرد (مستقل)
         try {
           const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
           setLeaderboard(lbRes.data || []);
         } catch(e) {}
 
-        // 🌟 دریافت پروفایل (مستقل - اگر کاربر لاگین نبود صفحه خراب نشود)
         try {
           const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
           setProfile(profileRes.data);
         } catch(e) {}
 
-        const adminStatus = localStorage.getItem('isAdmin') === 'true';
-        if (adminStatus) {
+        if (localStorage.getItem('isAdmin') === 'true') {
           try {
              const analyticsRes = await api.get(`/admin/contests/${cleanId}/analytics?t=${Date.now()}`);
              setAnalyticsData(analyticsRes.data);
@@ -96,9 +95,7 @@ export default function ContestLandingPage() {
   }, [contestId]);
 
   useEffect(() => {
-    if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null) {
-      return;
-    }
+    if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null) return;
 
     if (totalSecondsLeft <= 0) {
       setContest((prev: any) => ({ ...prev, status: 'active' }));
@@ -135,11 +132,8 @@ export default function ContestLandingPage() {
   }, [totalSecondsLeft]);
 
   const handleBack = () => {
-    if (isAdminUser) {
-      window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
-    } else {
-      router.push('/');
-    }
+    if (isAdminUser) window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
+    else router.push('/');
   };
 
   const handleShareContest = () => {
@@ -164,12 +158,8 @@ export default function ContestLandingPage() {
         textArea.select();
         const successful = document.execCommand('copy');
         document.body.removeChild(textArea);
-        
-        if (successful) {
-          alert("✅ لینک مسابقه با موفقیت در کلیپ‌بورد کپی شد! می‌توانید آن را پیست کنید.");
-        } else {
-          alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
-        }
+        if (successful) alert("✅ لینک مسابقه با موفقیت در کلیپ‌بورد کپی شد! می‌توانید آن را پیست کنید.");
+        else alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
       } catch (err) {
         alert("❌ خطا در کپی کردن لینک.");
       }
@@ -183,35 +173,22 @@ export default function ContestLandingPage() {
         const actualQuestionsCount = questionsRes.data?.length || 0;
         const targetLimit = parseInt(contest.question_limit || 0, 10);
 
-        if (actualQuestionsCount === 0) {
-          alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید از قسمت «مدیریت سوالات» برای مسابقه سوال طرح کنید.");
-          return;
-        }
-
+        if (actualQuestionsCount === 0) return alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید از قسمت «مدیریت سوالات» برای مسابقه سوال طرح کنید.");
         if (actualQuestionsCount < targetLimit) {
           const ignoreWarning = window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`);
           if (!ignoreWarning) return;
         }
       } catch (error) {
-        alert("خطا در اعتبارسنجی سوالات");
-        return;
+        return alert("خطا در اعتبارسنجی سوالات");
       }
     }
 
-    const actionText = 
-      newStatus === 'active' ? 'شروع فوری مسابقه' : 
-      newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' : 
-      newStatus === 'resume' ? 'فعال‌سازی و انتشار مجدد خودکار' : 'پایان دادن به مسابقه';
-      
+    const actionText = newStatus === 'active' ? 'شروع فوری مسابقه' : newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' : newStatus === 'resume' ? 'فعال‌سازی و انتشار مجدد خودکار' : 'پایان دادن به مسابقه';
     if (!window.confirm(`آیا از ${actionText} مطمئن هستید؟`)) return;
 
     try {
       const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
-      setContest({ 
-        ...contest, 
-        status: response.data.status, 
-        start_time: response.data.start_time 
-      });
+      setContest({ ...contest, status: response.data.status, start_time: response.data.start_time });
       if (response.data.status === 'active') setTimeLeft(null);
       alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
     } catch (error) {
@@ -224,13 +201,9 @@ export default function ContestLandingPage() {
     try {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
-      if (isAdminUser) {
-        window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
-      } else {
-        router.push('/'); 
-      }
+      if (isAdminUser) window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
+      else router.push('/'); 
     } catch (error) {
-      console.error(error);
       alert("خطا در حذف مسابقه. لطفاً دوباره تلاش کنید.");
     }
   };
@@ -243,9 +216,7 @@ export default function ContestLandingPage() {
   const getAparatEmbedUrl = (url: string) => {
     if (!url) return null;
     const match = url.match(/(?:v\/|videohash\/|frame\/v\/|embed\/v\/|v=)([a-zA-Z0-9]+)/);
-    if (match && match[1]) {
-      return `https://www.aparat.com/video/video/embed/videohash/${match[1]}/vt/frame?data[responsive]=true&fullScreen=true`;
-    }
+    if (match && match[1]) return `https://www.aparat.com/video/video/embed/videohash/${match[1]}/vt/frame?data[responsive]=true&fullScreen=true`;
     return null;
   };
 
@@ -279,11 +250,7 @@ export default function ContestLandingPage() {
       <div className="relative w-full h-48 sm:h-64 bg-[#1a2e44] dark:bg-[#182234] rounded-b-[2rem] sm:rounded-b-[2.5rem] overflow-hidden shadow-sm">
         {contest.image_url ? (
           <>
-            <img 
-              src={getCleanImageUrl(contest.image_url)} 
-              alt={contest.title} 
-              className="w-full h-full object-cover" 
-            />
+            <img src={getCleanImageUrl(contest.image_url)} alt={contest.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent"></div>
           </>
         ) : (
@@ -292,10 +259,7 @@ export default function ContestLandingPage() {
         
         <header className="absolute top-0 left-0 right-0 p-4 sm:p-8 flex items-center justify-between z-20">
           <div className="flex items-center gap-3 sm:gap-4">
-            <button 
-              onClick={handleBack} 
-              className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white"
-            >
+            <button onClick={handleBack} className="p-2.5 sm:p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/20 transition text-white">
               <ArrowRight size={18} />
             </button>
             <div>
@@ -303,11 +267,7 @@ export default function ContestLandingPage() {
             </div>
           </div>
           
-          <button 
-            onClick={handleShareContest}
-            className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95"
-            title="کپی لینک مسابقه"
-          >
+          <button onClick={handleShareContest} className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-95" title="کپی لینک مسابقه">
             <Share2 size={16} />
             <span className="hidden sm:inline">ارسال برای دوستان</span>
           </button>
@@ -329,15 +289,9 @@ export default function ContestLandingPage() {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <button onClick={() => {
-                    window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/edit`;
-                  }} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
-                  <button onClick={() => {
-                    window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/questions`;
-                  }} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
-                  <button onClick={() => {
-                    window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/participants`;
-                  }} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
+                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/edit`} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
+                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/questions`} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
+                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/participants`} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
                   <button onClick={deleteContest} className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
               </div>
@@ -355,19 +309,12 @@ export default function ContestLandingPage() {
                 {contest.status === 'draft' && (
                   <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
                 )}
-                
-                {contest.status === 'finished' && (
-                  <div className="w-full text-center py-2 bg-gray-100 dark:bg-[#0b0f19] border border-gray-200 dark:border-slate-800 text-gray-500 dark:text-slate-400 rounded-xl text-xs font-black select-none">
-                    🏁 این مسابقه به اتمام رسیده و پاسخنامه‌ها بسته شده‌اند.
-                  </div>
-                )}
               </div>
             </div>
           )}
 
           {isAdminUser && analyticsData && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              
               <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
                   <Clock size={18} className="text-[#c5a059]" />
@@ -399,42 +346,14 @@ export default function ContestLandingPage() {
                 </div>
                 <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart 
-                      data={analyticsData.questions_stats} 
-                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
-                    >
+                    <BarChart data={analyticsData.questions_stats} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
                       <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
                       <YAxis stroke="#9ca3af" tickLine={false} />
                       <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
                       <Legend verticalAlign="top" height={36} iconType="circle" />
-                      
-                      <Bar 
-                        dataKey="correct" 
-                        name="پاسخ صحیح" 
-                        fill="#0f766e" 
-                        radius={[4, 4, 0, 0]} 
-                        barSize={9} 
-                        onClick={(item) => {
-                          if(item && item.payload) {
-                            setSelectedQuestion(item.payload);
-                            setQuestionModalOpen(true);
-                          }
-                        }}
-                      />
-                      <Bar 
-                        dataKey="incorrect" 
-                        name="پاسخ اشتباه" 
-                        fill="#be123c" 
-                        radius={[4, 4, 0, 0]} 
-                        barSize={9} 
-                        onClick={(item) => {
-                          if(item && item.payload) {
-                            setSelectedQuestion(item.payload);
-                            setQuestionModalOpen(true);
-                          }
-                        }}
-                      />
+                      <Bar dataKey="correct" name="پاسخ صحیح" fill="#0f766e" radius={[4, 4, 0, 0]} barSize={9} onClick={(item) => { if(item?.payload) { setSelectedQuestion(item.payload); setQuestionModalOpen(true); } }} />
+                      <Bar dataKey="incorrect" name="پاسخ اشتباه" fill="#be123c" radius={[4, 4, 0, 0]} barSize={9} onClick={(item) => { if(item?.payload) { setSelectedQuestion(item.payload); setQuestionModalOpen(true); } }} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -447,27 +366,12 @@ export default function ContestLandingPage() {
                 </div>
                 <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart
-                      data={analyticsData.province_stats || []}
-                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
-                    >
+                    <BarChart data={analyticsData.province_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
                       <XAxis dataKey="province" stroke="#9ca3af" tickLine={false} />
                       <YAxis stroke="#9ca3af" tickLine={false} />
                       <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Bar
-                        dataKey="count"
-                        name="تعداد شرکت‌کننده"
-                        fill="#3b82f6"
-                        radius={[4, 4, 0, 0]}
-                        barSize={12}
-                        onClick={(item) => {
-                          if (item && item.payload) {
-                            setSelectedProvince(item.payload);
-                            setProvinceModalOpen(true);
-                          }
-                        }}
-                      />
+                      <Bar dataKey="count" name="تعداد شرکت‌کننده" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} onClick={(item) => { if (item?.payload) { setSelectedProvince(item.payload); setProvinceModalOpen(true); } }} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -480,34 +384,20 @@ export default function ContestLandingPage() {
                 </div>
                 <div className="w-full h-72 text-xs font-bold font-sans">
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart
-                      data={analyticsData.gender_stats || []}
-                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
-                    >
+                    <BarChart data={analyticsData.gender_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
                       <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
                       <YAxis stroke="#9ca3af" tickLine={false} />
                       <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Bar
-                        dataKey="count"
-                        name="تعداد شرکت‌کننده"
-                        radius={[4, 4, 0, 0]}
-                        barSize={40}
-                      >
-                        {
-                          (analyticsData.gender_stats || [])
-                          .filter((entry: any) => entry.gender === "مرد" || entry.gender === "زن")
-                          .map((entry: any, index: number) => {
-                            const color = entry.gender === "مرد" ? "#3b82f6" : "#ec4899"; 
-                            return <Cell key={`cell-${index}`} fill={color} />;
-                          })
-                        }
+                      <Bar dataKey="count" name="تعداد شرکت‌کننده" radius={[4, 4, 0, 0]} barSize={40}>
+                        { (analyticsData.gender_stats || []).filter((e: any) => e.gender === "مرد" || e.gender === "زن").map((e: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={e.gender === "مرد" ? "#3b82f6" : "#ec4899"} />
+                        )) }
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
-
             </div>
           )}
 
@@ -542,11 +432,7 @@ export default function ContestLandingPage() {
                 <div className="flex flex-col text-right min-w-0 w-full">
                   <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold">منبع و جزوه دوره</span>
                   {contest.file_url ? (
-                    <button 
-                      type="button"
-                      onClick={() => setShowPdfModal(true)}
-                      className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block text-right flex items-center gap-1"
-                    >
+                    <button onClick={() => setShowPdfModal(true)} className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block text-right flex items-center gap-1">
                       <Eye size={13} /> مشاهده و دانلود جزوه
                     </button>
                   ) : (
@@ -559,79 +445,60 @@ export default function ContestLandingPage() {
             {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
               <div className="flex flex-col gap-2 mt-2">
                 <div className="w-full rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 bg-black aspect-video overflow-hidden">
-                  <iframe 
-                    src={getAparatEmbedUrl(contest.video_url)} 
-                    allowFullScreen
-                    allow="autoplay; fullscreen"
-                    className="w-full h-full border-0" 
-                    title="Aparat Video Player"
-                  />
+                  <iframe src={getAparatEmbedUrl(contest.video_url)} allowFullScreen allow="autoplay; fullscreen" className="w-full h-full border-0" title="Aparat Video Player" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => window.open(contest.video_url, '_blank')}
-                  className="flex items-center justify-center gap-2 w-full p-2.5 sm:p-3 text-xs font-black rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-[#1a2e44] dark:hover:text-slate-200 transition-all active:scale-[0.98]"
-                >
+                <button onClick={() => window.open(contest.video_url, '_blank')} className="flex items-center justify-center gap-2 w-full p-2.5 sm:p-3 text-xs font-black rounded-xl sm:rounded-2xl border-2 border-gray-100 dark:border-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-[#1a2e44] dark:hover:text-slate-200 transition-all active:scale-[0.98]">
                   <ExternalLink size={16} /> تماشای تمام‌صفحه در آپارات
                 </button>
               </div>
             )}
           </div>
 
-          {contest.status === 'active' && (
-            <div className="bg-white dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800">
+          {/* 🌟 فیکس اصلی: نمایش دائمی باکس کاربر (در هر دو حالت active و finished) در ستون اصلی */}
+          {(contest.status === 'active' || contest.status === 'finished') && (
+            <div className="bg-white dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 mt-6">
               {hasParticipated ? (
-                <div className="bg-green-50/50 dark:bg-green-950/30 p-4 sm:p-5 rounded-2xl border border-green-100 dark:border-green-900/40 text-center">
+                <div className="bg-green-50/50 dark:bg-green-950/30 p-4 sm:p-5 rounded-2xl border border-green-100 dark:border-green-900/40 text-center animate-in zoom-in-95 duration-300">
                   <CheckCircle size={32} className="text-green-500 mx-auto mb-2" />
                   <h3 className="font-black text-[#1a2e44] dark:text-slate-100 text-sm sm:text-base mb-0.5">{profile?.first_name} {profile?.last_name}</h3>
                   <p className="text-green-700 dark:text-green-400 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
                   <div className="grid grid-cols-3 gap-1.5 sm:gap-3 max-w-md mx-auto">
                     <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">امتیاز</span>
-                      <span className="font-black text-sm sm:text-base text-[#1a2e44] dark:text-slate-100">
-                        {toPersianDigits(myResult.score?.toString().replace('%', ''))}%
-                      </span>
+                      <span className="font-black text-sm sm:text-base text-[#1a2e44] dark:text-slate-100">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
                     </div>
                     <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">رتبه فعلی</span>
-                      <span className="font-black text-sm sm:text-base text-[#c5a059]">
-                        #{toPersianDigits(getLiveRank())}
-                      </span>
+                      <span className="font-black text-sm sm:text-base text-[#c5a059]">#{toPersianDigits(getLiveRank())}</span>
                     </div>
                     <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">زمان مصرفی</span>
-                      <span className="font-black text-xs sm:text-base text-blue-600 dark:text-blue-400 truncate block">
-                        {toPersianDigits(myResult.time || myResult.time_taken || 0)} ثانیه
-                      </span>
+                      <span className="font-black text-xs sm:text-base text-blue-600 dark:text-blue-400 truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)} ثانیه</span>
                     </div>
                   </div>
-
-                  <button 
-                    onClick={() => router.push(`/review-final/${contest.id}`)}
-                    className="w-full mt-4 bg-white dark:bg-[#182234] hover:bg-gray-50 dark:hover:bg-[#233044] text-[#1a2e44] dark:text-slate-100 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 dark:border-slate-700 shadow-sm"
-                  >
-                    <FileText size={15} className="text-[#c5a059]" />
-                    مشاهده پاسخنامه و مرور مجدد سوالات
+                  <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full mt-4 bg-white dark:bg-[#182234] hover:bg-gray-50 dark:hover:bg-[#233044] text-[#1a2e44] dark:text-slate-100 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 dark:border-slate-700 shadow-sm">
+                    <FileText size={15} className="text-[#c5a059]" /> مشاهده پاسخنامه و مرور مجدد سوالات
                   </button>
                 </div>
-              ) : (
-              <button onClick={() => {
-                  if (!profile) {
-                    alert("⚠️ برای شرکت در مسابقه ابتدا باید وارد حساب کاربری خود شوید.");
-                    router.push('/login');
-                    return;
-                  }
-                  if (window.confirm('⚠️ توجه!\n\nپس از ورود به آزمون، امکان خروج و ادامه مجدد آزمون وجود ندارد.\nدر صورت خروج از آزمون پس از شروع، نتیجه شما ثبت نخواهد شد و از آزمون محروم خواهید شد.\n\nآیا مطمئن هستید که می‌خواهید وارد آزمون شوید؟')) {
-                    router.push(`/exam/${contest.id}`);
-                  }
+              ) : contest.status === 'active' ? (
+                <button onClick={() => {
+                  if (!profile) return alert("⚠️ برای شرکت در مسابقه ابتدا باید وارد حساب کاربری خود شوید.");
+                  if (window.confirm('⚠️ توجه!\n\nپس از ورود به آزمون، امکان خروج و ادامه مجدد آزمون وجود ندارد.\n\nآیا مطمئن هستید که می‌خواهید وارد آزمون شوید؟')) router.push(`/exam/${contest.id}`);
                 }} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]">
                   <PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به محیط رقابت و شروع آزمون
                 </button>
+              ) : (
+                <div className="w-full text-center py-6 bg-gray-50 dark:bg-[#0b0f19] border border-gray-200 dark:border-slate-800 rounded-2xl animate-in fade-in duration-300">
+                  <span className="text-3xl mb-2 block opacity-50 grayscale">🏁</span>
+                  <h3 className="text-sm font-black text-gray-600 dark:text-slate-300 mb-1">مسابقه به پایان رسیده است</h3>
+                  <p className="text-xs font-bold text-gray-400">شما در این رقابت شرکت نکرده‌اید (یا وارد حساب خود نشده‌اید).</p>
+                </div>
               )}
             </div>
           )}
 
-          {contest.status === 'finished' && hasParticipated && leaderboard.length > 3 && (
+          {/* 🌟 فیکس دوم: نمایش رقبای نزدیک بدون خط زدن نفرات اول تا سوم */}
+          {contest.status === 'finished' && hasParticipated && leaderboard.length > 0 && (
             <div className="bg-white dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-50 dark:border-slate-800">
                 <h4 className="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14} /> تحلیل جایگاه و رقبای هم‌سطح نزدیک به شما</h4>
@@ -640,15 +507,17 @@ export default function ContestLandingPage() {
               <div className="space-y-2">
                 {(() => {
                   const userIndex = leaderboard.findIndex(u => String(u.user_id || u.id).trim() == String(profile?.id).trim());
-                  const start = userIndex === -1 ? 3 : Math.max(3, userIndex - 2);
-                  const end = userIndex === -1 ? 8 : Math.min(leaderboard.length, userIndex + 3);
+                  
+                  // 🌟 برطرف شدن باگ ریاضی محاسبه رقبای نزدیک
+                  const start = userIndex === -1 ? 0 : Math.max(0, userIndex - 2);
+                  const end = userIndex === -1 ? Math.min(leaderboard.length, 5) : Math.min(leaderboard.length, userIndex + 3);
                   const surroundingUsers = leaderboard.slice(start, end);
 
                   return surroundingUsers.map((user: any) => {
                     const isMe = String(user.user_id || user.id).trim() == String(profile?.id).trim();
                     const shortNationalId = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
                     return (
-                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] dark:bg-[#c5a059] border-[#1a2e44] dark:border-[#c5a059] shadow-md text-white dark:text-[#1a2e44]' : 'bg-white dark:bg-[#0b0f19] border-gray-100 dark:border-slate-800 shadow-sm text-[#1a2e44] dark:text-slate-100'}`}>
+                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] dark:bg-[#c5a059] border-[#1a2e44] dark:border-[#c5a059] shadow-md text-white dark:text-[#1a2e44] scale-[1.02]' : 'bg-white dark:bg-[#0b0f19] border-gray-100 dark:border-slate-800 shadow-sm text-[#1a2e44] dark:text-slate-100'}`}>
                         <div className="flex items-center gap-2.5">
                           <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ${isMe ? 'bg-[#c5a059] dark:bg-[#1a2e44] text-[#1a2e44] dark:text-white' : 'bg-[#faf9f6] dark:bg-[#182234] text-[#c5a059]'}`}>{toPersianDigits(user.rank)}</span>
                           <div className="flex flex-col text-right">
@@ -770,6 +639,8 @@ export default function ContestLandingPage() {
         </div>
       </main>
 
+      {/* مدال پاسخنامه و دانلود جزوه دست‌نخورده باقی می‌ماند ... */}
+      
       {questionModalOpen && selectedQuestion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 dark:border-slate-800 overflow-hidden flex flex-col text-right">
