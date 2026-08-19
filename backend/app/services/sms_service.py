@@ -18,24 +18,30 @@ class TSMSService:
             logger.error("⚠️ تنظیمات پنل پیامک در فایل env خالی است.")
             return False
 
-        # 🌟 ساختار استاندارد SOAP دقیقاً مطابق مستندات TSMS (بدون نیاز به فایل WSDL خراب آن‌ها)
+        # 🌟 ساختار XML فوق‌استاندارد با تعریف دقیق Type‌ها برای جلوگیری از ارور -6 و کرش سرور TSMS
         payload = f"""<?xml version="1.0" encoding="utf-8"?>
-        <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sms="http://sms.tsms.ir/">
+        <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+                          xmlns:sms="http://sms.tsms.ir/" 
+                          xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" 
+                          xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+                          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
            <soapenv:Header/>
            <soapenv:Body>
               <sms:sendSms>
-                 <username>{self.username}</username>
-                 <password>{self.password}</password>
-                 <from>
-                    <item>{self.sender}</item>
+                 <username xsi:type="xsd:string">{self.username}</username>
+                 <password xsi:type="xsd:string">{self.password}</password>
+                 <from SOAP-ENC:arrayType="xsd:string[1]" xsi:type="sms:ArrayOfString">
+                    <item xsi:type="xsd:string">{self.sender}</item>
                  </from>
-                 <to>
-                    <item>{receiver_mobile}</item>
+                 <to SOAP-ENC:arrayType="xsd:string[1]" xsi:type="sms:ArrayOfString">
+                    <item xsi:type="xsd:string">{receiver_mobile}</item>
                  </to>
-                 <msg>
-                    <item>{message_text}</item>
+                 <msg SOAP-ENC:arrayType="xsd:string[1]" xsi:type="sms:ArrayOfString">
+                    <item xsi:type="xsd:string">{message_text}</item>
                  </msg>
-                 <mclass/>
+                 <mclass SOAP-ENC:arrayType="xsd:string[1]" xsi:type="sms:ArrayOfString">
+                    <item xsi:type="xsd:string"></item>
+                 </mclass>
               </sms:sendSms>
            </soapenv:Body>
         </soapenv:Envelope>"""
@@ -46,11 +52,10 @@ class TSMSService:
         }
 
         try:
-            # ارسال مستقیم به وب‌سرویس با تایم‌اوت ۱۰ ثانیه
-            response = requests.post(self.endpoint, data=payload.encode('utf-8'), headers=headers, timeout=10)
+            # ارسال با تایم‌اوت ۱۵ ثانیه
+            response = requests.post(self.endpoint, data=payload.encode('utf-8'), headers=headers, timeout=15)
             
             if response.status_code == 200:
-                # استخراج هوشمند کد رهگیری یا ارور از داخل ساختار متنی XML مخابرات
                 match = re.search(r'<item[^>]*>([-\d]+)</item>', response.text)
                 if match:
                     code = int(match.group(1))
