@@ -141,32 +141,32 @@ export default function CreateContestPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
-      <header className="p-8 flex items-center gap-4 sticky top-0 bg-[#faf9f6]/90 backdrop-blur-md z-20">
-        <button onClick={() => router.back()} className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition text-gray-500 hover:text-[#1a2e44]">
+    <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] pb-24 font-sans text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" dir="rtl">
+      <header className="p-8 flex items-center gap-4 sticky top-0 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234]/90 backdrop-blur-md z-20">
+        <button onClick={() => router.back()} className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:scale-105 transition text-gray-500 dark:text-slate-400 dark:text-slate-400 hover:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">
           <ArrowRight size={20} />
         </button>
         <div>
-          <h1 className="font-black text-2xl text-[#1a2e44]">تعریف مسابقه جدید</h1>
-          <p className="text-gray-400 text-xs font-bold mt-1">ایجاد رقابت جدید، تنظیم زمان‌بندی و جوایز رتبه‌بندی</p>
+          <h1 className="font-black text-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">تعریف مسابقه جدید</h1>
+          <p className="text-gray-400 dark:text-slate-400 dark:text-slate-400 text-xs font-bold mt-1">ایجاد رقابت جدید، تنظیم زمان‌بندی و جوایز رتبه‌بندی</p>
         </div>
       </header>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-5">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
-              <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" placeholder="مثلاً: مسابقه هوش مصنوعی" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
+              <input type="text" required className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" placeholder="مثلاً: مسابقه هوش مصنوعی" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">توضیحات جامع</label>
-              <textarea rows={4} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">توضیحات جامع</label>
+              <textarea rows={4} className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed" placeholder="توضیحات و قوانین شرکت در این مسابقه را بنویسید..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
             </div>
 
-            <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100 space-y-3">
-              <div className="flex items-center gap-1.5 mb-1 text-gray-500">
+            <div className="bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] p-5 rounded-2xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-3">
+              <div className="flex items-center gap-1.5 mb-1 text-gray-500 dark:text-slate-400 dark:text-slate-400">
                 <Trophy size={16} className="text-[#c5a059]" />
                 <label className="block text-[10px] font-black uppercase tracking-widest">تعیین جوایز بر اساس رتبه‌بندی</label>
               </div>
@@ -176,7 +176,7 @@ export default function CreateContestPage() {
                   <div className="w-24">
                     <input 
                       type="number" min="1" required
-                      className="w-full p-3 bg-white border border-gray-200 rounded-xl text-center text-xs font-black text-[#1a2e44] outline-none focus:ring-2 focus:ring-[#c5a059]" 
+                      className="w-full p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-center text-xs font-black text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-2 focus:ring-[#c5a059]" 
                       placeholder="رتبه" value={award.rank}
                       onChange={(e) => handleAwardChange(index, 'rank', e.target.value)}
                     />
@@ -184,7 +184,7 @@ export default function CreateContestPage() {
                   <div className="flex-1">
                     <input 
                       type="text" required
-                      className="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-2 focus:ring-[#c5a059]" 
+                      className="w-full p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-2 focus:ring-[#c5a059]" 
                       placeholder={`جایزه رتبه ${award.rank}...`} value={award.title}
                       onChange={(e) => handleAwardChange(index, 'title', e.target.value)}
                     />
@@ -197,7 +197,7 @@ export default function CreateContestPage() {
                 </div>
               ))}
               
-              <button type="button" onClick={addAwardField} className="w-full py-3 bg-white border border-dashed border-gray-300 rounded-xl text-xs font-black text-[#c5a059] flex items-center justify-center gap-1 hover:bg-gray-50 transition-all active:scale-95">
+              <button type="button" onClick={addAwardField} className="w-full py-3 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-300 rounded-xl text-xs font-black text-[#c5a059] flex items-center justify-center gap-1 hover:bg-gray-50 transition-all active:scale-95">
                 <Plus size={14} /> افزودن جایزه برای رتبه بعدی
               </button>
             </div>
@@ -205,12 +205,12 @@ export default function CreateContestPage() {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-5">
             <div>
               <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
               <div className="relative">
-                <Award className="absolute right-4 top-4 text-gray-400" size={18} />
-                <select className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none cursor-pointer" value={formData.certificate_type} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
+                <Award className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
+                <select className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm appearance-none cursor-pointer" value={formData.certificate_type} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
                   <option value="none">بدون گواهی</option>
                   <option value="excellent">گواهی رتبه عالی</option>
                   <option value="very_good">گواهی رتبه خیلی خوب</option>
@@ -221,30 +221,30 @@ export default function CreateContestPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">زمان (دقیقه)</label>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">زمان (دقیقه)</label>
                 <div className="relative">
-                  <Clock className="absolute right-3 top-4 text-gray-400" size={16} />
-                  <input type="number" min="0" required className="w-full p-4 pr-10 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" value={formData.time_limit} onChange={(e) => setFormData({...formData, time_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} />
+                  <Clock className="absolute right-3 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={16} />
+                  <input type="number" min="0" required className="w-full p-4 pr-10 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-bold text-sm" value={formData.time_limit} onChange={(e) => setFormData({...formData, time_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} />
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تعداد سوالات</label>
-                <input type="number" min="0" className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm" value={formData.question_limit} onChange={(e) => setFormData({...formData, question_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} />
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">تعداد سوالات</label>
+                <input type="number" min="0" className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm" value={formData.question_limit} onChange={(e) => setFormData({...formData, question_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} />
               </div>
             </div>
             
             <div className="grid grid-cols-1 gap-5 transition-all duration-300 animate-in fade-in slide-in-from-top-2">
               <div>
-                <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
+                <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
                 <div className="relative">
-                  <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                  <CalendarClock className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400 z-10" size={18} />
                   <DatePickerComponent
                     calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
                     plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
                     value={formData.start_time}
                     onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
                     containerClassName="w-full"
-                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
+                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                     placeholder="همین الان"
                   />
                 </div>
@@ -260,7 +260,7 @@ export default function CreateContestPage() {
                     value={formData.end_time}
                     onChange={(date: any) => setFormData({ ...formData, end_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
                     containerClassName="w-full"
-                    inputClass="w-full p-4 pr-12 bg-rose-50 border border-rose-100 rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-rose-400 outline-none font-bold text-sm text-left"
+                    inputClass="w-full p-4 pr-12 bg-rose-50 border border-rose-100 rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-rose-400 outline-none font-bold text-sm text-left"
                     placeholder="بدون محدودیت (باز)"
                   />
                 </div>
@@ -268,23 +268,23 @@ export default function CreateContestPage() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
               <div className="relative">
-                <PlayCircle className="absolute right-3 top-3.5 text-gray-400" size={16} />
-                <input type="text" className="w-full p-3 pr-9 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-xs" placeholder="https://www.aparat.com/v/xxxxx" value={formData.video_url} onChange={(e) => setFormData({...formData, video_url: e.target.value})} />
+                <PlayCircle className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={16} />
+                <input type="text" className="w-full p-3 pr-9 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-xs" placeholder="https://www.aparat.com/v/xxxxx" value={formData.video_url} onChange={(e) => setFormData({...formData, video_url: e.target.value})} />
               </div>
             </div>
 
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><ImageIcon size={14} /> تصویر بنر</label>
-              <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl outline-none text-xs text-gray-500 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#1a2e44] file:text-white cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5"><ImageIcon size={14} /> تصویر بنر</label>
+              <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl outline-none text-xs text-gray-500 dark:text-slate-400 dark:text-slate-400 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#1a2e44] file:text-white cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />
             </div>
 
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> جزوه (PDF)</label>
-              <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl outline-none text-xs text-gray-500 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#c5a059] file:text-[#1a2e44] cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> جزوه (PDF)</label>
+              <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl outline-none text-xs text-gray-500 dark:text-slate-400 dark:text-slate-400 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#c5a059] file:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
             </div>
           </div>
 
@@ -300,9 +300,9 @@ export default function CreateContestPage() {
             <button 
               type="submit" 
               onClick={() => submitStatusRef.current = 'draft'}
-              className="w-full bg-white text-[#1a2e44] p-4 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-gray-50 transition-all border border-gray-200 active:scale-95"
+              className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 p-4 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-gray-50 transition-all border border-gray-200 dark:border-slate-800 dark:border-slate-800 active:scale-95"
             >
-              <FileMinus size={20} className="text-gray-400" /> ذخیره به عنوان پیش‌نویس
+              <FileMinus size={20} className="text-gray-400 dark:text-slate-400 dark:text-slate-400" /> ذخیره به عنوان پیش‌نویس
             </button>
           </div>
         </div>

@@ -214,53 +214,53 @@ export default function EditContestPage() {
   };
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-[#faf9f6]"><Loader2 className="animate-spin text-[#1a2e44]" size={40} /></div>
+    <div className="h-screen flex items-center justify-center bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234]"><Loader2 className="animate-spin text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" size={40} /></div>
   );
 
   return (
-    <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
+    <div className="max-w-5xl mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] pb-24 font-sans text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" dir="rtl">
       
-      <header className="p-8 flex items-center gap-4 sticky top-0 bg-[#faf9f6]/90 backdrop-blur-md z-20">
-        <button onClick={() => router.back()} className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition text-gray-500 hover:text-[#1a2e44]"><ArrowRight size={20} /></button>
+      <header className="p-8 flex items-center gap-4 sticky top-0 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234]/90 backdrop-blur-md z-20">
+        <button onClick={() => router.back()} className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:scale-105 transition text-gray-500 dark:text-slate-400 dark:text-slate-400 hover:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100"><ArrowRight size={20} /></button>
         <div>
-          <h1 className="font-black text-2xl text-[#1a2e44]">ویرایش و مدیریت مسابقه</h1>
-          <p className="text-gray-400 text-xs font-bold mt-1">تغییر عنوان، قوانین، وضعیت انتشار و جوایز</p>
+          <h1 className="font-black text-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">ویرایش و مدیریت مسابقه</h1>
+          <p className="text-gray-400 dark:text-slate-400 dark:text-slate-400 text-xs font-bold mt-1">تغییر عنوان، قوانین، وضعیت انتشار و جوایز</p>
         </div>
       </header>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-8">
         
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-5">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
-              <input type="text" required className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">عنوان مسابقه</label>
+              <input type="text" required className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">توضیحات جامع و قوانین</label>
-              <textarea rows={5} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-medium text-sm leading-relaxed" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">توضیحات جامع و قوانین</label>
+              <textarea rows={5} className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-medium text-sm leading-relaxed" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
             </div>
 
-            <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100 space-y-3">
-              <div className="flex items-center gap-1.5 mb-1 text-gray-500"><Trophy size={16} className="text-[#c5a059]" /><label className="block text-[10px] font-black uppercase tracking-widest">تغییر جوایز بر اساس رتبه‌بندی</label></div>
+            <div className="bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] p-5 rounded-2xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-3">
+              <div className="flex items-center gap-1.5 mb-1 text-gray-500 dark:text-slate-400 dark:text-slate-400"><Trophy size={16} className="text-[#c5a059]" /><label className="block text-[10px] font-black uppercase tracking-widest">تغییر جوایز بر اساس رتبه‌بندی</label></div>
               {awards.map((award, index) => (
                 <div key={index} className="flex gap-2 items-center">
-                  <div className="w-24"><input type="number" min="1" required className="w-full p-3 bg-white border border-gray-200 rounded-xl text-center text-xs font-black text-[#1a2e44]" value={award.rank || ''} onChange={(e) => handleAwardChange(index, 'rank', e.target.value)} /></div>
-                  <div className="flex-1"><input type="text" required className="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44]" value={award.title || ''} onChange={(e) => handleAwardChange(index, 'title', e.target.value)} /></div>
+                  <div className="w-24"><input type="number" min="1" required className="w-full p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-center text-xs font-black text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" value={award.rank || ''} onChange={(e) => handleAwardChange(index, 'rank', e.target.value)} /></div>
+                  <div className="flex-1"><input type="text" required className="w-full p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" value={award.title || ''} onChange={(e) => handleAwardChange(index, 'title', e.target.value)} /></div>
                   {awards.length > 1 && (<button type="button" onClick={() => removeAwardField(index)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl"><Trash2 size={16} /></button>)}
                 </div>
               ))}
-              <button type="button" onClick={addAwardField} className="w-full py-3 bg-white border border-dashed border-gray-300 rounded-xl text-xs font-black text-[#c5a059] flex items-center justify-center gap-1"><Plus size={14} /> افزودن جایزه برای رتبه بعدی</button>
+              <button type="button" onClick={addAwardField} className="w-full py-3 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-300 rounded-xl text-xs font-black text-[#c5a059] flex items-center justify-center gap-1"><Plus size={14} /> افزودن جایزه برای رتبه بعدی</button>
             </div>
           </div>
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-5">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-5">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">وضعیت انتشار مسابقه</label>
-              <select className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] font-bold text-sm cursor-pointer" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">وضعیت انتشار مسابقه</label>
+              <select className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 font-bold text-sm cursor-pointer" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
                 <option value="draft">پیش‌نویس (مخفی از کاربر)</option>
                 <option value="upcoming">به زودی (شمارش معکوس)</option>
                 <option value="active">در حال برگزاری (شروع لایو)</option>
@@ -271,8 +271,8 @@ export default function EditContestPage() {
             <div>
               <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
               <div className="relative">
-                <Award className="absolute right-4 top-4 text-gray-400" size={18} />
-                <select className="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] font-bold text-sm cursor-pointer" value={formData.certificate_type} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
+                <Award className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
+                <select className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 font-bold text-sm cursor-pointer" value={formData.certificate_type} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
                   <option value="none">بدون گواهی</option>
                   <option value="excellent">گواهی رتبه عالی</option>
                   <option value="very_good">گواهی رتبه خیلی خوب</option>
@@ -286,13 +286,13 @@ export default function EditContestPage() {
                     <span className="text-[11px] font-black text-amber-800 flex items-center gap-1"><Award size={14}/>  قالب گواهی فعال است</span>
                     <button 
                       type="button" onClick={() => setIsCertModalOpen(true)}
-                      className="p-1.5 px-3 bg-white text-[#1a2e44] rounded-xl text-[10px] font-black border border-gray-100 hover:bg-gray-50 transition shadow-sm flex items-center gap-1"
+                      className="p-1.5 px-3 bg-white dark:bg-[#182234] dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 rounded-xl text-[10px] font-black border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:bg-gray-50 transition shadow-sm flex items-center gap-1"
                     >
                       <Edit3 size={12} className="text-[#c5a059]" /> تنظیم جزئیات گواهی
                     </button>
                   </div>
                   {certData.certificate_bg_url && (
-                    <div className="h-16 w-full rounded-xl overflow-hidden border border-gray-100 bg-gray-50 relative">
+                    <div className="h-16 w-full rounded-xl overflow-hidden border border-gray-100 dark:border-slate-800 dark:border-slate-800 bg-gray-50 relative">
                       <img src={certData.certificate_bg_url} alt="Mini preview" className="w-full h-full object-cover blur-[0.5px]" />
                       <div className="absolute inset-0 bg-black/10 flex items-center justify-center"><span className="text-[9px] font-black text-white bg-black/40 px-2 py-0.5 rounded-md">بک‌گراند سفارشی بارگذاری شده</span></div>
                     </div>
@@ -303,27 +303,27 @@ export default function EditContestPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">زمان (دقیقه)</label>
-                <div className="relative"><Clock className="absolute right-3 top-4 text-gray-400" size={16} /><input type="number" min="0" required className="w-full p-4 pr-10 bg-[#faf9f6] border-none rounded-2xl font-bold text-sm" value={formData.time_limit} onChange={(e) => setFormData({...formData, time_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} /></div>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">زمان (دقیقه)</label>
+                <div className="relative"><Clock className="absolute right-3 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={16} /><input type="number" min="0" required className="w-full p-4 pr-10 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl font-bold text-sm" value={formData.time_limit} onChange={(e) => setFormData({...formData, time_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} /></div>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تعداد سوالات</label>
-                <input type="number" min="0" className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl font-bold text-sm" value={formData.question_limit} onChange={(e) => setFormData({...formData, question_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} />
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">تعداد سوالات</label>
+                <input type="number" min="0" className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl font-bold text-sm" value={formData.question_limit} onChange={(e) => setFormData({...formData, question_limit: e.target.value === '' ? '' : parseInt(toEnglishDigits(e.target.value), 10)})} />
               </div>
             </div>
             
             <div className="grid grid-cols-1 gap-5 transition-all duration-300 animate-in fade-in slide-in-from-top-2">
               <div>
-                <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
+                <label className="flex items-center gap-2 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2"><CalendarClock size={14} /> زمان شروع مسابقه</label>
                 <div className="relative">
-                  <CalendarClock className="absolute right-4 top-4 text-gray-400 z-10" size={18} />
+                  <CalendarClock className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400 z-10" size={18} />
                   <DatePickerComponent
                     calendar={persian} locale={persian_fa} calendarPosition="bottom-right" format="YYYY/MM/DD HH:mm"
                     plugins={[React.createElement(TimePickerPlugin, { position: "bottom", hideSeconds: true })]}
                     value={formData.start_time}
                     onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
                     containerClassName="w-full"
-                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] border-none rounded-2xl font-bold text-sm text-left"
+                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl font-bold text-sm text-left"
                     placeholder="همین الان"
                   />
                 </div>
@@ -339,7 +339,7 @@ export default function EditContestPage() {
                     value={formData.end_time}
                     onChange={(date: any) => setFormData({ ...formData, end_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
                     containerClassName="w-full"
-                    inputClass="w-full p-4 pr-12 bg-rose-50 border border-rose-100 rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-rose-400 outline-none font-bold text-sm text-left"
+                    inputClass="w-full p-4 pr-12 bg-rose-50 border border-rose-100 rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-rose-400 outline-none font-bold text-sm text-left"
                     placeholder="بدون محدودیت (باز)"
                   />
                 </div>
@@ -347,19 +347,19 @@ export default function EditContestPage() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
-              <div className="relative"><PlayCircle className="absolute right-3 top-3.5 text-gray-400" size={16} /><input type="text" className="w-full p-3 pr-9 bg-[#faf9f6] border-none rounded-xl font-bold text-xs" value={formData.video_url} onChange={(e) => setFormData({...formData, video_url: e.target.value})} /></div>
+              <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
+              <div className="relative"><PlayCircle className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={16} /><input type="text" className="w-full p-3 pr-9 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-xl font-bold text-xs" value={formData.video_url} onChange={(e) => setFormData({...formData, video_url: e.target.value})} /></div>
             </div>
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><ImageIcon size={14} /> تصویر بنر مسابقه {uploading === 'image_url' && '⏳'}</label>
-              <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl text-xs cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />
-              {formData.image_url && (<div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 shadow-sm max-h-40 bg-gray-50 flex items-center justify-center p-2"><img src={getCleanImageUrl(formData.image_url)} alt="Banner Preview" className="max-w-full max-h-32 object-contain rounded-lg" /></div>)}
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5"><ImageIcon size={14} /> تصویر بنر مسابقه {uploading === 'image_url' && '⏳'}</label>
+              <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />
+              {formData.image_url && (<div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-800 dark:border-slate-800 shadow-sm max-h-40 bg-gray-50 flex items-center justify-center p-2"><img src={getCleanImageUrl(formData.image_url)} alt="Banner Preview" className="max-w-full max-h-32 object-contain rounded-lg" /></div>)}
             </div>
             <div>
-              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> فایل پیوست جزوه (PDF) {uploading === 'file_url' && '⏳'}</label>
-              <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] border border-dashed border-gray-200 rounded-xl text-xs cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> فایل پیوست جزوه (PDF) {uploading === 'file_url' && '⏳'}</label>
+              <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
               {formData.file_url && <a href={getCleanImageUrl(formData.file_url)} target="_blank" rel="noreferrer" download className="text-[10px] text-blue-500 font-bold underline mt-1 block">مشاهده فایل PDF جاری</a>}
             </div>
           </div>
@@ -372,22 +372,22 @@ export default function EditContestPage() {
 
       {isCertModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200" dir="rtl">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto flex flex-col text-right">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2.5rem] w-full max-w-4xl shadow-2xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 max-h-[90vh] overflow-y-auto flex flex-col text-right">
             
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white dark:bg-[#182234] dark:bg-[#182234] z-10">
               <div className="flex items-center gap-2">
                 <Award size={20} className="text-[#c5a059]" />
-                <h3 className="font-black text-base text-[#1a2e44]">پیکربندی هوشمند و امضاهای گواهی‌نامه مسابقه</h3>
+                <h3 className="font-black text-base text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">پیکربندی هوشمند و امضاهای گواهی‌نامه مسابقه</h3>
               </div>
-              <button type="button" onClick={() => setIsCertModalOpen(false)} className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition"><X size={18} /></button>
+              <button type="button" onClick={() => setIsCertModalOpen(false)} className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-400 dark:text-slate-400 dark:text-slate-400 hover:text-red-500 rounded-full transition"><X size={18} /></button>
             </div>
 
             <div className="p-6 space-y-6">
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest">
                   <Eye size={12}/> پیش‌نمایش زنده گواهی صادر شده
                 </label>
-                <div className="w-full aspect-[1.5/1] rounded-[2rem] overflow-hidden border border-gray-200 shadow-inner relative flex flex-col justify-between p-8 bg-[#1a2e44] text-white">
+                <div className="w-full aspect-[1.5/1] rounded-[2rem] overflow-hidden border border-gray-200 dark:border-slate-800 dark:border-slate-800 shadow-inner relative flex flex-col justify-between p-8 bg-[#1a2e44] text-white">
                   {certData.certificate_bg_url && (
                     <img src={certData.certificate_bg_url} alt="Bg" className="absolute inset-0 w-full h-full object-cover z-0" />
                   )}
@@ -402,7 +402,7 @@ export default function EditContestPage() {
                       {certData.certificate_logo_url ? (
                         <img src={certData.certificate_logo_url} alt="Logo" className="w-16 h-16 object-contain drop-shadow-md" />
                       ) : (
-                        <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-[9px] text-white/50 border border-dashed border-white/20">فاقد لوگو</div>
+                        <div className="w-16 h-16 bg-white dark:bg-[#182234] dark:bg-[#182234]/10 rounded-full flex items-center justify-center text-[9px] text-white/50 border border-dashed border-white/20">فاقد لوگو</div>
                       )}
                     </div>
                     
@@ -444,42 +444,42 @@ export default function EditContestPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">متن قالب لوح تقدیر</label>
-                  <textarea rows={3} className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-xs font-bold leading-relaxed focus:ring-2 focus:ring-[#c5a059] outline-none" value={certData.certificate_text_template} onChange={(e) => setCertData({...certData, certificate_text_template: e.target.value})} />
+                  <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5">متن قالب لوح تقدیر</label>
+                  <textarea rows={3} className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-xs font-bold leading-relaxed focus:ring-2 focus:ring-[#c5a059] outline-none" value={certData.certificate_text_template} onChange={(e) => setCertData({...certData, certificate_text_template: e.target.value})} />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 mb-1">🖼️ تصویر پس‌زمینه گواهی {uploading === 'certificate_bg_url' && '⏳'}</label>
-                    <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] rounded-xl border border-dashed border-gray-200 text-xs" onChange={(e) => handleFileUpload(e, 'certificate_bg_url', true)} />
+                    <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">🖼️ تصویر پس‌زمینه گواهی {uploading === 'certificate_bg_url' && '⏳'}</label>
+                    <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-xl border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 text-xs" onChange={(e) => handleFileUpload(e, 'certificate_bg_url', true)} />
                     {certData.certificate_bg_url && <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ فایل پس‌زمینه روی سرور ذخیره است.</p>}
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 mb-1">🛡️ تصویر لوگوی گواهی {uploading === 'certificate_logo_url' && '⏳'}</label>
-                    <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] rounded-xl border border-dashed border-gray-200 text-xs" onChange={(e) => handleFileUpload(e, 'certificate_logo_url', true)} />
+                    <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">🛡️ تصویر لوگوی گواهی {uploading === 'certificate_logo_url' && '⏳'}</label>
+                    <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-xl border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 text-xs" onChange={(e) => handleFileUpload(e, 'certificate_logo_url', true)} />
                     {certData.certificate_logo_url && <p className="text-[10px] text-emerald-600 font-bold mt-1">✓ فایل لوگو روی سرور ذخیره است.</p>}
                   </div>
                 </div>
 
                 <div className="space-y-3 pt-2">
-                  <span className="flex items-center gap-1 text-[10px] font-black text-gray-400 uppercase tracking-widest"><UserCheck size={14}/> امضاهای مدیران ارشد لوح</span>
+                  <span className="flex items-center gap-1 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest"><UserCheck size={14}/> امضاهای مدیران ارشد لوح</span>
                   {[
                     { prefix: '', label: 'اول' },
                     { prefix: '2_', label: 'دوم' },
                     { prefix: '3_', label: 'سوم' }
                   ].map((signer) => (
-                    <div key={signer.prefix} className="bg-[#faf9f6] p-4 rounded-2xl border border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                    <div key={signer.prefix} className="bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] p-4 rounded-2xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                       <div>
-                        <label className="block text-[9px] font-black text-gray-400 mb-1">نام مدیر {signer.label}</label>
-                        <input type="text" className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44]" value={certData[`signer_${signer.prefix}name`]} onChange={(e) => setCertData({...certData, [`signer_${signer.prefix}name`]: e.target.value})} />
+                        <label className="block text-[9px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">نام مدیر {signer.label}</label>
+                        <input type="text" className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" value={certData[`signer_${signer.prefix}name`]} onChange={(e) => setCertData({...certData, [`signer_${signer.prefix}name`]: e.target.value})} />
                       </div>
                       <div>
-                        <label className="block text-[9px] font-black text-gray-400 mb-1">سمت / عنوان شغلی</label>
-                        <input type="text" className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44]" value={certData[`signer_${signer.prefix}title`]} onChange={(e) => setCertData({...certData, [`signer_${signer.prefix}title`]: e.target.value})} />
+                        <label className="block text-[9px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">سمت / عنوان شغلی</label>
+                        <input type="text" className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" value={certData[`signer_${signer.prefix}title`]} onChange={(e) => setCertData({...certData, [`signer_${signer.prefix}title`]: e.target.value})} />
                       </div>
                       <div>
-                        <label className="block text-[9px] font-black text-gray-400 mb-1">آپلود فایل امضا شیشه‌ای {uploading === `signer_${signer.prefix}signature_url` && '⏳'}</label>
-                        <input type="file" accept="image/*" className="w-full p-1 bg-white border border-gray-200 rounded-xl text-[10px]" onChange={(e) => handleFileUpload(e, `signer_${signer.prefix}signature_url`, true)} />
+                        <label className="block text-[9px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">آپلود فایل امضا شیشه‌ای {uploading === `signer_${signer.prefix}signature_url` && '⏳'}</label>
+                        <input type="file" accept="image/*" className="w-full p-1 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-[10px]" onChange={(e) => handleFileUpload(e, `signer_${signer.prefix}signature_url`, true)} />
                         {certData[`signer_${signer.prefix}signature_url`] && <p className="text-[9px] text-emerald-600 font-bold mt-1">✓ فایل امضا روی سرور ذخیره است.</p>}
                       </div>
                     </div>
@@ -488,7 +488,7 @@ export default function EditContestPage() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100 flex justify-end">
+            <div className="p-6 border-t border-gray-100 dark:border-slate-800 dark:border-slate-800 flex justify-end">
               <button type="button" onClick={() => setIsCertModalOpen(false)} className="bg-[#1a2e44] text-white p-3 px-8 rounded-xl font-black text-xs hover:bg-[#2a405a] transition shadow-md">تایید و بستن پاپ‌آپ</button>
             </div>
 

@@ -1,5 +1,6 @@
 /* frontend-admin/app/globals.css */
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
 
 @theme {
   --font-sans: 'Vazirmatn', sans-serif;
@@ -14,8 +15,8 @@
 body {
   direction: rtl; /* تنظیم جهت کل اپلیکیشن به راست به چپ */
   font-family: 'Vazirmatn', sans-serif;
-  background-color: #f3f4f6; /* 🌟 بازگشت به رنگ روشن اصلی پروژه */
-  color: #1e293b;
+  /* background-color: #f3f4f6; Removed: handled by layout.tsx Tailwind classes */
+  /* color: #1e293b; Removed: handled by layout.tsx Tailwind classes */
 }
 
 /* سفارشی‌سازی تقویم امتداد */

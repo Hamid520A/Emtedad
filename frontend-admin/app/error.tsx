@@ -20,10 +20,10 @@ export default function GlobalError({
   const is403 = error.message?.includes('403') || error.message?.includes('Security');
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center justify-center p-6 text-center text-[#1a2e44]" dir="rtl">
-      <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-gray-100 max-w-sm w-full space-y-6 animate-in fade-in zoom-in-95 duration-200">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] flex flex-col items-center justify-center p-6 text-center text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" dir="rtl">
+      <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-10 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 max-w-sm w-full space-y-6 animate-in fade-in zoom-in-95 duration-200">
         
-        <div className="w-16 h-16 bg-[#faf9f6] rounded-2xl mx-auto flex items-center justify-center shadow-inner text-[#c5a059]">
+        <div className="w-16 h-16 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-2xl mx-auto flex items-center justify-center shadow-inner text-[#c5a059]">
           {is403 ? (
             <ShieldAlert size={32} className="text-rose-500" />
           ) : is503 ? (
@@ -37,7 +37,7 @@ export default function GlobalError({
           <h2 className="text-xl font-black">
             {is403 ? "عدم دسترسی (403)" : is503 ? "سرور در دسترس نیست (503)" : "خطای داخلی سرور (500)"}
           </h2>
-          <p className="text-xs text-gray-400 font-bold leading-relaxed">
+          <p className="text-xs text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold leading-relaxed">
             {is403 
               ? "شما مجوزهای لازم برای ورود یا مشاهده این بخش امنیتی را ندارید." 
               : is503 
@@ -57,7 +57,7 @@ export default function GlobalError({
           {/* 🌟 اصلاح شد: هدایت درست به دشبورد ادمین */}
           <button
             onClick={() => router.push('/admin/dashboard')}
-            className="w-full py-3.5 bg-gray-50 text-gray-500 hover:bg-gray-100 rounded-2xl text-xs font-bold transition-all"
+            className="w-full py-3.5 bg-gray-50 text-gray-500 dark:text-slate-400 dark:text-slate-400 hover:bg-gray-100 rounded-2xl text-xs font-bold transition-all"
           >
             بازگشت به دشبورد مدیریت
           </button>

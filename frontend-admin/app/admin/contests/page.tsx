@@ -26,7 +26,7 @@ export default function AdminContestsPage() {
 
   const getStatusBadgeStyle = (status: string) => {
     if (status === 'active') return 'bg-emerald-100 text-emerald-600';
-    if (status === 'finished') return 'bg-gray-100 text-gray-500';
+    if (status === 'finished') return 'bg-gray-100 text-gray-500 dark:text-slate-400 dark:text-slate-400';
     if (status === 'draft') return 'bg-slate-100 text-slate-600';
     return 'bg-orange-100 text-orange-600';
   };
@@ -87,12 +87,12 @@ export default function AdminContestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 dark:text-slate-100 font-sans pb-10" dir="rtl">
       <header className="p-8 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => router.push('/admin/dashboard')}
-            className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]"
+            className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:scale-105 transition-all text-gray-500 dark:text-slate-400 dark:text-slate-400 hover:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100"
           >
             <ArrowRight size={20} />
           </button>
@@ -100,7 +100,7 @@ export default function AdminContestsPage() {
             <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
               <Trophy className="text-[#c5a059]" /> مدیریت مسابقات
             </h1>
-            <p className="text-gray-400 text-sm font-bold mt-1">لیست کامل رقابت‌ها، وضعیت اجرا و تنظیمات سوالات</p>
+            <p className="text-gray-400 dark:text-slate-400 dark:text-slate-400 text-sm font-bold mt-1">لیست کامل رقابت‌ها، وضعیت اجرا و تنظیمات سوالات</p>
           </div>
         </div>
         
@@ -113,29 +113,29 @@ export default function AdminContestsPage() {
       </header>
 
       <main className="px-8">
-        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2.5rem] p-8 shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800">
           {loading ? (
-            <p className="text-center py-8 text-gray-400 font-bold">در حال بارگذاری لیست مسابقات...</p>
+            <p className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">در حال بارگذاری لیست مسابقات...</p>
           ) : contests.length === 0 ? (
-            <p className="text-center py-8 text-gray-400 font-bold">هیچ مسابقه‌ای یافت نشد.</p>
+            <p className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">هیچ مسابقه‌ای یافت نشد.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {contests.map((c: any) => (
-                <div key={c.id} className="group flex items-center justify-between p-5 bg-[#faf9f6] rounded-3xl border border-transparent hover:border-[#c5a059] transition-all">
+                <div key={c.id} className="group flex items-center justify-between p-5 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-3xl border border-transparent hover:border-[#c5a059] transition-all">
                   <div className="flex items-center gap-4">
                     
-                    <div className="px-3 h-12 bg-white rounded-2xl flex flex-col items-center justify-center shadow-sm text-[#c5a059] shrink-0 min-w-[75px] border border-gray-50">
-                      <span className="text-[8px] font-black text-gray-400 mb-0.5">تاریخ ثبت</span>
+                    <div className="px-3 h-12 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-2xl flex flex-col items-center justify-center shadow-sm text-[#c5a059] shrink-0 min-w-[75px] border border-gray-50 dark:border-slate-800 dark:border-slate-800">
+                      <span className="text-[8px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-0.5">تاریخ ثبت</span>
                       <span className="font-black text-xs tracking-widest">{formatPersianDate(c.created_at || c.start_time)}</span>
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-[#1a2e44]">{c.title}</h4>
+                      <h4 className="font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">{c.title}</h4>
                       <div className="flex gap-2 items-center mt-1">
                         <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${getStatusBadgeStyle(c.status)}`}>
                           {getStatusText(c.status)}
                         </span>
-                        <span className="text-[9px] text-gray-400 font-bold">{c.question_limit} سوال</span>
+                        <span className="text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">{c.question_limit} سوال</span>
                       </div>
                     </div>
                   </div>
@@ -143,7 +143,7 @@ export default function AdminContestsPage() {
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => handleShareContest(c.id, c.title)} 
-                      className="p-3 bg-white rounded-xl shadow-sm text-gray-400 hover:text-green-600 hover:scale-110 hover:bg-green-50 transition-all"
+                      className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm text-gray-400 dark:text-slate-400 dark:text-slate-400 hover:text-green-600 hover:scale-110 hover:bg-green-50 transition-all"
                       title="اشتراک‌گذاری لینک مسابقه"
                     >
                       <Share2 size={18} />
@@ -151,7 +151,7 @@ export default function AdminContestsPage() {
 
                     <button 
                       onClick={() => router.push(`/admin/contests/${c.id}/edit`)} 
-                      className="p-3 bg-white rounded-xl shadow-sm text-gray-400 hover:text-indigo-600 hover:scale-110 transition-all"
+                      className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm text-gray-400 dark:text-slate-400 dark:text-slate-400 hover:text-indigo-600 hover:scale-110 transition-all"
                       title="ویرایش سریع مسابقه"
                     >
                       <Pencil size={18} />
@@ -159,7 +159,7 @@ export default function AdminContestsPage() {
                     
                     <button 
                       onClick={() => router.push(`/admin/contests/${c.id}`)}
-                      className="p-3 bg-white rounded-xl shadow-sm text-gray-400 hover:text-[#1a2e44] hover:scale-110 transition-all"
+                      className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm text-gray-400 dark:text-slate-400 dark:text-slate-400 hover:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 hover:scale-110 transition-all"
                       title="ورود به اتاق فرمان مسابقه"
                     >
                       <ArrowUpRight size={18} />

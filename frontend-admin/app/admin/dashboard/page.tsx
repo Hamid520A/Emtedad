@@ -2,6 +2,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from '@/app/components/ThemeToggle';
 import api from '@/app/lib/api';
 import {
   LogOut, ArrowRight, Save, Users, Trophy, Layout, Plus, Settings,
@@ -151,18 +152,19 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
+    <div className="min-h-screen font-sans pb-10" dir="rtl">
       {/* Header */}
       <header className="p-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-[#1a2e44]">پنل مدیریت امتداد</h1>
-          <p className="text-gray-400 text-sm font-bold mt-1">مانیتورینگ هوشمند سیستم</p>
+          <h1 className="text-3xl font-black tracking-tight text-[#1a2e44] dark:text-slate-100">پنل مدیریت امتداد</h1>
+          <p className="text-gray-400 dark:text-slate-400 text-sm font-bold mt-1">مانیتورینگ هوشمند سیستم</p>
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <button 
             onClick={() => router.push('/admin/add-question')}
-            className="bg-white text-[#1a2e44] border border-gray-200 px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-sm active:scale-95 transition-all hover:bg-gray-50"
+            className="bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 border border-gray-200 dark:border-slate-800 px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-sm active:scale-95 transition-all hover:bg-gray-50"
           >
             <Plus size={20} className="text-[#c5a059]" /> 
             <span>افزودن سوال</span>
@@ -215,7 +217,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* نمودار پیشرفت */}
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-[#182234] p-8 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800">
           <div className="flex items-center justify-between mb-8">
             <h3 className="font-black text-xl flex items-center gap-2">
               <TrendingUp className="text-[#c5a059]" /> نمودار رشد شرکت‌کنندگان
@@ -281,7 +283,7 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* لیست مسابقات اخیر
-          <div className="lg:col-span-2 bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
+          <div className="lg:col-span-2 bg-white dark:bg-[#182234] rounded-[2.5rem] p-8 shadow-sm border border-gray-100 dark:border-slate-800">
             <h3 className="font-black text-xl mb-8 flex items-center gap-2">
               <Layout className="text-[#c5a059]" /> مدیریت مسابقات اخیر
             </h3>
@@ -372,14 +374,14 @@ function StatCard({ title, value, icon, color, onClick }: any) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex items-center gap-5 transition-transform hover:-translate-y-1 ${onClick ? 'cursor-pointer active:scale-95 select-none' : ''}`}
+      className={`bg-white dark:bg-[#182234] p-6 rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 flex items-center gap-5 transition-transform hover:-translate-y-1 ${onClick ? 'cursor-pointer active:scale-95 select-none' : ''}`}
     >
       <div className={`p-4 rounded-2xl ${color === 'blue' ? 'bg-blue-50 text-blue-500' : color === 'gold' ? 'bg-orange-50 text-orange-500' : 'bg-emerald-50 text-emerald-500'}`}>
         {React.cloneElement(icon, { size: 28 })}
       </div>
       <div>
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{title}</p>
-        <p className="text-2xl font-black text-[#1a2e44] mt-1">{displayValue}</p>
+        <p className="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">{title}</p>
+        <p className="text-2xl font-black text-[#1a2e44] dark:text-slate-100 mt-1">{displayValue}</p>
       </div>
     </div>
   );

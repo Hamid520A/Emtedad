@@ -237,12 +237,12 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 dark:text-slate-100 font-sans pb-10" dir="rtl">
       <header className="p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => router.push('/admin/dashboard')}
-            className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]"
+            className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:scale-105 transition-all text-gray-500 dark:text-slate-400 dark:text-slate-400 hover:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100"
           >
             <ArrowRight size={20} />
           </button>
@@ -250,7 +250,7 @@ export default function AdminUsersPage() {
             <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
               <Users className="text-[#c5a059]" /> مدیریت و اطلاعات شرکت‌کنندگان
             </h1>
-            <p className="text-gray-400 text-sm font-bold mt-1">مشاهده مشخصات فردی، کدملی و وضعیت آخرین آزمون کاربران</p>
+            <p className="text-gray-400 dark:text-slate-400 dark:text-slate-400 text-sm font-bold mt-1">مشاهده مشخصات فردی، کدملی و وضعیت آخرین آزمون کاربران</p>
           </div>
         </div>
 
@@ -266,7 +266,7 @@ export default function AdminUsersPage() {
             <select
               value={selectedContest}
               onChange={(e) => setSelectedContest(e.target.value)}
-              className="w-full bg-white border border-gray-200 text-[#1a2e44] text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all appearance-none cursor-pointer text-center"
+              className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all appearance-none cursor-pointer text-center"
             >
               <option value="">🔍 همه مسابقات</option>
               {contests.map((c: any) => (
@@ -281,19 +281,19 @@ export default function AdminUsersPage() {
               placeholder="جستجوی نام، شماره تماس، کد ملی..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-gray-200 text-[#1a2e44] placeholder-gray-400 text-xs font-bold rounded-2xl pl-4 pr-11 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all"
+              className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 placeholder-gray-400 text-xs font-bold rounded-2xl pl-4 pr-11 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all"
             />
-            <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 dark:text-slate-400" />
           </div>
         </div>
       </header>
 
       <main className="px-8">
-        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2.5rem] p-8 shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
-                <tr className="border-b border-gray-100 text-gray-400 text-xs font-black uppercase select-none">
+                <tr className="border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 text-gray-400 dark:text-slate-400 dark:text-slate-400 text-xs font-black uppercase select-none">
                   <th onClick={() => handleSortRequest('name')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors items-center gap-1">
                     نام و نام خانوادگی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
@@ -317,25 +317,25 @@ export default function AdminUsersPage() {
               <tbody className="divide-y divide-gray-50 text-sm">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
+                    <td colSpan={8} className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
+                    <td colSpan={8} className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
                   </tr>
                 ) : (
                   filteredUsers.map((user: any) => (
                     <tr 
                       key={user.id} 
                       onClick={() => handleUserClick(user.id)}
-                      className="hover:bg-[#faf9f6] cursor-pointer transition-colors group"
+                      className="hover:bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] cursor-pointer transition-colors group"
                     >
-                      <td className="py-4 font-bold text-[#1a2e44] group-hover:text-[#c5a059] transition-colors">{user.name}</td>
-                      <td className="py-4 font-bold text-gray-500 tracking-wider font-mono">{user.phone}</td>
-                      <td className="py-4 text-gray-500 font-mono">{user.national_id}</td>
-                      <td className="py-4 font-bold text-gray-600">{user.province}</td>
+                      <td className="py-4 font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 group-hover:text-[#c5a059] transition-colors">{user.name}</td>
+                      <td className="py-4 font-bold text-gray-500 dark:text-slate-400 dark:text-slate-400 tracking-wider font-mono">{user.phone}</td>
+                      <td className="py-4 text-gray-500 dark:text-slate-400 dark:text-slate-400 font-mono">{user.national_id}</td>
+                      <td className="py-4 font-bold text-gray-600 dark:text-slate-300 dark:text-slate-300">{user.province}</td>
                       <td className="py-4">
-                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'male' ? 'bg-blue-50 text-blue-600' : user.gender === 'female' ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'male' ? 'bg-blue-50 text-blue-600' : user.gender === 'female' ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500 dark:text-slate-400 dark:text-slate-400'}`}>
                           {user.gender === 'male' ? 'مرد' : user.gender === 'female' ? 'زن' : 'نامشخص'}
                         </span>
                       </td>
@@ -349,7 +349,7 @@ export default function AdminUsersPage() {
                           );
                         })()}
                       </td>
-                      <td className="py-4 text-gray-600 font-bold">{user.last_contest || 'شرکت نکرده'}</td>
+                      <td className="py-4 text-gray-600 dark:text-slate-300 dark:text-slate-300 font-bold">{user.last_contest || 'شرکت نکرده'}</td>
                       <td className="py-4 text-center">
                         <span className={`font-black text-sm ${user.average_score !== '---' ? 'text-[#c5a059]' : 'text-gray-300'}`}>
                           {user.average_score}
@@ -366,18 +366,18 @@ export default function AdminUsersPage() {
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-3xl shadow-2xl border border-gray-100 max-h-[85vh] overflow-y-auto flex flex-col animate-in zoom-in-95 duration-200 text-right">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2.5rem] w-full max-w-3xl shadow-2xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 max-h-[85vh] overflow-y-auto flex flex-col animate-in zoom-in-95 duration-200 text-right">
             
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white dark:bg-[#182234] dark:bg-[#182234] z-10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-[#1a2e44] text-[#c5a059] rounded-xl flex items-center justify-center shadow-md">
                   <Users size={20} />
                 </div>
                 <div>
-                  <h3 className="font-black text-lg text-[#1a2e44]">
+                  <h3 className="font-black text-lg text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">
                     {modalLoading ? "در حال فراخوانی پرونده..." : isEditing ? "اصلاح اطلاعات پرونده کاربر" : `پرونده آموزشی: ${selectedUser?.first_name || ''} ${selectedUser?.last_name || ''}`}
                   </h3>
-                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">مشخصات هویتی و تاریخچه کامل حضور در آزمون‌ها</p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mt-0.5">مشخصات هویتی و تاریخچه کامل حضور در آزمون‌ها</p>
                 </div>
               </div>
               
@@ -386,7 +386,7 @@ export default function AdminUsersPage() {
                   <button 
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="p-2 px-3 bg-[#faf9f6] text-[#c5a059] hover:bg-[#c5a059]/10 rounded-xl transition-all flex items-center gap-1 text-xs font-black"
+                    className="p-2 px-3 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] text-[#c5a059] hover:bg-[#c5a059]/10 rounded-xl transition-all flex items-center gap-1 text-xs font-black"
                   >
                     <Edit2 size={14} /> ویرایش پرونده
                   </button>
@@ -394,7 +394,7 @@ export default function AdminUsersPage() {
                 <button 
                   type="button"
                   onClick={() => { setModalOpen(false); setSelectedUser(null); setIsEditing(false); }}
-                  className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all"
+                  className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-400 dark:text-slate-400 dark:text-slate-400 hover:text-red-500 rounded-full transition-all"
                 >
                   <X size={18} />
                 </button>
@@ -402,7 +402,7 @@ export default function AdminUsersPage() {
             </div>
 
             {modalLoading ? (
-              <div className="py-20 flex flex-col items-center justify-center gap-3 text-gray-400 font-bold text-sm">
+              <div className="py-20 flex flex-col items-center justify-center gap-3 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold text-sm">
                 <span className="w-8 h-8 border-4 border-[#1a2e44] border-t-transparent rounded-full animate-spin"></span>
                 <span>لطفاً چند لحظه صبر کنید...</span>
               </div>
@@ -410,40 +410,40 @@ export default function AdminUsersPage() {
               <form onSubmit={handleSaveChanges} className="flex-1 flex flex-col m-0">
                 <div className="p-6 space-y-6 flex-1">
                   
-                  <div className="bg-[#faf9f6] p-5 rounded-2xl border border-gray-100">
+                  <div className="bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] p-5 rounded-2xl border border-gray-100 dark:border-slate-800 dark:border-slate-800">
                     {isEditing ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-[10px] font-black text-gray-400 mb-1">نام</label>
-                          <input type="text" required className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.first_name} onChange={(e)=>setEditFormData({...editFormData, first_name: e.target.value})} />
+                          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">نام</label>
+                          <input type="text" required className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.first_name} onChange={(e)=>setEditFormData({...editFormData, first_name: e.target.value})} />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-gray-400 mb-1">نام خانوادگی</label>
-                          <input type="text" required className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.last_name} onChange={(e)=>setEditFormData({...editFormData, last_name: e.target.value})} />
+                          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">نام خانوادگی</label>
+                          <input type="text" required className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.last_name} onChange={(e)=>setEditFormData({...editFormData, last_name: e.target.value})} />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-gray-400 mb-1">شماره تماس</label>
-                          <input type="text" required className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-left font-mono text-[#1a2e44] outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.phone} onChange={(e)=>setEditFormData({...editFormData, phone: e.target.value})} />
+                          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">شماره تماس</label>
+                          <input type="text" required className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-left font-mono text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.phone} onChange={(e)=>setEditFormData({...editFormData, phone: e.target.value})} />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-gray-400 mb-1">کد ملی</label>
-                          <input type="text" required className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-left font-mono text-[#1a2e44] outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.national_id} onChange={(e)=>setEditFormData({...editFormData, national_id: e.target.value})} />
+                          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">کد ملی</label>
+                          <input type="text" required className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-left font-mono text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.national_id} onChange={(e)=>setEditFormData({...editFormData, national_id: e.target.value})} />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-gray-400 mb-1">استان</label>
-                          <input type="text" required className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.province} onChange={(e)=>setEditFormData({...editFormData, province: e.target.value})} />
+                          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">استان</label>
+                          <input type="text" required className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.province} onChange={(e)=>setEditFormData({...editFormData, province: e.target.value})} />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-gray-400 mb-1">شهر</label>
-                          <input type="text" className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.city} onChange={(e)=>setEditFormData({...editFormData, city: e.target.value})} />
+                          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">شهر</label>
+                          <input type="text" className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.city} onChange={(e)=>setEditFormData({...editFormData, city: e.target.value})} />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-gray-400 mb-1">تاریخ تولد</label>
-                          <input type="text" className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-1 focus:ring-[#c5a059]" placeholder="مثال: ۱۳۸۰/۰۱/۱۵" value={editFormData.birth_date} onChange={(e)=>setEditFormData({...editFormData, birth_date: e.target.value})} />
+                          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">تاریخ تولد</label>
+                          <input type="text" className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-1 focus:ring-[#c5a059]" placeholder="مثال: ۱۳۸۰/۰۱/۱۵" value={editFormData.birth_date} onChange={(e)=>setEditFormData({...editFormData, birth_date: e.target.value})} />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-gray-400 mb-1">جنسیت</label>
-                          <select className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#1a2e44] outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.gender} onChange={(e)=>setEditFormData({...editFormData, gender: e.target.value})}>
+                          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">جنسیت</label>
+                          <select className="w-full p-2.5 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none focus:ring-1 focus:ring-[#c5a059]" value={editFormData.gender} onChange={(e)=>setEditFormData({...editFormData, gender: e.target.value})}>
                             <option value="male">مرد</option>
                             <option value="female">زن</option>
                           </select>
@@ -463,29 +463,29 @@ export default function AdminUsersPage() {
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="flex items-center gap-2.5 text-xs">
-                          <Smartphone size={16} className="text-gray-400" />
-                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">شماره تماس</span><span className="font-black font-mono text-gray-700">{selectedUser.phone}</span></div>
+                          <Smartphone size={16} className="text-gray-400 dark:text-slate-400 dark:text-slate-400" />
+                          <div><span className="block text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mb-0.5">شماره تماس</span><span className="font-black font-mono text-gray-700">{selectedUser.phone}</span></div>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
-                          <FileText size={16} className="text-gray-400" />
-                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">کد ملی</span><span className="font-black font-mono text-gray-700">{selectedUser.national_id}</span></div>
+                          <FileText size={16} className="text-gray-400 dark:text-slate-400 dark:text-slate-400" />
+                          <div><span className="block text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mb-0.5">کد ملی</span><span className="font-black font-mono text-gray-700">{selectedUser.national_id}</span></div>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
-                          <MapPin size={16} className="text-gray-400" />
-                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">محل سکونت</span><span className="font-black text-gray-700">{selectedUser.province} - {selectedUser.city || '---'}</span></div>
+                          <MapPin size={16} className="text-gray-400 dark:text-slate-400 dark:text-slate-400" />
+                          <div><span className="block text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mb-0.5">محل سکونت</span><span className="font-black text-gray-700">{selectedUser.province} - {selectedUser.city || '---'}</span></div>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
-                          <Calendar size={16} className="text-gray-400" />
-                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">تاریخ تولد</span><span className="font-black text-gray-700">{selectedUser.birth_date || '---'}</span></div>
+                          <Calendar size={16} className="text-gray-400 dark:text-slate-400 dark:text-slate-400" />
+                          <div><span className="block text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mb-0.5">تاریخ تولد</span><span className="font-black text-gray-700">{selectedUser.birth_date || '---'}</span></div>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
-                          <Users size={16} className="text-gray-400" />
-                          <div><span className="block text-[9px] text-gray-400 font-bold mb-0.5">جنسیت</span><span className="font-black text-gray-700">{selectedUser.gender === 'male' ? 'مرد' : selectedUser.gender === 'female' ? 'زن' : 'نامشخص'}</span></div>
+                          <Users size={16} className="text-gray-400 dark:text-slate-400 dark:text-slate-400" />
+                          <div><span className="block text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mb-0.5">جنسیت</span><span className="font-black text-gray-700">{selectedUser.gender === 'male' ? 'مرد' : selectedUser.gender === 'female' ? 'زن' : 'نامشخص'}</span></div>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs">
-                          <ShieldCheck size={16} className={selectedUser.is_admin ? "text-purple-500" : "text-gray-400"} />
+                          <ShieldCheck size={16} className={selectedUser.is_admin ? "text-purple-500" : "text-gray-400 dark:text-slate-400 dark:text-slate-400"} />
                           <div>
-                            <span className="block text-[9px] text-gray-400 font-bold mb-0.5">وضعیت کاربری</span>
+                            <span className="block text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mb-0.5">وضعیت کاربری</span>
                             <span className={`font-black ${selectedUser.is_admin ? "text-purple-600" : "text-gray-700"}`}>
                               {selectedUser.is_admin ? "👑 مدیر سیستم" : "👤 کاربر عادی"}
                             </span>
@@ -497,7 +497,7 @@ export default function AdminUsersPage() {
 
                   {isEditing && (
                     <div className="flex items-center gap-2 justify-end animate-in fade-in duration-200">
-                      <button type="button" onClick={() => setIsEditing(false)} className="p-2.5 px-4 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold text-gray-500 transition-all">انصراف</button>
+                      <button type="button" onClick={() => setIsEditing(false)} className="p-2.5 px-4 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold text-gray-500 dark:text-slate-400 dark:text-slate-400 transition-all">انصراف</button>
                       <button type="submit" disabled={saveLoading} className="p-2.5 px-5 bg-[#1a2e44] text-white hover:bg-[#2a405a] rounded-xl text-xs font-black flex items-center gap-1 transition-all shadow-md">
                         {saveLoading ? "در حال ذخیره..." : <><Save size={14} className="text-[#c5a059]" /> ذخیره تغییرات پرونده</>}
                       </button>
@@ -505,30 +505,30 @@ export default function AdminUsersPage() {
                   )}
 
                   <div className="space-y-3">
-                    <h4 className="font-black text-xs text-[#1a2e44] flex items-center gap-1.5 border-b border-gray-100 pb-2">
+                    <h4 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 flex items-center gap-1.5 border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 pb-2">
                       <Trophy size={14} className="text-[#c5a059]" /> تاریخچه و کارنامه‌های آزمون
                     </h4>
                     
                     {!selectedUser.history || selectedUser.history.length === 0 ? (
-                      <p className="text-center text-xs text-gray-400 italic py-6 font-bold">این کاربر هنوز در هیچ مسابقه‌ای شرکت نکرده است.</p>
+                      <p className="text-center text-xs text-gray-400 dark:text-slate-400 dark:text-slate-400 italic py-6 font-bold">این کاربر هنوز در هیچ مسابقه‌ای شرکت نکرده است.</p>
                     ) : (
-                      <div className="border border-gray-100 rounded-2xl overflow-hidden bg-white">
+                      <div className="border border-gray-100 dark:border-slate-800 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-[#182234] dark:bg-[#182234]">
                         <table className="w-full text-right text-xs">
-                          <thead className="bg-gray-50 text-gray-400 font-black">
+                          <thead className="bg-gray-50 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-black">
                             <tr>
                               <th className="p-3">عنوان مسابقه (جهت مشاهده پاسخنامه کلیک کنید)</th>
                               <th className="p-3 text-center">امتیاز مکتسبه</th>
                               <th className="p-3 text-center">زمان مصرف شده</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-50 font-bold text-gray-600">
+                          <tbody className="divide-y divide-gray-50 font-bold text-gray-600 dark:text-slate-300 dark:text-slate-300">
                             {selectedUser.history.map((h: any, idx: number) => (
                               <tr 
                                 key={idx} 
                                 onClick={() => handleViewAnswerSheet(h.contest_id, h.contest_title)}
                                 className="hover:bg-blue-50/40 cursor-pointer transition-colors"
                               >
-                                <td className="p-3 text-[#1a2e44] font-black group-hover:text-[#c5a059]">{h.contest_title}</td>
+                                <td className="p-3 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 font-black group-hover:text-[#c5a059]">{h.contest_title}</td>
                                 <td className="p-3 text-center"><span className="bg-amber-50 text-[#c5a059] px-2 py-0.5 rounded font-black text-sm">{h.score}%</span></td>
                                 <td className="p-3 text-center text-blue-600 font-mono">{toPersianDigits(h.time_taken)} ثانیه</td>
                               </tr>
@@ -548,21 +548,21 @@ export default function AdminUsersPage() {
 
       {answerModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 max-h-[80vh] overflow-hidden flex flex-col text-right animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2.5rem] w-full max-w-xl shadow-2xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 max-h-[80vh] overflow-hidden flex flex-col text-right animate-in zoom-in-95 duration-200">
             
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-[#faf9f6]">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-[#c5a059] text-white rounded-xl flex items-center justify-center shadow-md">
                   <FileText size={20} />
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-[#1a2e44]">بررسی لایو پاسخنامه شرکت‌کننده</h3>
-                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">{answerSheet?.contest_title || "در حال بارگذاری..."}</p>
+                  <h3 className="font-black text-base text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">بررسی لایو پاسخنامه شرکت‌کننده</h3>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mt-0.5">{answerSheet?.contest_title || "در حال بارگذاری..."}</p>
                 </div>
               </div>
               <button 
                 onClick={() => { setAnswerModalOpen(false); setAnswerSheet(null); }}
-                className="p-2 bg-white border border-gray-100 hover:bg-gray-100 text-gray-400 hover:text-red-500 rounded-full transition-all shadow-sm"
+                className="p-2 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:bg-gray-100 text-gray-400 dark:text-slate-400 dark:text-slate-400 hover:text-red-500 rounded-full transition-all shadow-sm"
               >
                 <X size={18} />
               </button>
@@ -570,21 +570,21 @@ export default function AdminUsersPage() {
 
             <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-gray-50/30">
               {answerLoading ? (
-                <div className="py-16 flex flex-col items-center justify-center gap-2.5 text-gray-400 font-bold text-xs">
+                <div className="py-16 flex flex-col items-center justify-center gap-2.5 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold text-xs">
                   <span className="w-6 h-6 border-3 border-[#1a2e44] border-t-transparent rounded-full animate-spin"></span>
                   <span>در حال دریافت گزینه‌ها از دیتابیس...</span>
                 </div>
               ) : answerSheet?.questions?.length === 0 ? (
-                <p className="text-center text-xs text-gray-400 italic py-6">پاسخنامه‌ای یافت نشد یا کاربر گزینه‌ای ثبت نکرده است.</p>
+                <p className="text-center text-xs text-gray-400 dark:text-slate-400 dark:text-slate-400 italic py-6">پاسخنامه‌ای یافت نشد یا کاربر گزینه‌ای ثبت نکرده است.</p>
               ) : (
                 answerSheet?.questions.map((q: any, qIdx: number) => {
                   return (
-                    <div key={qIdx} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                    <div key={qIdx} className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-5 rounded-3xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 shadow-sm space-y-4">
                       <div className="flex items-start gap-2.5">
                         <span className="w-6 h-6 rounded-lg bg-[#1a2e44] text-[#c5a059] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
                           {toPersianDigits(qIdx + 1)}
                         </span>
-                        <p className="text-xs font-black text-[#1a2e44] leading-relaxed text-justify">{q.title}</p>
+                        <p className="text-xs font-black text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 leading-relaxed text-justify">{q.title}</p>
                       </div>
 
                       <div className="grid grid-cols-1 gap-2">
@@ -597,14 +597,14 @@ export default function AdminUsersPage() {
                           const isKeyOption = q.correct_answer === currentOptionNumber;
                           const isCorrect = q.selected_option === q.correct_answer;
 
-                          let cardStyle = "bg-[#faf9f6] border-gray-50 text-gray-600";
+                          let cardStyle = "bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-gray-50 dark:border-slate-800 dark:border-slate-800 text-gray-600 dark:text-slate-300 dark:text-slate-300";
                           if (isKeyOption) cardStyle = "bg-emerald-50 border-emerald-200 text-emerald-900";
                           if (isUserSelected && !isKeyOption) cardStyle = "bg-rose-50 border-rose-200 text-rose-900";
 
                           return (
                             <div key={optIdx} className={`p-3 rounded-xl border text-[11px] font-bold flex items-center justify-between ${cardStyle}`}>
                               <span className="flex items-center gap-2">
-                                <span className={`w-5 h-5 rounded-md text-[9px] font-black flex items-center justify-center ${isKeyOption ? 'bg-emerald-500 text-white' : isUserSelected ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                <span className={`w-5 h-5 rounded-md text-[9px] font-black flex items-center justify-center ${isKeyOption ? 'bg-emerald-500 text-white' : isUserSelected ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-400 dark:text-slate-400 dark:text-slate-400'}`}>
                                   {toPersianDigits(currentOptionNumber)}
                                 </span>
                                 {/* چون opt مستقیماً یک رشته متنی است، دیگر opt.title نداریم */}
@@ -613,7 +613,7 @@ export default function AdminUsersPage() {
 
                               <div className="flex items-center gap-1 shrink-0 font-black text-[9px]">
                                 {isKeyOption && <span className="text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded flex items-center gap-0.5"><CheckCircle2 size={10} />پاسخ صحیح (کلید)</span>}
-                                {isUserSelected && <span className={`text-[#1a2e44] ${isCorrect ? 'text-emerald-700 bg-emerald-200/50' : 'text-rose-600 bg-rose-100'} px-2 py-0.5 rounded flex items-center gap-0.5`}>{!isCorrect && <XCircle size={10} />}انتخاب کاربر</span>}
+                                {isUserSelected && <span className={`text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 ${isCorrect ? 'text-emerald-700 bg-emerald-200/50' : 'text-rose-600 bg-rose-100'} px-2 py-0.5 rounded flex items-center gap-0.5`}>{!isCorrect && <XCircle size={10} />}انتخاب کاربر</span>}
                               </div>
                             </div>
                           );

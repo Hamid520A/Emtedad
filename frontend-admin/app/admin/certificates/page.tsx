@@ -151,8 +151,8 @@ export default function CertificateSettingsPage() {
   };
 
   if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-[#faf9f6]">
-      <Loader2 className="animate-spin text-[#1a2e44]" size={40} />
+    <div className="flex h-screen items-center justify-center bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234]">
+      <Loader2 className="animate-spin text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" size={40} />
     </div>
   );
 
@@ -165,16 +165,16 @@ export default function CertificateSettingsPage() {
   ].filter(s => s.name);
 
   return (
-    <div className="max-w-6xl mx-auto min-h-screen bg-[#faf9f6] pb-24 font-sans text-[#1a2e44]" dir="rtl">
+    <div className="max-w-6xl mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] pb-24 font-sans text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" dir="rtl">
       
-      <header className="p-8 flex items-center justify-between sticky top-0 bg-[#faf9f6]/90 backdrop-blur-md z-20">
+      <header className="p-8 flex items-center justify-between sticky top-0 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234]/90 backdrop-blur-md z-20">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]">
+          <button onClick={() => router.back()} className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:scale-105 transition-all text-gray-500 dark:text-slate-400 dark:text-slate-400 hover:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">
             <ArrowRight size={20} />
           </button>
           <div>
             <h1 className="text-2xl font-black">طراحی و تنظیمات قالب گواهی‌ها</h1>
-            <p className="text-gray-400 text-xs font-bold mt-1">مدیریت متون، لوگو، فایل تصاویر امضاها و صدور خودکار لوح تقدیر چندامضایی</p>
+            <p className="text-gray-400 dark:text-slate-400 dark:text-slate-400 text-xs font-bold mt-1">مدیریت متون، لوگو، فایل تصاویر امضاها و صدور خودکار لوح تقدیر چندامضایی</p>
           </div>
         </div>
         <Award className="text-[#c5a059]" size={28} />
@@ -182,10 +182,10 @@ export default function CertificateSettingsPage() {
 
       <div className="px-8 space-y-6">
         
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
-          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">انتخاب مسابقه برای تنظیم گواهی</label>
+        <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800">
+          <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-3">انتخاب مسابقه برای تنظیم گواهی</label>
           <select 
-            className="w-full md:w-1/2 p-4 rounded-2xl bg-[#faf9f6] border-none focus:ring-2 focus:ring-[#c5a059] font-black text-sm outline-none cursor-pointer appearance-none text-right"
+            className="w-full md:w-1/2 p-4 rounded-2xl bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none focus:ring-2 focus:ring-[#c5a059] font-black text-sm outline-none cursor-pointer appearance-none text-right"
             value={selectedContestId}
             onChange={(e) => setSelectedContestId(e.target.value)}
           >
@@ -199,7 +199,7 @@ export default function CertificateSettingsPage() {
         </div>
 
         {!selectedContestId && (
-          <div className="bg-white p-12 rounded-[2.5rem] text-center border border-gray-100 text-gray-400 font-bold text-sm">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-12 rounded-[2.5rem] text-center border border-gray-100 dark:border-slate-800 dark:border-slate-800 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold text-sm">
             <Info size={40} className="mx-auto text-gray-300 mb-3" />
             لطفاً برای شروع فرآیند طراحی، ابتدا یک مسابقه را از منوی بالا انتخاب کنید.
           </div>
@@ -220,98 +220,98 @@ export default function CertificateSettingsPage() {
             
             {/* ستون راست فرم‌های ورودی ادمین */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-6">
+              <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-6">
                 
                 <div className="bg-amber-50/50 border border-amber-100 p-4 rounded-2xl space-y-2">
                   <h4 className="text-xs font-black text-amber-800 flex items-center gap-1.5"><HelpCircle size={15} /> کلیدواژه‌های داینامیک سیستم:</h4>
                   <p className="text-[10px] text-amber-700 font-bold leading-relaxed">
-                    <span className="inline-block bg-white px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{name}}"}</span> نام کاربری | 
-                    <span className="inline-block bg-white px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{national_id}}"}</span> کد ملی | 
-                    <span className="inline-block bg-white px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{birth_date}}"}</span> تاریخ تولد | 
-                    <span className="inline-block bg-white px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{rank}}"}</span> رتبه نمره
+                    <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{name}}"}</span> نام کاربری | 
+                    <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{national_id}}"}</span> کد ملی | 
+                    <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{birth_date}}"}</span> تاریخ تولد | 
+                    <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{rank}}"}</span> رتبه نمره
                   </p>
                 </div>
 
                 {/* ۱. متن اصلی گواهی */}
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                  <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
                     <FileText size={14} /> متن بدنه گواهی نامه
                   </label>
                   <textarea 
                     rows={4} required
-                    className="w-full p-4 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm leading-relaxed" 
+                    className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm leading-relaxed" 
                     placeholder="مثال: بدین‌وسیله گواهی می‌شود جناب آقای/سرکار خانم {{name}} با موفقیت دوره را سپری کرده است."
                     value={templateData.certificate_text_template} 
                     onChange={(e) => setTemplateData({...templateData, certificate_text_template: e.target.value})} 
                   />
                 </div>
 
-                <hr className="border-gray-100" />
+                <hr className="border-gray-100 dark:border-slate-800 dark:border-slate-800" />
 
                 {/* ۲. بخش امضاکنندگان سه گانه */}
                 <div className="space-y-6">
-                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">✒️ تنظیمات امضاکنندگان و تصاویر فایل امضا</h3>
+                  <h3 className="text-xs font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-wider">✒️ تنظیمات امضاکنندگان و تصاویر فایل امضا</h3>
                   
                   {/* امضاکننده اول */}
-                  <div className="p-4 bg-[#faf9f6] rounded-3xl border border-gray-100 space-y-4">
+                  <div className="p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-3xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
                     <span className="bg-[#1a2e44] text-white text-[9px] font-black px-2 py-0.5 rounded-md">امضاکننده اول (اصلی)</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <input type="text" required className="p-3.5 bg-white rounded-xl text-xs font-bold border border-gray-100 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="نام و نام خانوادگی" value={templateData.signer_name} onChange={(e) => setTemplateData({...templateData, signer_name: e.target.value})} />
-                      <input type="text" required className="p-3.5 bg-white rounded-xl text-xs font-bold border border-gray-100 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="سمت یا عنوان مدیریتی" value={templateData.signer_title} onChange={(e) => setTemplateData({...templateData, signer_title: e.target.value})} />
+                      <input type="text" required className="p-3.5 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-800 dark:border-slate-800 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="نام و نام خانوادگی" value={templateData.signer_name} onChange={(e) => setTemplateData({...templateData, signer_name: e.target.value})} />
+                      <input type="text" required className="p-3.5 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-800 dark:border-slate-800 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="سمت یا عنوان مدیریتی" value={templateData.signer_title} onChange={(e) => setTemplateData({...templateData, signer_title: e.target.value})} />
                     </div>
-                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-3 bg-white dark:bg-[#182234] dark:bg-[#182234] p-3 rounded-xl border border-gray-100 dark:border-slate-800 dark:border-slate-800">
                       <input type="file" accept="image/*" id="sig1" className="hidden" onChange={(e) => handleFileUpload(e, 'signer_signature_url')} />
-                      <label htmlFor="sig1" className="bg-gray-100 hover:bg-gray-200 text-[#1a2e44] text-[10px] font-black px-3 py-2 rounded-lg cursor-pointer transition-colors">آپلود فایل عکس امضا</label>
-                      <span className="text-[10px] text-gray-400 font-bold truncate">{activeUploadField === 'signer_signature_url' ? 'در حال آپلود...' : templateData.signer_signature_url ? '✔️ فایل امضا با موفقیت بارگذاری شد' : 'فرمت PNG بدون پس‌زمینه پیشنهاد می‌شود'}</span>
+                      <label htmlFor="sig1" className="bg-gray-100 hover:bg-gray-200 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 text-[10px] font-black px-3 py-2 rounded-lg cursor-pointer transition-colors">آپلود فایل عکس امضا</label>
+                      <span className="text-[10px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold truncate">{activeUploadField === 'signer_signature_url' ? 'در حال آپلود...' : templateData.signer_signature_url ? '✔️ فایل امضا با موفقیت بارگذاری شد' : 'فرمت PNG بدون پس‌زمینه پیشنهاد می‌شود'}</span>
                     </div>
                   </div>
 
                   {/* امضاکننده دوم */}
-                  <div className="p-4 bg-[#faf9f6] rounded-3xl border border-gray-100 space-y-4">
+                  <div className="p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-3xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
                     <span className="bg-gray-400 text-white text-[9px] font-black px-2 py-0.5 rounded-md">امضاکننده دوم (اختیاری)</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <input type="text" className="p-3.5 bg-white rounded-xl text-xs font-bold border border-gray-100 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="نام و نام خانوادگی" value={templateData.signer_2_name} onChange={(e) => setTemplateData({...templateData, signer_2_name: e.target.value})} />
-                      <input type="text" className="p-3.5 bg-white rounded-xl text-xs font-bold border border-gray-100 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="سمت یا عنوان مدیریتی" value={templateData.signer_2_title} onChange={(e) => setTemplateData({...templateData, signer_2_title: e.target.value})} />
+                      <input type="text" className="p-3.5 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-800 dark:border-slate-800 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="نام و نام خانوادگی" value={templateData.signer_2_name} onChange={(e) => setTemplateData({...templateData, signer_2_name: e.target.value})} />
+                      <input type="text" className="p-3.5 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-800 dark:border-slate-800 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="سمت یا عنوان مدیریتی" value={templateData.signer_2_title} onChange={(e) => setTemplateData({...templateData, signer_2_title: e.target.value})} />
                     </div>
-                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-3 bg-white dark:bg-[#182234] dark:bg-[#182234] p-3 rounded-xl border border-gray-100 dark:border-slate-800 dark:border-slate-800">
                       <input type="file" accept="image/*" id="sig2" className="hidden" onChange={(e) => handleFileUpload(e, 'signer_2_signature_url')} />
-                      <label htmlFor="sig2" className="bg-gray-100 hover:bg-gray-200 text-[#1a2e44] text-[10px] font-black px-3 py-2 rounded-lg cursor-pointer transition-colors">آپلود فایل عکس امضا</label>
-                      <span className="text-[10px] text-gray-400 font-bold truncate">{activeUploadField === 'signer_2_signature_url' ? 'در حال آپلود...' : templateData.signer_2_signature_url ? '✔️ فایل امضا با موفقیت بارگذاری شد' : 'بدون فایل'}</span>
+                      <label htmlFor="sig2" className="bg-gray-100 hover:bg-gray-200 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 text-[10px] font-black px-3 py-2 rounded-lg cursor-pointer transition-colors">آپلود فایل عکس امضا</label>
+                      <span className="text-[10px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold truncate">{activeUploadField === 'signer_2_signature_url' ? 'در حال آپلود...' : templateData.signer_2_signature_url ? '✔️ فایل امضا با موفقیت بارگذاری شد' : 'بدون فایل'}</span>
                     </div>
                   </div>
 
                   {/* امضاکننده سوم */}
-                  <div className="p-4 bg-[#faf9f6] rounded-3xl border border-gray-100 space-y-4">
+                  <div className="p-4 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-3xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
                     <span className="bg-gray-400 text-white text-[9px] font-black px-2 py-0.5 rounded-md">امضاکننده سوم (اختیاری)</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <input type="text" className="p-3.5 bg-white rounded-xl text-xs font-bold border border-gray-100 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="نام و نام خانوادگی" value={templateData.signer_3_name} onChange={(e) => setTemplateData({...templateData, signer_3_name: e.target.value})} />
-                      <input type="text" className="p-3.5 bg-white rounded-xl text-xs font-bold border border-gray-100 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="سمت یا عنوان مدیریتی" value={templateData.signer_3_title} onChange={(e) => setTemplateData({...templateData, signer_3_title: e.target.value})} />
+                      <input type="text" className="p-3.5 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-800 dark:border-slate-800 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="نام و نام خانوادگی" value={templateData.signer_3_name} onChange={(e) => setTemplateData({...templateData, signer_3_name: e.target.value})} />
+                      <input type="text" className="p-3.5 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-800 dark:border-slate-800 focus:ring-1 focus:ring-[#c5a059] outline-none" placeholder="سمت یا عنوان مدیریتی" value={templateData.signer_3_title} onChange={(e) => setTemplateData({...templateData, signer_3_title: e.target.value})} />
                     </div>
-                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-3 bg-white dark:bg-[#182234] dark:bg-[#182234] p-3 rounded-xl border border-gray-100 dark:border-slate-800 dark:border-slate-800">
                       <input type="file" accept="image/*" id="sig3" className="hidden" onChange={(e) => handleFileUpload(e, 'signer_3_signature_url')} />
-                      <label htmlFor="sig3" className="bg-gray-100 hover:bg-gray-200 text-[#1a2e44] text-[10px] font-black px-3 py-2 rounded-lg cursor-pointer transition-colors">آپلود فایل عکس امضا</label>
-                      <span className="text-[10px] text-gray-400 font-bold truncate">{activeUploadField === 'signer_3_signature_url' ? 'در حال آپلود...' : templateData.signer_3_signature_url ? '✔️ فایل امضا با موفقیت بارگذاری شد' : 'بدون فایل'}</span>
+                      <label htmlFor="sig3" className="bg-gray-100 hover:bg-gray-200 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 text-[10px] font-black px-3 py-2 rounded-lg cursor-pointer transition-colors">آپلود فایل عکس امضا</label>
+                      <span className="text-[10px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold truncate">{activeUploadField === 'signer_3_signature_url' ? 'در حال آپلود...' : templateData.signer_3_signature_url ? '✔️ فایل امضا با موفقیت بارگذاری شد' : 'بدون فایل'}</span>
                     </div>
                   </div>
                 </div>
 
-                <hr className="border-gray-100" />
+                <hr className="border-gray-100 dark:border-slate-800 dark:border-slate-800" />
 
                 {/* ۳. بارگذاری تصاویر ثابت بوم (لوگو و بک‌گراند) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">لوگوی بالای گواهی</label>
-                    <div className="relative bg-[#faf9f6] border border-dashed border-gray-200 rounded-2xl p-4 text-center cursor-pointer group">
+                    <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">لوگوی بالای گواهی</label>
+                    <div className="relative bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-2xl p-4 text-center cursor-pointer group">
                       <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload(e, 'certificate_logo_url')} />
-                      <span className="text-[11px] font-bold text-gray-500 block">{activeUploadField === 'certificate_logo_url' ? 'در حال آپلود لوگو...' : templateData.certificate_logo_url ? '✔️ لوگو بارگذاری شد' : 'انتخاب تصویر لوگو'}</span>
+                      <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400 dark:text-slate-400 block">{activeUploadField === 'certificate_logo_url' ? 'در حال آپلود لوگو...' : templateData.certificate_logo_url ? '✔️ لوگو بارگذاری شد' : 'انتخاب تصویر لوگو'}</span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تصویر پس‌زمینه خام لوح</label>
-                    <div className="relative bg-[#faf9f6] border border-dashed border-gray-200 rounded-2xl p-4 text-center cursor-pointer group">
+                    <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">تصویر پس‌زمینه خام لوح</label>
+                    <div className="relative bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-2xl p-4 text-center cursor-pointer group">
                       <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleFileUpload(e, 'certificate_bg_url')} />
-                      <span className="text-[11px] font-bold text-gray-500 block">{activeUploadField === 'certificate_bg_url' ? 'در حال آپلود بک‌گراند...' : templateData.certificate_bg_url ? '✔️ پس‌زمینه بارگذاری شد' : 'انتخاب تصویر بک‌گراند'}</span>
+                      <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400 dark:text-slate-400 block">{activeUploadField === 'certificate_bg_url' ? 'در حال آپلود بک‌گراند...' : templateData.certificate_bg_url ? '✔️ پس‌زمینه بارگذاری شد' : 'انتخاب تصویر بک‌گراند'}</span>
                     </div>
                   </div>
                 </div>
@@ -322,8 +322,8 @@ export default function CertificateSettingsPage() {
             {/* ستون چپ: شبیه‌ساز لایو پیش‌نمایش گرافیکی */}
             <div className="lg:col-span-1 space-y-6">
               
-              <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-4 sticky top-28">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+              <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4 sticky top-28">
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1">
                   👀 پیش‌نمایش متقارن زنده دسکتاپ
                 </label>
                 
@@ -336,7 +336,7 @@ export default function CertificateSettingsPage() {
                     {templateData.certificate_logo_url ? (
                       <img src={templateData.certificate_logo_url} alt="Logo" className="w-8 h-8 object-contain" />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-white/10" />
+                      <div className="w-8 h-8 rounded-full bg-white dark:bg-[#182234] dark:bg-[#182234]/10" />
                     )}
                   </div>
 
@@ -353,7 +353,7 @@ export default function CertificateSettingsPage() {
 
                   <div className="grid grid-flow-col auto-cols-fr gap-2 border-t border-white/10 pt-2 text-center">
                     {activeSignersInPreview.length === 0 ? (
-                      <div className="text-[8px] text-gray-400 font-bold py-1">اطلاعات امضاکننده‌ای وارد نشده است</div>
+                      <div className="text-[8px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold py-1">اطلاعات امضاکننده‌ای وارد نشده است</div>
                     ) : (
                       activeSignersInPreview.map((signer, i) => (
                         <div key={i} className="flex flex-col items-center relative">
@@ -361,7 +361,7 @@ export default function CertificateSettingsPage() {
                             <img src={signer.sig} alt="signature" className="h-5 object-contain absolute -top-5 opacity-80" />
                           )}
                           <p className="font-black text-[8px] text-[#F3E5AB] truncate max-w-full">{signer.name}</p>
-                          <p className="text-[6px] text-gray-400 font-bold truncate max-w-full mt-0.5">{signer.title}</p>
+                          <p className="text-[6px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold truncate max-w-full mt-0.5">{signer.title}</p>
                         </div>
                       ))
                     )}

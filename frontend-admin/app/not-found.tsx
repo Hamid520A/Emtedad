@@ -6,8 +6,8 @@ export default function NotFound() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center justify-center p-6 text-center text-[#1a2e44]" dir="rtl">
-      <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-gray-100 max-w-sm w-full space-y-6 animate-in fade-in zoom-in-95 duration-200">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] flex flex-col items-center justify-center p-6 text-center text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" dir="rtl">
+      <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-10 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 max-w-sm w-full space-y-6 animate-in fade-in zoom-in-95 duration-200">
         
         {/* آیکون و المان گرافیکی ۴۰۴ */}
         <div className="w-20 h-24 mx-auto relative flex items-center justify-center">
@@ -19,7 +19,7 @@ export default function NotFound() {
 
         <div className="space-y-2">
           <h2 className="text-xl font-black">صفحه مورد نظر یافت نشد!</h2>
-          <p className="text-xs text-gray-400 font-bold leading-relaxed">
+          <p className="text-xs text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold leading-relaxed">
             آدرسی که وارد کرده‌اید وجود ندارد یا این بخش منتقل شده است.
           </p>
         </div>

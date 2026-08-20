@@ -78,20 +78,20 @@ export default function AdminContestQuestionsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#faf9f6]">
-        <Loader2 className="animate-spin text-[#1a2e44]" size={40} />
+      <div className="flex h-screen items-center justify-center bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234]">
+        <Loader2 className="animate-spin text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" size={40} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] text-[#1a2e44] font-sans pb-10" dir="rtl">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 dark:text-slate-100 font-sans pb-10" dir="rtl">
       {/* Header */}
       <header className="p-8 flex items-center gap-4">
         {/* 🌟 اصلاح شد: مسیر برگشت به کمک متغیر داینامیک و بدون تولید آدرس undefined */}
         <button 
           onClick={() => router.push(`/admin/contests/${contestId}`)}
-          className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:scale-105 transition-all text-gray-500 hover:text-[#1a2e44]"
+          className="p-3 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:scale-105 transition-all text-gray-500 dark:text-slate-400 dark:text-slate-400 hover:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100"
         >
           <ArrowRight size={20} />
         </button>
@@ -106,24 +106,24 @@ export default function AdminContestQuestionsPage() {
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
             <HelpCircle className="text-[#c5a059]" /> مدیریت سوالات مسابقه #{contestId}
           </h1>
-          <p className="text-gray-400 text-xs font-bold mt-1">مشاهده، بررسی و ویرایش سوالات و گزینه‌های آزمون</p>
+          <p className="text-gray-400 dark:text-slate-400 dark:text-slate-400 text-xs font-bold mt-1">مشاهده، بررسی و ویرایش سوالات و گزینه‌های آزمون</p>
         </div>
       </header>
 
       {/* Questions List */}
       <main className="px-8 max-w-4xl mx-auto space-y-4">
         {questions.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-[2rem] border border-gray-100 text-gray-400 font-bold">
+          <div className="text-center py-12 bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2rem] border border-gray-100 dark:border-slate-800 dark:border-slate-800 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">
             هنوز هیچ سوالی برای این مسابقه ثبت نشده است.
           </div>
         ) : (
           questions.map((q: any, index: number) => (
-            <div key={q.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 relative group overflow-hidden">
+            <div key={q.id} className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2rem] p-6 shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 relative group overflow-hidden">
               <div className="flex justify-between items-start gap-4 mb-4">
                 <div>
                   <span className="text-[10px] bg-[#1a2e44] text-white px-2.5 py-1 rounded-full font-black">سوال {index + 1}</span>
-                  <h3 className="font-black text-base text-[#1a2e44] mt-3 leading-relaxed">{q.title}</h3>
-                  {q.description && <p className="text-xs text-gray-400 mt-1 font-medium bg-gray-50 p-2.5 rounded-xl">{q.description}</p>}
+                  <h3 className="font-black text-base text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 mt-3 leading-relaxed">{q.title}</h3>
+                  {q.description && <p className="text-xs text-gray-400 dark:text-slate-400 dark:text-slate-400 mt-1 font-medium bg-gray-50 p-2.5 rounded-xl">{q.description}</p>}
                 </div>
                 
                 <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export default function AdminContestQuestionsPage() {
                     <div 
                       key={ans.id || idx} 
                       className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center justify-between ${
-                        ans.is_correct === 1 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-gray-50/50 border-gray-100 text-gray-600'
+                        ans.is_correct === 1 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-gray-50/50 border-gray-100 dark:border-slate-800 dark:border-slate-800 text-gray-600 dark:text-slate-300 dark:text-slate-300'
                       }`}
                     >
                       <span>{ans.title}</span>
@@ -185,31 +185,31 @@ export default function AdminContestQuestionsPage() {
       {/* مودال پاپ‌آپ ویرایش سوال */}
       {editingQuestion && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2.5rem] p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-black text-lg text-[#1a2e44]">ویرایش سوال مسابقه</h3>
-              <button onClick={() => setEditingQuestion(null)} className="p-2 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full">
+              <h3 className="font-black text-lg text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">ویرایش سوال مسابقه</h3>
+              <button onClick={() => setEditingQuestion(null)} className="p-2 text-gray-400 dark:text-slate-400 dark:text-slate-400 hover:text-gray-600 dark:text-slate-300 dark:text-slate-300 bg-gray-100 rounded-full">
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleUpdateQuestion} className="space-y-4 text-right">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">متن صورت سوال</label>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5">متن صورت سوال</label>
                 <textarea 
                   required
                   rows={3}
-                  className="w-full p-3.5 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] outline-none font-bold text-xs leading-relaxed"
+                  className="w-full p-3.5 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none font-bold text-xs leading-relaxed"
                   value={editingQuestion.text}
                   onChange={(e) => setEditingQuestion({...editingQuestion, text: e.target.value})}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">توضیحات یا راهنمایی (اختیاری)</label>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5">توضیحات یا راهنمایی (اختیاری)</label>
                 <input 
                   type="text"
-                  className="w-full p-3.5 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] outline-none font-bold text-xs"
+                  className="w-full p-3.5 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none font-bold text-xs"
                   value={editingQuestion.description || ""}
                   onChange={(e) => setEditingQuestion({...editingQuestion, description: e.target.value})}
                 />
@@ -219,11 +219,11 @@ export default function AdminContestQuestionsPage() {
               <div className="grid grid-cols-1 gap-3 pt-2">
                 {[1, 2, 3, 4].map((num) => (
                   <div key={num}>
-                    <label className="block text-[9px] font-black text-gray-400 mb-1">متن گزینه {num}</label>
+                    <label className="block text-[9px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 mb-1">متن گزینه {num}</label>
                     <input 
                       type="text"
                       required
-                      className="w-full p-3 bg-[#faf9f6] border-none rounded-xl text-[#1a2e44] outline-none font-bold text-xs"
+                      className="w-full p-3 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none font-bold text-xs"
                       value={editingQuestion[`option_${num}`] || ""}
                       onChange={(e) => setEditingQuestion({...editingQuestion, [`option_${num}`]: e.target.value})}
                     />
@@ -233,9 +233,9 @@ export default function AdminContestQuestionsPage() {
 
               {/* انتخاب گزینه صحیح */}
               <div className="pt-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">گزینه صحیح کدام است؟</label>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5">گزینه صحیح کدام است؟</label>
                 <select 
-                  className="w-full p-3.5 bg-[#faf9f6] border-none rounded-2xl text-[#1a2e44] outline-none font-bold text-xs"
+                  className="w-full p-3.5 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 outline-none font-bold text-xs"
                   value={editingQuestion.correct_option}
                   onChange={(e) => setEditingQuestion({...editingQuestion, correct_option: e.target.value})}
                 >

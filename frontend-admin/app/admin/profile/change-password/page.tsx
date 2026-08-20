@@ -46,9 +46,9 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] font-sans text-[#1a2e44]" dir="rtl">
+    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] font-sans text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" dir="rtl">
       {/* Header */}
-      <header className="p-6 flex items-center gap-3 bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-10">
+      <header className="p-6 flex items-center gap-3 bg-white dark:bg-[#182234] dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 sticky top-0 z-10">
         {/* 🌟 اصلاح شد: هدایت قطعی دکمه فلش بازگشت به دشبورد ادمین برای جلوگیری از باگ روت استوری */}
         <button onClick={() => router.push('/admin/dashboard')} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
           <ArrowRight size={20} />
@@ -58,49 +58,49 @@ export default function ChangePasswordPage() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="p-6 space-y-5 pb-12">
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
+        <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
           
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">رمز عبور فعلی مدیر</label>
+            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">رمز عبور فعلی مدیر</label>
             <div className="relative">
-              <Lock className="absolute right-4 top-4 text-gray-400" size={18} />
+              <Lock className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
               <input 
                 type="password" 
                 required
                 placeholder="••••••••"
                 value={formData.old_password} 
                 onChange={e => setFormData({...formData, old_password: e.target.value})} 
-                className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
+                className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
               />
             </div>
           </div>
 
-          <div className="border-t border-gray-50 my-2 pt-2">
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">رمز عبور جدید</label>
+          <div className="border-t border-gray-50 dark:border-slate-800 dark:border-slate-800 my-2 pt-2">
+            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">رمز عبور جدید</label>
             <div className="relative">
-              <Lock className="absolute right-4 top-4 text-gray-400" size={18} />
+              <Lock className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
               <input 
                 type="password" 
                 required
                 placeholder="••••••••"
                 value={formData.new_password} 
                 onChange={e => setFormData({...formData, new_password: e.target.value})} 
-                className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
+                className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">تکرار رمز عبور جدید</label>
+            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">تکرار رمز عبور جدید</label>
             <div className="relative">
-              <ShieldAlert className="absolute right-4 top-4 text-gray-400" size={18} />
+              <ShieldAlert className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
               <input 
                 type="password" 
                 required
                 placeholder="••••••••"
                 value={formData.confirm_password} 
                 onChange={e => setFormData({...formData, confirm_password: e.target.value})} 
-                className="w-full p-4 pr-12 bg-[#faf9f6] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
+                className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
               />
             </div>
           </div>
@@ -119,7 +119,7 @@ export default function ChangePasswordPage() {
           </button>
           
           {/* 🌟 اصلاح شد: هدایت دکمه انصراف به دشبورد ادمین به جای بازگشت به تاریخچه مخفی کاربری */}
-          <button type="button" onClick={() => router.push('/admin/dashboard')} className="w-full bg-white text-gray-500 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 hover:bg-gray-50 transition-all">
+          <button type="button" onClick={() => router.push('/admin/dashboard')} className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] text-gray-500 dark:text-slate-400 dark:text-slate-400 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:bg-gray-50 transition-all">
             انصراف و بازگشت
           </button>
         </div>
