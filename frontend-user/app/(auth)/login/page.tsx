@@ -2,8 +2,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import api from '../../../lib/api';
-import { Lock, Phone, ArrowRight, Trophy } from 'lucide-react';
+import { Lock, Phone, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -87,8 +88,15 @@ export default function LoginPage() {
       <div className="max-w-md w-full mx-auto">
 
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-[#1a2e44] dark:bg-[#182234] text-[#c5a059] mx-auto rounded-3xl flex items-center justify-center shadow-lg rotate-3 mb-6 border border-transparent dark:border-slate-800">
-            <Trophy size={40} />
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/logo.png"
+              alt="امتداد"
+              width={160}
+              height={64}
+              priority
+              className="h-12 w-auto"
+            />
           </div>
           <h2 className="text-3xl font-black text-[#1a2e44] dark:text-slate-100">ورود به حساب</h2>
           <p className="text-gray-500 dark:text-slate-400 text-sm mt-2 font-medium">برای ورود به صفحه شخصی امتداد امام لطفا اطلاعات خود را وارد کنید</p>

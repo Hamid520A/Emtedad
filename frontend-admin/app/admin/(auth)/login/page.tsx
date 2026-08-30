@@ -2,8 +2,9 @@
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import api from '@/app/lib/api';
-import { Lock, Phone, Loader2, ShieldCheck } from 'lucide-react';
+import { Lock, Phone, Loader2 } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -50,10 +51,17 @@ export default function AdminLoginPage() {
 
         {/* برندینگ و لوگوی پنل ادمین */}
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl flex items-center justify-center mx-auto shadow-inner animate-pulse">
-            <ShieldCheck size={32} />
+          <div className="flex justify-center mb-2">
+            <Image
+              src="/logo.png"
+              alt="امتداد"
+              width={160}
+              height={64}
+              priority
+              className="h-12 w-auto"
+            />
           </div>
-          <h1 className="text-xl font-black text-white mt-3">درگاه ورود مدیران امتداد</h1>
+          <h1 className="text-xl font-black text-white mt-3">درگاه ورود مدیران</h1>
           <p className="text-slate-400 text-[11px] font-medium">لطفاً اطلاعات محرمانه مدیریت را وارد کنید</p>
         </div>
 

@@ -2,8 +2,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import api from '../../../lib/api';
-import { User, Lock, Phone, ArrowRight, Trophy, CreditCard, MapPin, Calendar, MessageSquare, Edit2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { User, Lock, Phone, ArrowRight, CreditCard, MapPin, Calendar, MessageSquare, Edit2, ArrowLeft, CheckCircle } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -220,8 +221,15 @@ export default function RegisterPage() {
       <div className="w-full max-w-md mx-auto bg-white dark:bg-[#182234] rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 p-6 sm:p-8 transition-colors duration-200">
         
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-[#1a2e44] dark:bg-[#0b0f19] text-[#c5a059] mx-auto rounded-2xl flex items-center justify-center shadow-lg rotate-3 mb-4 border border-transparent dark:border-slate-800">
-            <Trophy size={32} />
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/logo.png"
+              alt="امتداد"
+              width={160}
+              height={64}
+              priority
+              className="h-12 w-auto"
+            />
           </div>
           <h2 className="text-2xl font-black text-[#1a2e44] dark:text-slate-100">
             {step === 1 ? 'ساخت حساب جدید' : 'تایید شماره موبایل'}

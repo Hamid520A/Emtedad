@@ -2,6 +2,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { ThemeToggle } from '@/app/components/ThemeToggle';
 import api from '@/app/lib/api';
 import {
@@ -155,9 +156,19 @@ export default function AdminDashboard() {
     <div className="min-h-screen font-sans pb-10" dir="rtl">
       {/* Header */}
       <header className="p-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-[#1a2e44] dark:text-slate-100">پنل مدیریت امتداد</h1>
-          <p className="text-gray-400 dark:text-slate-400 text-sm font-bold mt-1">مانیتورینگ هوشمند سیستم</p>
+        <div className="flex items-center gap-4">
+          <Image
+            src="/logo.png"
+            alt="امتداد"
+            width={140}
+            height={56}
+            priority
+            className="h-10 w-auto"
+          />
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-[#1a2e44] dark:text-slate-100">پنل مدیریت</h1>
+            <p className="text-gray-400 dark:text-slate-400 text-sm font-bold mt-1">مانیتورینگ هوشمند سیستم</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">

@@ -2,6 +2,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import api from '../lib/api'; 
 import { getProfilePicture } from '../lib/get-profile-api';
 import { Bell, Trophy, ChevronLeft, Loader2, PlayCircle, User } from 'lucide-react';
@@ -142,7 +143,14 @@ export default function DashboardPage() {
               <User size={22} />
             )}
           </button>
-          <span className="font-black text-2xl text-[#1a2e44] dark:text-[#c5a059]">امتداد امام</span>
+          <Image
+            src="/logo.png"
+            alt="امتداد"
+            width={140}
+            height={56}
+            priority
+            className="h-10 w-auto"
+          />
         </div>
 
         <div className="relative">
