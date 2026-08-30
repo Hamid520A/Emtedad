@@ -5,13 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.encoders import jsonable_encoder
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
 import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime
+from app.services.sms_service import sms_service
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
@@ -878,6 +879,7 @@ def get_contest_detail(
         "certificate_details": cert_payload,
         "success_message": contest.success_message,
         "failure_message": contest.failure_message,
+        "sms_message": contest.sms_message,
     })
 
 @app.get("/contests/{contest_id}/questions", response_model=List[schemas.RandomizedQuestion])
@@ -966,6 +968,7 @@ def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(dat
         question_limit=contest.question_limit,
         success_message=contest.success_message,
         failure_message=contest.failure_message,
+        sms_message=contest.sms_message,
     )
     db.add(db_contest)
     db.commit()
@@ -2411,7 +2414,7 @@ def update_contest(
                     db.add(models.Certificate(contest_id=contest_id, title=title_str, content="بدین‌وسیله گواهی می‌شود...", is_active=1))
 
         # 🌟 فیکس اصلی: فقط فیلدهای متنی و عددی مجاز را تغییر بده تا دیتابیس روی ریلیشن‌ها کرش نکند
-        elif key in ["title", "description", "image_url", "video_url", "question_limit", "is_active", "success_message", "failure_message"]:
+        elif key in ["title", "description", "image_url", "video_url", "question_limit", "is_active", "success_message", "failure_message", "sms_message"]:
             setattr(db_contest, key, value)
     
     # 🌟 هوشمندسازی: اگر دیتای قالب گواهی همزمان با این فرم پست شده بود، همین‌جا ذخیره‌اش کن
@@ -2701,7 +2704,8 @@ def refresh_access_token(payload: dict):
     
 @app.post("/submissions")
 def submit_exam_results(
-    payload: dict, 
+    payload: dict,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -2717,6 +2721,8 @@ def submit_exam_results(
     
     if not questions:
         raise HTTPException(status_code=400, detail="این مسابقه سوالی ندارد")
+
+    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
         
     # ۲. مقایسه انتخاب‌های کاربر با گزینه‌های صحیح دیتابیس
     correct_count = 0
@@ -2782,6 +2788,11 @@ def submit_exam_results(
             db.add(db_sub_a)
             
     db.commit()
+
+    sms_text = contest.sms_message.strip() if contest and contest.sms_message else ""
+    user_phone = current_user.phone_number
+    if sms_text and user_phone:
+        background_tasks.add_task(sms_service.send_sms, user_phone, sms_text)
     
     return {
         "score": round(score_percentage),

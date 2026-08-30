@@ -37,6 +37,7 @@ export default function CreateContestPage() {
     video_url: '',
     success_message: '',
     failure_message: '',
+    sms_message: '',
   });
 
   const handleAwardChange = (index: number, field: 'rank' | 'title', value: string) => {
@@ -84,6 +85,7 @@ export default function CreateContestPage() {
       end_time: endTime ? endTime.toISOString() : null,
       success_message: formData.success_message?.trim() || null,
       failure_message: formData.failure_message?.trim() || null,
+      sms_message: formData.sms_message?.trim() || null,
     };
 
     try {
@@ -229,6 +231,18 @@ export default function CreateContestPage() {
                   placeholder="پیام سفارشی برای کاربرانی که نمره قبولی کسب نمی‌کنند..."
                   value={formData.failure_message}
                   onChange={(e) => setFormData({ ...formData, failure_message: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">
+                  متن پیامک اتمام آزمون (اختیاری)
+                </label>
+                <textarea
+                  rows={3}
+                  className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] border border-gray-100 dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed"
+                  placeholder="متن پیامکی که پس از اتمام آزمون برای شرکت‌کننده ارسال می‌شود..."
+                  value={formData.sms_message}
+                  onChange={(e) => setFormData({ ...formData, sms_message: e.target.value })}
                 />
               </div>
             </div>

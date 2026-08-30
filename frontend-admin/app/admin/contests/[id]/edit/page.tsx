@@ -34,7 +34,7 @@ export default function EditContestPage() {
   const [formData, setFormData] = useState<any>({
     title: '', description: '', status: 'draft', image_url: '', file_url: '',
     start_time: null, end_time: null, time_limit: 10, question_limit: 15, certificate_type: 'none', video_url: '',
-    success_message: '', failure_message: '',
+    success_message: '', failure_message: '', sms_message: '',
   });
 
   const [certData, setCertData] = useState<any>({
@@ -68,6 +68,7 @@ export default function EditContestPage() {
           video_url: data.video_url || '',
           success_message: data.success_message || '',
           failure_message: data.failure_message || '',
+          sms_message: data.sms_message || '',
         });
 
         if (data.awards && Array.isArray(data.awards) && data.awards.length > 0) {
@@ -145,6 +146,7 @@ export default function EditContestPage() {
       end_time: endTime ? endTime.toISOString() : null,
       success_message: formData.success_message?.trim() || null,
       failure_message: formData.failure_message?.trim() || null,
+      sms_message: formData.sms_message?.trim() || null,
     };
 
     try {
@@ -282,6 +284,18 @@ export default function EditContestPage() {
                   placeholder="پیام سفارشی برای کاربرانی که نمره قبولی کسب نمی‌کنند..."
                   value={formData.failure_message}
                   onChange={(e) => setFormData({ ...formData, failure_message: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">
+                  متن پیامک اتمام آزمون (اختیاری)
+                </label>
+                <textarea
+                  rows={3}
+                  className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] border border-gray-100 dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed"
+                  placeholder="متن پیامکی که پس از اتمام آزمون برای شرکت‌کننده ارسال می‌شود..."
+                  value={formData.sms_message}
+                  onChange={(e) => setFormData({ ...formData, sms_message: e.target.value })}
                 />
               </div>
             </div>

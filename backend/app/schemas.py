@@ -216,6 +216,7 @@ class ContestBase(BaseModel):
     question_limit: Optional[int] = None
     success_message: Optional[str] = None
     failure_message: Optional[str] = None
+    sms_message: Optional[str] = None
 
 class ContestCreate(ContestBase):
     title: str
@@ -247,6 +248,7 @@ class ContestUpdate(BaseModel):
     award: Optional[str] = None
     success_message: Optional[str] = None
     failure_message: Optional[str] = None
+    sms_message: Optional[str] = None
 
 class ContestListItem(ContestBase):
     id: int

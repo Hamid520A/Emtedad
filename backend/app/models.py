@@ -87,6 +87,7 @@ class Contest(Base):
     question_limit = Column(Integer, nullable=True)
     success_message = Column(Text, nullable=True)
     failure_message = Column(Text, nullable=True)
+    sms_message = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime, nullable=True)
