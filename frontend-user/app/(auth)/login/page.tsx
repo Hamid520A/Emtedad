@@ -91,7 +91,7 @@ export default function LoginPage() {
             <Trophy size={40} />
           </div>
           <h2 className="text-3xl font-black text-[#1a2e44] dark:text-slate-100">ورود به حساب</h2>
-          <p className="text-gray-500 dark:text-slate-400 text-sm mt-2 font-medium">خوش برگشتید! لطفا اطلاعات خود را وارد کنید</p>
+          <p className="text-gray-500 dark:text-slate-400 text-sm mt-2 font-medium">برای ورود به صفحه شخصی امتداد امام لطفا اطلاعات خود را وارد کنید</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white dark:bg-[#182234] p-8 rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-5">

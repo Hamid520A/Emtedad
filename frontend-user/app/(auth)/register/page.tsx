@@ -227,7 +227,7 @@ export default function RegisterPage() {
             {step === 1 ? 'ساخت حساب جدید' : 'تایید شماره موبایل'}
           </h2>
           <p className="text-gray-500 dark:text-slate-400 text-xs mt-1 font-medium">
-            {step === 1 ? 'برای شرکت در مسابقات اطلاعات خود را وارد کنید' : `کد ۵ رقمی ارسال شده به ${toPersianDigits(formData.phone)} را وارد کنید`}
+            {step === 1 ? 'برای شرکت در مسابقات امتداد امام اطلاعات خود را وارد کنید' : `کد ۵ رقمی ارسال شده به ${toPersianDigits(formData.phone)} را وارد کنید`}
           </p>
         </div>
 
