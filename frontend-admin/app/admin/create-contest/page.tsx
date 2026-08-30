@@ -289,8 +289,16 @@ export default function CreateContestPage() {
                     value={formData.start_time}
                     onChange={(date: any) => setFormData({ ...formData, start_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
                     containerClassName="w-full"
-                    inputClass="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left"
                     placeholder="همین الان"
+                    render={(value: string, openCalendar: () => void) => (
+                      <input
+                        readOnly
+                        value={value}
+                        onFocus={openCalendar}
+                        placeholder="همین الان"
+                        className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] border border-transparent dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left cursor-pointer"
+                      />
+                    )}
                   />
                 </div>
               </div>
@@ -305,8 +313,16 @@ export default function CreateContestPage() {
                     value={formData.end_time}
                     onChange={(date: any) => setFormData({ ...formData, end_time: date ? (date.toDate ? date.toDate() : new Date(date)) : null })}
                     containerClassName="w-full"
-                    inputClass="w-full p-4 pr-12 bg-rose-50 border border-rose-100 rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-rose-400 outline-none font-bold text-sm text-left"
                     placeholder="بدون محدودیت (باز)"
+                    render={(value: string, openCalendar: () => void) => (
+                      <input
+                        readOnly
+                        value={value}
+                        onFocus={openCalendar}
+                        placeholder="بدون محدودیت (باز)"
+                        className="w-full p-4 pr-12 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-200 border border-red-100 dark:border-red-900/40 rounded-2xl focus:ring-2 focus:ring-rose-400 outline-none font-bold text-sm text-left cursor-pointer"
+                      />
+                    )}
                   />
                 </div>
               </div>
