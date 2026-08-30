@@ -875,7 +875,9 @@ def get_contest_detail(
         "file_url": file_url,
         "awards": awards_data,
         "certificate_type": certificate_type,
-        "certificate_details": cert_payload
+        "certificate_details": cert_payload,
+        "success_message": contest.success_message,
+        "failure_message": contest.failure_message,
     })
 
 @app.get("/contests/{contest_id}/questions", response_model=List[schemas.RandomizedQuestion])
@@ -961,7 +963,9 @@ def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(dat
         start_time=contest.start_time,
         end_time=contest.end_time,
         status=contest.status,
-        question_limit=contest.question_limit
+        question_limit=contest.question_limit,
+        success_message=contest.success_message,
+        failure_message=contest.failure_message,
     )
     db.add(db_contest)
     db.commit()
@@ -2407,7 +2411,7 @@ def update_contest(
                     db.add(models.Certificate(contest_id=contest_id, title=title_str, content="بدین‌وسیله گواهی می‌شود...", is_active=1))
 
         # 🌟 فیکس اصلی: فقط فیلدهای متنی و عددی مجاز را تغییر بده تا دیتابیس روی ریلیشن‌ها کرش نکند
-        elif key in ["title", "description", "image_url", "video_url", "question_limit", "is_active"]:
+        elif key in ["title", "description", "image_url", "video_url", "question_limit", "is_active", "success_message", "failure_message"]:
             setattr(db_contest, key, value)
     
     # 🌟 هوشمندسازی: اگر دیتای قالب گواهی همزمان با این فرم پست شده بود، همین‌جا ذخیره‌اش کن

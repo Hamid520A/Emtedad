@@ -8,63 +8,69 @@ import confetti from 'canvas-confetti';
 import { openExternalLink } from '../../../lib/utils/url';
 
 
-const getAnalysis = (score: number, totalQuestions: number = 3, certificateType: string = 'none') => {
+const getAnalysis = (
+  score: number,
+  totalQuestions: number = 3,
+  certificateType: string = 'none',
+  contest?: { success_message?: string | null; failure_message?: string | null } | null
+) => {
   const s = parseFloat(score.toString());
   const hasCert = certificateType !== 'none' && certificateType !== '';
   const minRequired = Math.ceil(totalQuestions * 0.5);
-  
-  // ۱. بررسی نمره قبولی (اگر نمره زیر ۵۰ درصد باشد، کاربر رد شده است)
+
+  let result;
+
   if (s < 50) {
-    return { 
-      msg: hasCert 
-        ? `تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ${minRequired} سوال پاسخ صحیح بدهید.` 
-        : "تلاشت خوب بود، برای کسب نتیجه بهتر در مسابقات بعدی می‌توانید منابع آموزشی را مجدداً مطالعه کنید.", 
+    result = {
+      msg: hasCert
+        ? `تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ${minRequired} سوال پاسخ صحیح بدهید.`
+        : "تلاشت خوب بود، برای کسب نتیجه بهتر در مسابقات بعدی می‌توانید منابع آموزشی را مجدداً مطالعه کنید.",
       certMsg: hasCert ? "حد نصاب قبولی برای صدور گواهی کسب نشد." : "مسابقه به پایان رسید.",
-      color: "text-red-600 dark:text-red-400", 
-      bg: "bg-red-50 dark:bg-red-950/40", 
-      emoji: "📚" 
+      color: "text-red-600 dark:text-red-400",
+      bg: "bg-red-50 dark:bg-red-950/40",
+      emoji: "📚",
     };
-  }
-
-  // ۲. در صورت قبولی، پیام‌ها صرفاً بر اساس نوع گواهیِ تنظیم شده توسط ادمین (در متغیر certificateType) صادر می‌شوند
-  if (certificateType === 'excellent') {
-    return { 
-      msg: "فوق‌العاده! شما موفق به کسب «گواهی عالی» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
+  } else if (certificateType === 'excellent') {
+    result = {
+      msg: "فوق‌العاده! شما موفق به کسب «گواهی عالی» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.",
       certMsg: "تبریک! نمره قبولی را برای دریافت گواهی عالی کسب کردید.",
-      color: "text-green-600 dark:text-green-400", 
-      bg: "bg-green-50 dark:bg-green-950/40", 
-      emoji: "🏆" 
+      color: "text-green-600 dark:text-green-400",
+      bg: "bg-green-50 dark:bg-green-950/40",
+      emoji: "🏆",
     };
-  }
-  
-  if (certificateType === 'very_good') {
-    return { 
-      msg: "عالی! شما موفق به کسب «گواهی خیلی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
+  } else if (certificateType === 'very_good') {
+    result = {
+      msg: "عالی! شما موفق به کسب «گواهی خیلی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.",
       certMsg: "تبریک! نمره قبولی را برای دریافت گواهی خیلی خوب کسب کردید.",
-      color: "text-blue-600 dark:text-blue-400", 
-      bg: "bg-blue-50 dark:bg-blue-950/40", 
-      emoji: "🥇" 
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-50 dark:bg-blue-950/40",
+      emoji: "🥇",
     };
-  }
-  
-  if (certificateType === 'good') {
-    return { 
-      msg: "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.", 
+  } else if (certificateType === 'good') {
+    result = {
+      msg: "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.",
       certMsg: "تبریک! نمره قبولی را برای دریافت گواهی خوب کسب کردید.",
-      color: "text-amber-600 dark:text-amber-400", 
-      bg: "bg-amber-50 dark:bg-amber-950/40", 
-      emoji: "✨" 
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-950/40",
+      emoji: "✨",
+    };
+  } else {
+    result = {
+      msg: "بارک‌الله! شما موفق شدید نمره قبولی این مسابقه را با موفقیت کسب کنید.",
+      certMsg: "آزمون را با موفقیت پشت سر گذاشتید.",
+      color: "text-teal-600 dark:text-teal-400",
+      bg: "bg-teal-50 dark:bg-teal-950/40",
+      emoji: "🎉",
     };
   }
 
-  // ۳. حالت پیش‌فرض (کاربر قبول شده اما مسابقه فاقد گواهی است)
-  return { 
-    msg: "بارک‌الله! شما موفق شدید نمره قبولی این مسابقه را با موفقیت کسب کنید.", 
-    certMsg: "آزمون را با موفقیت پشت سر گذاشتید.",
-    color: "text-teal-600 dark:text-teal-400", 
-    bg: "bg-teal-50 dark:bg-teal-950/40", 
-    emoji: "🎉" 
-  };
+  if (s < 50 && contest?.failure_message?.trim()) {
+    result.msg = contest.failure_message;
+  } else if (s >= 50 && contest?.success_message?.trim()) {
+    result.msg = contest.success_message;
+  }
+
+  return result;
 };
 
 export default function ExamPage() {
@@ -77,6 +83,7 @@ export default function ExamPage() {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [answers, setAnswers] = useState<{ [key: number]: number }>({});
   const [certificateType, setCertificateType] = useState<string>('none');
+  const [contest, setContest] = useState<any>(null);
 
   const [timeLeft, setTimeLeft] = useState(600); 
   const [totalTime, setTotalTime] = useState(600); 
@@ -106,6 +113,7 @@ export default function ExamPage() {
 
           if (!isCurrent) return;
 
+          setContest(contestRes.data);
           setQuestions(reviewRes.data.questions || []);
           setCertificateType(contestRes.data.certificate_type || 'none');
           
@@ -127,6 +135,7 @@ export default function ExamPage() {
 
           if (!isCurrent) return;
 
+          setContest(contestRes.data);
           const limitInSeconds = (contestRes.data.time_limit || 10) * 60;
           setTotalTime(limitInSeconds);
           setTimeLeft(limitInSeconds);
@@ -255,7 +264,7 @@ export default function ExamPage() {
         score: Math.round(serverScore),
         correctCount: serverCorrectCount,
         timeTaken: timeTaken,
-        analysis: getAnalysis(serverScore, questions.length, certificateType)
+        analysis: getAnalysis(serverScore, questions.length, certificateType, contest)
       });
       setIsSubmitted(true);
     } catch (error) {

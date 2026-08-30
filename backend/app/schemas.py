@@ -214,6 +214,8 @@ class ContestBase(BaseModel):
     status: str = "upcoming"
     is_active: int = 1
     question_limit: Optional[int] = None
+    success_message: Optional[str] = None
+    failure_message: Optional[str] = None
 
 class ContestCreate(ContestBase):
     title: str
@@ -228,6 +230,23 @@ class ContestCreate(ContestBase):
     award: Optional[str] = None  
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+
+class ContestUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    status: Optional[str] = None
+    is_active: Optional[int] = None
+    question_limit: Optional[int] = None
+    time_limit: Optional[int] = None
+    file_url: Optional[str] = None
+    certificate_type: Optional[str] = None
+    award: Optional[str] = None
+    success_message: Optional[str] = None
+    failure_message: Optional[str] = None
 
 class ContestListItem(ContestBase):
     id: int

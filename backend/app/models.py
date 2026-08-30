@@ -85,6 +85,8 @@ class Contest(Base):
     status = Column(String(50), default="upcoming")
     is_active = Column(SmallInteger, default=1)
     question_limit = Column(Integer, nullable=True)
+    success_message = Column(Text, nullable=True)
+    failure_message = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime, nullable=True)

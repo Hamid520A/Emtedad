@@ -33,7 +33,8 @@ export default function EditContestPage() {
   const [awards, setAwards] = useState<{ rank: number; title: string }[]>([{ rank: 1, title: '' }]);
   const [formData, setFormData] = useState<any>({
     title: '', description: '', status: 'draft', image_url: '', file_url: '',
-    start_time: null, end_time: null, time_limit: 10, question_limit: 15, certificate_type: 'none', video_url: ''
+    start_time: null, end_time: null, time_limit: 10, question_limit: 15, certificate_type: 'none', video_url: '',
+    success_message: '', failure_message: '',
   });
 
   const [certData, setCertData] = useState<any>({
@@ -64,7 +65,9 @@ export default function EditContestPage() {
           time_limit: data.time_limit || 10,
           question_limit: data.question_limit || 15,
           certificate_type: data.certificate_type || 'none',
-          video_url: data.video_url || ''
+          video_url: data.video_url || '',
+          success_message: data.success_message || '',
+          failure_message: data.failure_message || '',
         });
 
         if (data.awards && Array.isArray(data.awards) && data.awards.length > 0) {
@@ -139,7 +142,9 @@ export default function EditContestPage() {
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
       certificate_type: formData.certificate_type || 'none',
       start_time: startTime.toISOString(),
-      end_time: endTime ? endTime.toISOString() : null 
+      end_time: endTime ? endTime.toISOString() : null,
+      success_message: formData.success_message?.trim() || null,
+      failure_message: formData.failure_message?.trim() || null,
     };
 
     try {
@@ -252,6 +257,33 @@ export default function EditContestPage() {
                 </div>
               ))}
               <button type="button" onClick={addAwardField} className="w-full py-3 bg-white dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-300 rounded-xl text-xs font-black text-[#c5a059] flex items-center justify-center gap-1"><Plus size={14} /> افزودن جایزه برای رتبه بعدی</button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">
+                  پیام قبولی مسابقه (اختیاری)
+                </label>
+                <textarea
+                  rows={3}
+                  className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] border border-gray-100 dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed"
+                  placeholder="پیام سفارشی برای کاربرانی که نمره قبولی (۵۰٪ و بالاتر) کسب می‌کنند..."
+                  value={formData.success_message}
+                  onChange={(e) => setFormData({ ...formData, success_message: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">
+                  پیام عدم قبولی مسابقه (اختیاری)
+                </label>
+                <textarea
+                  rows={3}
+                  className="w-full p-4 bg-[#faf9f6] dark:bg-[#182234] border border-gray-100 dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none transition-all font-medium text-sm leading-relaxed"
+                  placeholder="پیام سفارشی برای کاربرانی که نمره قبولی کسب نمی‌کنند..."
+                  value={formData.failure_message}
+                  onChange={(e) => setFormData({ ...formData, failure_message: e.target.value })}
+                />
+              </div>
             </div>
           </div>
         </div>
