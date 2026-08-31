@@ -250,7 +250,7 @@ export default function ContestLandingPage() {
                 router.push('/dashboard');
               }
             }}
-            className="p-2.5 sm:p-3 bg-white dark:bg-[#182234] dark:bg-[#182234]/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white dark:bg-[#182234] dark:bg-[#182234]/20 transition text-white"
+            className="p-2.5 sm:p-3 bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 border border-gray-100 dark:border-slate-800 shadow-sm hover:scale-105 transition-all rounded-xl"
           >
             <ArrowRight size={18} />
           </button>
