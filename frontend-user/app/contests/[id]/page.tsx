@@ -485,7 +485,7 @@ export default function ContestLandingPage() {
                   if (!profile) return alert("⚠️ برای شرکت در مسابقه ابتدا باید وارد حساب کاربری خود شوید.");
                   if (window.confirm('⚠️ توجه!\n\nپس از ورود به آزمون، امکان خروج و ادامه مجدد آزمون وجود ندارد.\n\nآیا مطمئن هستید که می‌خواهید وارد آزمون شوید؟')) router.push(`/exam/${contest.id}`);
                 }} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]">
-                  <PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به محیط رقابت و شروع آزمون
+                  <PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به آزمون
                 </button>
               ) : (
                 <div className="w-full text-center py-6 bg-gray-50 dark:bg-[#0b0f19] border border-gray-200 dark:border-slate-800 rounded-2xl animate-in fade-in duration-300">
