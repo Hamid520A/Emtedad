@@ -19,24 +19,97 @@ body {
   /* color: #1e293b; Removed: handled by layout.tsx Tailwind classes */
 }
 
-/* سفارشی‌سازی تقویم امتداد */
-.rmdp-ep-arrow {
-  background-color: #1a2e44 !important;
-}
+/* سفارشی‌سازی جامع تقویم امتداد (لایت و دارک) */
 .rmdp-wrapper {
   border-radius: 1.5rem !important;
   box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1) !important;
-  border: none !important;
+  border: 1px solid #f3f4f6 !important;
+  background-color: #ffffff !important;
 }
+.dark .rmdp-wrapper {
+  background-color: #182234 !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5) !important;
+}
+
+/* هدر تقویم (ماه‌ها و سال) */
 .rmdp-header-values {
   color: #1a2e44 !important;
-  font-weight: bold !important;
+  font-weight: 900 !important;
 }
+.dark .rmdp-header-values {
+  color: #f1f5f9 !important;
+}
+
+/* روزهای هفته (شنبه، یکشنبه...) */
+.rmdp-week-day {
+  color: #64748b !important;
+}
+.dark .rmdp-week-day {
+  color: #94a3b8 !important;
+}
+
+/* اعداد روزهای ماه */
+.rmdp-day span {
+  color: #1a2e44 !important;
+}
+.dark .rmdp-day span {
+  color: #e2e8f0 !important;
+}
+
+/* روز انتخاب شده */
 .rmdp-day.rmdp-selected span {
-  background-color: #c5a059 !important; /* رنگ طلایی برای روز انتخاب شده */
+  background-color: #c5a059 !important;
+  color: #ffffff !important;
   box-shadow: none !important;
 }
+
+/* هاور روی روزها */
 .rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
   background-color: #1a2e44 !important;
-  color: white !important;
+  color: #ffffff !important;
+}
+.dark .rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
+  background-color: #334155 !important;
+}
+
+/* فلش‌های چپ و راست (هدر) */
+.rmdp-arrow {
+  border-color: #1a2e44 !important;
+}
+.dark .rmdp-arrow {
+  border-color: #94a3b8 !important;
+}
+.rmdp-arrow-container:hover {
+  background-color: #f1f5f9 !important;
+}
+.dark .rmdp-arrow-container:hover {
+  background-color: #334155 !important;
+}
+
+/* === بخش انتخاب زمان (Time Picker) پایین تقویم === */
+/* حل مشکل ناخوانا بودن اعداد ساعت و دقیقه */
+.rmdp-time-picker input {
+  color: #1a2e44 !important;
+  font-weight: 900 !important;
+  background-color: transparent !important;
+}
+.dark .rmdp-time-picker input {
+  color: #f1f5f9 !important;
+}
+
+/* دو نقطه بین ساعت و دقیقه */
+.rmdp-time-picker div {
+  color: #1a2e44 !important;
+}
+.dark .rmdp-time-picker div {
+  color: #f1f5f9 !important;
+}
+
+/* فلش‌های بالا و پایین انتخاب زمان */
+.rmdp-ep-arrow[direction="top"] {
+  border-bottom-color: #c5a059 !important;
+}
+.rmdp-ep-arrow[direction="bottom"] {
+  border-top-color: #c5a059 !important;
 }
