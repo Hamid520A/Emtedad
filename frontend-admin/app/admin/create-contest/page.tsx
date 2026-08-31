@@ -29,6 +29,7 @@ export default function CreateContestPage() {
     description: '',
     image_url: '',
     file_url: '',
+    poster_url: '',
     start_time: null, 
     end_time: null, 
     time_limit: 10,
@@ -77,6 +78,7 @@ export default function CreateContestPage() {
       status: finalStatus, 
       image_url: formData.image_url || "",
       file_url: formData.file_url || "",
+      poster_url: formData.poster_url || "",
       video_url: formData.video_url || "",
       time_limit: durationInMinutes,
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
@@ -346,6 +348,18 @@ export default function CreateContestPage() {
             <div>
               <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> جزوه (PDF)</label>
               <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl outline-none text-xs text-gray-500 dark:text-slate-400 dark:text-slate-400 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#c5a059] file:text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+                <ImageIcon size={14} /> پوستر مسابقه (اختیاری)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 rounded-xl outline-none text-xs text-gray-500 dark:text-slate-400 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#1a2e44] file:text-white cursor-pointer"
+                onChange={(e) => handleFileUpload(e, 'poster_url')}
+              />
             </div>
           </div>
 

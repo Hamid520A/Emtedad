@@ -77,6 +77,7 @@ class Contest(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), index=True, nullable=False)
     image_url = Column(String(500), nullable=True)
+    poster_url = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
     max_time = Column(Time, nullable=True)
     video_url = Column(String(500), nullable=True)

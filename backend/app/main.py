@@ -866,6 +866,7 @@ def get_contest_detail(
         "title": contest.title,
         "description": contest.description,
         "image_url": contest.image_url,
+        "poster_url": contest.poster_url,
         "video_url": contest.video_url,
         "status": contest.status,
         "start_time": contest.start_time.isoformat() if contest.start_time else None,
@@ -960,6 +961,7 @@ def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(dat
         title=contest.title,
         description=contest.description,
         image_url=contest.image_url,
+        poster_url=contest.poster_url,
         video_url=contest.video_url,
         max_time=max_time_obj,
         start_time=contest.start_time,
@@ -2414,7 +2416,7 @@ def update_contest(
                     db.add(models.Certificate(contest_id=contest_id, title=title_str, content="بدین‌وسیله گواهی می‌شود...", is_active=1))
 
         # 🌟 فیکس اصلی: فقط فیلدهای متنی و عددی مجاز را تغییر بده تا دیتابیس روی ریلیشن‌ها کرش نکند
-        elif key in ["title", "description", "image_url", "video_url", "question_limit", "is_active", "success_message", "failure_message", "sms_message"]:
+        elif key in ["title", "description", "image_url", "poster_url", "video_url", "question_limit", "is_active", "success_message", "failure_message", "sms_message"]:
             setattr(db_contest, key, value)
     
     # 🌟 هوشمندسازی: اگر دیتای قالب گواهی همزمان با این فرم پست شده بود، همین‌جا ذخیره‌اش کن

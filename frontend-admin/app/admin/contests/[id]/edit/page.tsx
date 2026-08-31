@@ -32,7 +32,7 @@ export default function EditContestPage() {
   
   const [awards, setAwards] = useState<{ rank: number; title: string }[]>([{ rank: 1, title: '' }]);
   const [formData, setFormData] = useState<any>({
-    title: '', description: '', status: 'draft', image_url: '', file_url: '',
+    title: '', description: '', status: 'draft', image_url: '', file_url: '', poster_url: '',
     start_time: null, end_time: null, time_limit: 10, question_limit: 15, certificate_type: 'none', video_url: '',
     success_message: '', failure_message: '', sms_message: '',
   });
@@ -60,6 +60,7 @@ export default function EditContestPage() {
           status: data.status || 'draft',
           image_url: data.image_url || '',
           file_url: data.file_url || '',
+          poster_url: data.poster_url || '',
           start_time: data.start_time ? new Date(data.start_time) : null,
           end_time: data.end_time ? new Date(data.end_time) : null,
           time_limit: data.time_limit || 10,
@@ -138,6 +139,7 @@ export default function EditContestPage() {
       status: formData.status,
       image_url: formData.image_url || "",
       file_url: formData.file_url || "",
+      poster_url: formData.poster_url || "",
       video_url: formData.video_url || "",
       time_limit: durationInMinutes,
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
@@ -423,6 +425,22 @@ export default function EditContestPage() {
               <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5"><FileText size={14} /> فایل پیوست جزوه (PDF) {uploading === 'file_url' && '⏳'}</label>
               <input type="file" accept=".pdf" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs cursor-pointer" onChange={(e) => handleFileUpload(e, 'file_url')} />
               {formData.file_url && <a href={getCleanImageUrl(formData.file_url)} target="_blank" rel="noreferrer" download className="text-[10px] text-blue-500 font-bold underline mt-1 block">مشاهده فایل PDF جاری</a>}
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+                <ImageIcon size={14} /> پوستر مسابقه (اختیاری) {uploading === 'poster_url' && '⏳'}
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 rounded-xl text-xs cursor-pointer"
+                onChange={(e) => handleFileUpload(e, 'poster_url')}
+              />
+              {formData.poster_url && (
+                <div className="mt-3 rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-800 shadow-sm max-h-40 bg-gray-50 flex items-center justify-center p-2">
+                  <img src={getCleanImageUrl(formData.poster_url)} alt="Poster Preview" className="max-w-full max-h-32 object-contain rounded-lg" />
+                </div>
+              )}
             </div>
           </div>
 

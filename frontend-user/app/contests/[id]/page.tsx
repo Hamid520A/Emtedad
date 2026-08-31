@@ -6,7 +6,7 @@ import api from '../../../lib/api';
 import { 
   ArrowRight, Download, FileText, Clock, 
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, MapPin, Share2
+  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, MapPin, Share2, Image
 } from 'lucide-react';
 
 import { 
@@ -440,6 +440,22 @@ export default function ContestLandingPage() {
                   )}
                 </div>
               </div>
+              {contest.poster_url && (
+                <div className="col-span-2 sm:col-span-1 bg-[#faf9f6] dark:bg-[#0b0f19] p-3 rounded-xl border border-gray-50 dark:border-slate-800 flex items-center gap-2.5">
+                  <Image size={18} className="text-[#c5a059] shrink-0" />
+                  <div className="flex flex-col text-right min-w-0 w-full">
+                    <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold">پوستر مسابقه</span>
+                    <a
+                      href={getCleanImageUrl(contest.poster_url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-black text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5 truncate block text-right flex items-center gap-1"
+                    >
+                      <Eye size={13} /> مشاهده پوستر
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             {contest.video_url && getAparatEmbedUrl(contest.video_url) && (
