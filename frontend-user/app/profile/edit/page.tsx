@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { ArrowRight, Save, User, Phone, Loader2, CreditCard, Calendar, MapPin } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
+import DateObject from "react-date-object";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import { iranProvinces, iranCities } from '../../../lib/utils/iranCities';
@@ -12,6 +13,43 @@ import { SearchableDropdown } from '../../(auth)/register/SearchableDropdown';
 
 
 const DatePickerComponent = DatePicker as any;
+const MIN_REGISTRATION_AGE = 14;
+
+const toEnglishDigits = (str: string) => {
+  return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728))
+    .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584));
+};
+
+const meetsMinimumRegistrationAge = (birthDateStr: string): boolean => {
+  const normalized = toEnglishDigits(birthDateStr).trim().replace(/-/g, "/");
+  if (!normalized) return false;
+
+  try {
+    const birthDate = new DateObject({
+      date: normalized,
+      format: "YYYY/MM/DD",
+      calendar: persian,
+      locale: persian_fa,
+    });
+    const earliestAllowedBirthDate = new DateObject({ calendar: persian, locale: persian_fa })
+      .subtract(MIN_REGISTRATION_AGE, "years");
+
+    return birthDate <= earliestAllowedBirthDate;
+  } catch {
+    return false;
+  }
+};
+
+const getApiErrorMessage = (error: any, fallback: string): string => {
+  const detail = error?.response?.data?.detail;
+  if (Array.isArray(detail)) {
+    const first = detail[0];
+    if (first?.msg) return String(first.msg).replace("Value error, ", "");
+    if (typeof first === "string") return first;
+  }
+  if (typeof detail === "string" && detail.trim()) return detail;
+  return fallback;
+};
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -64,6 +102,9 @@ export default function EditProfilePage() {
     if (!formData.first_name.trim()) return alert("وارد کردن نام الزامی است.");
     if (!formData.last_name.trim()) return alert("وارد کردن نام خانوادگی الزامی است.");
     if (!formData.birth_date) return alert("وارد کردن تاریخ تولد الزامی است.");
+    if (!meetsMinimumRegistrationAge(formData.birth_date)) {
+      return alert("حداقل سن برای ثبت‌نام ۱۴ سال است.");
+    }
     if (!formData.province) return alert("انتخاب استان الزامی است.");
     if (!formData.city) return alert("انتخاب شهرستان الزامی است.");
 
@@ -78,8 +119,12 @@ export default function EditProfilePage() {
       });
       alert('اطلاعات با موفقیت به‌روزرسانی شد! 🎉');
       router.push('/profile');
-    } catch (error) {
-      alert('خطا در ذخیره اطلاعات. لطفاً دوباره تلاش کنید.');
+    } catch (error: any) {
+      const errorMessage = getApiErrorMessage(
+        error,
+        "خطا در ذخیره اطلاعات. لطفاً دوباره تلاش کنید."
+      );
+      alert(errorMessage);
     } finally {
       setSaving(false);
     }
