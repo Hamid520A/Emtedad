@@ -113,7 +113,7 @@ export default function AddQuestionPage() {
           <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
              <div className="flex items-center gap-1.5 mb-2 text-gray-500 dark:text-slate-400 dark:text-slate-400">
                <HelpCircle size={16} className="text-[#c5a059]" />
-               <label className="block text-[10px] font-black uppercase tracking-widest">تنظیم گزینه‌ها و انتخاب کلید پاسخ صحیح</label>
+               <label className="block text-[10px] font-black uppercase tracking-widest">تنظیم گزینه‌ها و انتخاب پاسخ صحیح</label>
              </div>
              
              <div className="grid grid-cols-1 gap-3">

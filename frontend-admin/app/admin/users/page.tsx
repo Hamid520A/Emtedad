@@ -612,7 +612,7 @@ export default function AdminUsersPage() {
                               </span>
 
                               <div className="flex items-center gap-1 shrink-0 font-black text-[9px]">
-                                {isKeyOption && <span className="text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded flex items-center gap-0.5"><CheckCircle2 size={10} />پاسخ صحیح (کلید)</span>}
+                                {isKeyOption && <span className="text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded flex items-center gap-0.5"><CheckCircle2 size={10} />پاسخ صحیح</span>}
                                 {isUserSelected && <span className={`text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 ${isCorrect ? 'text-emerald-700 bg-emerald-200/50' : 'text-rose-600 bg-rose-100'} px-2 py-0.5 rounded flex items-center gap-0.5`}>{!isCorrect && <XCircle size={10} />}انتخاب کاربر</span>}
                               </div>
                             </div>

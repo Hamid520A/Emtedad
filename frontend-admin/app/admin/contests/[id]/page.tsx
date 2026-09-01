@@ -588,7 +588,7 @@ export default function ContestLandingPage() {
                   <div className="bg-white dark:bg-[#182234] dark:bg-[#182234]/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black">{toPersianDigits(timeLeft.minutes)}</span><span className="text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">دقیقه</span></div>
                   <div className="bg-white dark:bg-[#182234] dark:bg-[#182234]/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(timeLeft.seconds)}</span><span className="text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">ثانیه</span></div>
                  </div>
-               ) : <span className="text-xs font-bold text-gray-300">در انتظار کلید شروع مسابقه توسط مدیر...</span>}
+               ) : <span className="text-xs font-bold text-gray-300">در انتظار شروع مسابقه توسط مدیر...</span>}
             </div>
           )}
 
@@ -687,7 +687,7 @@ export default function ContestLandingPage() {
                 </div>
                 <div>
                   <h3 className="font-black text-base text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">پرونده آماری سوال {toPersianDigits(selectedQuestion.question_index)}</h3>
-                  <p className="text-[10px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mt-0.5">بررسی متن صورت سوال و کلید گزینه‌ها</p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mt-0.5">بررسی متن صورت سوال و گزینه‌ها</p>
                 </div>
               </div>
               <button
@@ -736,7 +736,7 @@ export default function ContestLandingPage() {
                           </span>
                           <span>{opt}</span>
                         </span>
-                        {isCorrect && <span className="text-[9px] bg-emerald-500 text-white px-2 py-0.5 rounded-md font-black">پاسخ صحیح (کلید)</span>}
+                        {isCorrect && <span className="text-[9px] bg-emerald-500 text-white px-2 py-0.5 rounded-md font-black">پاسخ صحیح</span>}
                       </div>
                     );
                   })}
