@@ -285,7 +285,10 @@ export default function AdminUsersPage() {
           <div className="relative w-full sm:w-48">
             <select
               value={sortFilter}
-              onChange={(e) => setSortFilter(e.target.value)}
+              onChange={(e) => {
+                setSortFilter(e.target.value);
+                setSortField('');
+              }}
               className="w-full bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all appearance-none cursor-pointer text-center"
             >
               <option value="">همه کاربران</option>
@@ -300,7 +303,10 @@ export default function AdminUsersPage() {
           <div className="relative w-full sm:w-48">
             <select
               value={selectedContestId}
-              onChange={(e) => setSelectedContestId(e.target.value)}
+              onChange={(e) => {
+                setSelectedContestId(e.target.value);
+                setSortField('');
+              }}
               disabled={sortFilter === 'not_participated'}
               className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all appearance-none cursor-pointer text-center"
             >

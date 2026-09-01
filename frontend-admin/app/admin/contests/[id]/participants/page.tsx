@@ -293,7 +293,10 @@ export default function ParticipantsPage() {
           <div className="relative w-full sm:w-48">
             <select
               value={sortFilter}
-              onChange={(e) => setSortFilter(e.target.value)}
+              onChange={(e) => {
+                setSortFilter(e.target.value);
+                setSortField('');
+              }}
               className="w-full bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] shadow-sm appearance-none cursor-pointer text-center"
             >
               <option value="highest_score">بیشترین نمره (رتبه‌بندی)</option>
