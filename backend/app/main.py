@@ -1247,17 +1247,21 @@ def update_my_profile(
     raw_birth_date = payload.get("birth_date")
     if raw_birth_date:
         try:
-            normalized_date = fa_to_en_digits(raw_birth_date)
-            # تبدیل به میلادی
+            normalized_date = fa_to_en_digits(raw_birth_date).replace("-", "/")
             new_birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
-            
-            # 🌟 کنترل سن در زمان ویرایش پروفایل
-            today = date.today()
-            age = today.year - new_birth_date.year - ((today.month, today.day) < (new_birth_date.month, new_birth_date.day))
-            
-            if age < 10:
-                raise HTTPException(status_code=400, detail="سن شما برای حضور در سیستم نمی‌تواند کمتر از ۱۰ سال باشد.")
-                
+
+            birth_jalali = jdatetime.date.fromgregorian(date=new_birth_date)
+            today_jalali = jdatetime.date.today()
+            earliest_allowed_birth = today_jalali.replace(
+                year=today_jalali.year - schemas.MIN_REGISTRATION_AGE
+            )
+
+            if birth_jalali > earliest_allowed_birth:
+                raise HTTPException(
+                    status_code=400,
+                    detail="حداقل سن برای ثبت‌نام ۱۴ سال است.",
+                )
+
             user.birth_date = new_birth_date
             
         except ValueError:

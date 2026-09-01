@@ -22,6 +22,8 @@ class City(CityBase):
 # ==========================================
 # User Schemas
 # ==========================================
+MIN_REGISTRATION_AGE = 14
+
 def is_valid_iranian_national_id(code: str) -> bool:
     if not re.match(r'^\d{10}$', code): 
         return False
@@ -69,7 +71,6 @@ class UserBase(BaseModel):
     @field_validator("birth_date", mode="before")
     @classmethod
     def validate_min_age(cls, value):
-        # ... (دقیقاً همان کدهای قبلی تاریخ تولد شما اینجا بماند) ...
         if not value:
             return None
         if isinstance(value, date):
@@ -87,10 +88,13 @@ class UserBase(BaseModel):
             except ValueError:
                 raise ValueError("فرمت تاریخ تولد نامعتبر است (مثال صحیح: 1390/01/01)")
 
-        today = date.today()
-        age = today.year - gregorian_date.year - ((today.month, today.day) < (gregorian_date.month, gregorian_date.day))
-        if age < 10:
-            raise ValueError("حداقل سن برای ثبت‌نام در مسابقات ۱۰ سال است.")
+        birth_jalali = jdatetime.date.fromgregorian(date=gregorian_date)
+        today_jalali = jdatetime.date.today()
+        earliest_allowed_birth = today_jalali.replace(year=today_jalali.year - MIN_REGISTRATION_AGE)
+
+        if birth_jalali > earliest_allowed_birth:
+            raise ValueError("حداقل سن برای ثبت‌نام ۱۴ سال است.")
+
         return gregorian_date
 
 class UserCreate(UserBase):

@@ -6,11 +6,14 @@ import Image from 'next/image';
 import api from '../../../lib/api';
 import { User, Lock, Phone, ArrowRight, CreditCard, MapPin, Calendar, MessageSquare, Edit2, ArrowLeft, CheckCircle } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
+import DateObject from "react-date-object";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import { SearchableDropdown } from './SearchableDropdown';
 
 const DatePickerComponent = DatePicker as any;
+const MIN_REGISTRATION_AGE = 14;
+const maxBirthDate = new DateObject({ calendar: persian, locale: persian_fa }).subtract(MIN_REGISTRATION_AGE, "years");
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -72,6 +75,26 @@ export default function RegisterPage() {
   const isValidPhoneNumber = (phone: string): boolean => {
     const cleanPhone = toEnglishDigits(phone).trim();
     return /^09\d{9}$/.test(cleanPhone);
+  };
+
+  const meetsMinimumRegistrationAge = (birthDateStr: string): boolean => {
+    const normalized = toEnglishDigits(birthDateStr).trim().replace(/-/g, "/");
+    if (!normalized) return false;
+
+    try {
+      const birthDate = new DateObject({
+        date: normalized,
+        format: "YYYY/MM/DD",
+        calendar: persian,
+        locale: persian_fa,
+      });
+      const earliestAllowedBirthDate = new DateObject({ calendar: persian, locale: persian_fa })
+        .subtract(MIN_REGISTRATION_AGE, "years");
+
+      return birthDate <= earliestAllowedBirthDate;
+    } catch {
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -138,6 +161,10 @@ export default function RegisterPage() {
     }
     
     if (!formData.city_id) return alert("⚠️ لطفاً شهر محل سکونت خود را انتخاب کنید.");
+    if (!formData.birth_date) return alert("⚠️ لطفاً تاریخ تولد خود را وارد کنید.");
+    if (!meetsMinimumRegistrationAge(formData.birth_date)) {
+      return alert("⚠️ حداقل سن برای ثبت‌نام ۱۴ سال است.");
+    }
 
     setLoading(true);
     try {
@@ -310,7 +337,8 @@ export default function RegisterPage() {
                 <div className="relative">
                   <Calendar className="absolute right-3 top-3.5 text-gray-400 z-10" size={16} />
                   <DatePickerComponent calendar={persian} locale={persian_fa} calendarPosition="bottom-right"
-                    value={formData.birth_date} onChange={(date: any) => setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" })}
+                    value={formData.birth_date} maxDate={maxBirthDate}
+                    onChange={(date: any) => setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" })}
                     containerClassName="w-full" inputClass="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none rounded-xl font-bold text-sm text-left focus:ring-2 focus:ring-[#c5a059] outline-none" placeholder="1380/01/01" />
                 </div>
               </div>
