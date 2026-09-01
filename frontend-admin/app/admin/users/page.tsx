@@ -13,7 +13,8 @@ export default function AdminUsersPage() {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]); 
   const [contests, setContests] = useState<any[]>([]); 
-  const [selectedContest, setSelectedContest] = useState<string>(''); 
+  const [selectedContestId, setSelectedContestId] = useState<string>('');
+  const [sortFilter, setSortFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState(''); 
   const [loading, setLoading] = useState(true);
 
@@ -42,18 +43,21 @@ export default function AdminUsersPage() {
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
 
-  const fetchInitialData = async () => {
+  const fetchUsers = async (contestId = selectedContestId, sort = sortFilter) => {
     try {
       setLoading(true);
-      const [usersRes, contestsRes] = await Promise.all([
-        api.get(`/admin/users?t=${Date.now()}`),
-        api.get(`/contests?t=${Date.now()}`)
-      ]);
+      const params = new URLSearchParams();
+      if (contestId) params.set('contest_id', contestId);
+      if (sort === 'not_participated') {
+        params.set('participation_status', 'not_participated');
+      } else if (sort) {
+        params.set('sort_by', sort);
+      }
+      const usersRes = await api.get(`/admin/users?${params.toString()}&t=${Date.now()}`);
       setUsersList(usersRes.data || []);
       setFilteredUsers(usersRes.data || []);
-      setContests(contestsRes.data || []);
     } catch (error: any) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching users:", error);
       if (error.response?.status === 403 || error.response?.status === 401) {
         alert("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
         localStorage.clear();
@@ -64,18 +68,34 @@ export default function AdminUsersPage() {
     }
   };
 
+  const fetchInitialData = async () => {
+    try {
+      const contestsRes = await api.get(`/contests?t=${Date.now()}`);
+      setContests(contestsRes.data || []);
+    } catch (error: any) {
+      console.error("Error fetching data:", error);
+      if (error.response?.status === 403 || error.response?.status === 401) {
+        alert("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+    }
+  };
+
   useEffect(() => {
     fetchInitialData();
+    fetchUsers('', '');
   }, []);
+
+  useEffect(() => {
+    fetchUsers(selectedContestId, sortFilter);
+  }, [selectedContestId, sortFilter]);
 
   useEffect(() => {
     const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
     
     let result = usersList.filter((user: any) => {
-      const matchesContest = selectedContest === '' || 
-        (user.all_contests ? user.all_contests.includes(selectedContest) : user.last_contest === selectedContest);
-
-      if (!normalizedQuery) return matchesContest;
+      if (!normalizedQuery) return true;
 
       const name = user.name?.toLowerCase() || '';
       const phone = toEnglishDigits(user.phone || '');
@@ -89,7 +109,7 @@ export default function AdminUsersPage() {
         province.includes(normalizedQuery)
       );
 
-      return matchesSearch && matchesContest;
+      return matchesSearch;
     });
 
     if (sortField) {
@@ -111,7 +131,7 @@ export default function AdminUsersPage() {
     }
 
     setFilteredUsers(result);
-  }, [searchQuery, selectedContest, usersList, sortField, sortOrder]);
+  }, [searchQuery, usersList, sortField, sortOrder]);
 
   const handleSortRequest = (field: string) => {
     if (sortField === field) {
@@ -228,7 +248,7 @@ export default function AdminUsersPage() {
         is_admin: editFormData.is_admin
       });
       
-      fetchInitialData();
+      fetchUsers(selectedContestId, sortFilter);
     } catch (error) {
       alert("خطا در ذخیره‌سازی تغییرات پرونده");
     } finally {
@@ -264,13 +284,29 @@ export default function AdminUsersPage() {
 
           <div className="relative w-full sm:w-48">
             <select
-              value={selectedContest}
-              onChange={(e) => setSelectedContest(e.target.value)}
+              value={sortFilter}
+              onChange={(e) => setSortFilter(e.target.value)}
+              className="w-full bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all appearance-none cursor-pointer text-center"
+            >
+              <option value="">همه کاربران</option>
+              <option value="recent_registration">ثبت‌نامی‌های اخیر</option>
+              <option value="recent_participation">شرکت‌کنندگان اخیر</option>
+              <option value="highest_score">بیشترین نمره</option>
+              <option value="lowest_score">کمترین نمره</option>
+              <option value="not_participated">شرکت نکرده‌ها</option>
+            </select>
+          </div>
+
+          <div className="relative w-full sm:w-48">
+            <select
+              value={selectedContestId}
+              onChange={(e) => setSelectedContestId(e.target.value)}
+              disabled={sortFilter === 'not_participated'}
               className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all appearance-none cursor-pointer text-center"
             >
-              <option value="">🔍 همه مسابقات</option>
+              <option value="">فیلتر بر اساس مسابقه</option>
               {contests.map((c: any) => (
-                <option key={c.id} value={c.title}>{c.title}</option>
+                <option key={c.id} value={String(c.id)}>{c.title}</option>
               ))}
             </select>
           </div>

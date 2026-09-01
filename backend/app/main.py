@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.encoders import jsonable_encoder
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, text
+from sqlalchemy import func, text, desc, asc
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
@@ -1896,37 +1896,143 @@ def proxy_get_profile_photo(
 @app.get("/admin/users", response_model=List[Dict[str, Any]])
 @app.get("/admin/users-list", response_model=List[Dict[str, Any]])
 def get_admin_users_list(
-    db: Session = Depends(database.get_db), 
-    current_admin: models.User = Depends(require_admin)
+    search: Optional[str] = None,
+    contest_id: Optional[int] = None,
+    participation_status: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin),
 ):
     """واکشی بهینه‌شده و فوق‌سریع لیست کاربران برای پنل ادمین بدون مشکل N+1 Query"""
-    
-    # بارگذاری پیش‌دستانه (Eager Loading) شهرها و استان‌ها برای جلوگیری از کوئری‌های تکراری در حلقه
-    users = db.query(models.User)\
-              .options(joinedload(models.User.city).joinedload(models.City.parent), joinedload(models.User.admin))\
-              .all()
-              
+
+    active_sub = models.Subscription.deleted_at.is_(None)
+
+    query = (
+        db.query(models.User)
+        .options(
+            joinedload(models.User.city).joinedload(models.City.parent),
+            joinedload(models.User.admin),
+        )
+        .filter(models.User.deleted_at.is_(None))
+    )
+
+    if search and search.strip():
+        term = f"%{fa_to_en_digits(search.strip())}%"
+        query = query.filter(
+            (models.User.first_name.ilike(term))
+            | (models.User.last_name.ilike(term))
+            | (models.User.phone_number.ilike(term))
+            | (models.User.national_id.ilike(term))
+        )
+
+    if participation_status == "not_participated":
+        participated_user_ids = (
+            db.query(models.Subscription.user_id)
+            .filter(active_sub)
+            .distinct()
+        )
+        query = query.filter(~models.User.id.in_(participated_user_ids))
+
+    if contest_id is not None:
+        contest_user_ids = (
+            db.query(models.Subscription.user_id)
+            .filter(active_sub, models.Subscription.contest_id == contest_id)
+            .distinct()
+        )
+        query = query.filter(models.User.id.in_(contest_user_ids))
+
+    if sort_by == "recent_registration":
+        query = query.order_by(models.User.created_at.desc())
+    elif sort_by == "recent_participation":
+        participation_sq = (
+            db.query(
+                models.Subscription.user_id.label("user_id"),
+                func.max(models.Subscription.created_at).label("last_participation"),
+            )
+            .filter(active_sub)
+        )
+        if contest_id is not None:
+            participation_sq = participation_sq.filter(
+                models.Subscription.contest_id == contest_id
+            )
+        participation_sq = participation_sq.group_by(models.Subscription.user_id).subquery()
+        query = query.outerjoin(
+            participation_sq, models.User.id == participation_sq.c.user_id
+        ).order_by(
+            desc(participation_sq.c.last_participation).nullslast(),
+            models.User.created_at.desc(),
+        )
+    elif sort_by in ("highest_score", "lowest_score"):
+        if contest_id is not None:
+            query = query.join(
+                models.Subscription,
+                (models.User.id == models.Subscription.user_id)
+                & (models.Subscription.contest_id == contest_id)
+                & active_sub,
+            )
+            score_col = models.Subscription.score
+        else:
+            agg_fn = func.max if sort_by == "highest_score" else func.min
+            score_sq = (
+                db.query(
+                    models.Subscription.user_id.label("user_id"),
+                    agg_fn(models.Subscription.score).label("sort_score"),
+                )
+                .filter(active_sub)
+                .group_by(models.Subscription.user_id)
+                .subquery()
+            )
+            query = query.outerjoin(score_sq, models.User.id == score_sq.c.user_id)
+            score_col = score_sq.c.sort_score
+
+        if sort_by == "highest_score":
+            query = query.order_by(desc(score_col).nullslast(), models.User.created_at.desc())
+        else:
+            query = query.order_by(asc(score_col).nullslast(), models.User.created_at.desc())
+    else:
+        query = query.order_by(models.User.created_at.desc())
+
+    users = query.all()
+    if not users:
+        return []
+
+    user_ids = [u.id for u in users]
+
+    avg_rows = (
+        db.query(
+            models.Subscription.user_id,
+            func.avg(models.Subscription.score).label("avg_score"),
+        )
+        .filter(models.Subscription.user_id.in_(user_ids), active_sub)
+        .group_by(models.Subscription.user_id)
+        .all()
+    )
+    avg_map = {row.user_id: row.avg_score for row in avg_rows}
+
+    all_subs = (
+        db.query(models.Subscription)
+        .join(models.Contest, models.Subscription.contest_id == models.Contest.id)
+        .filter(
+            models.Subscription.user_id.in_(user_ids),
+            active_sub,
+            models.Contest.deleted_at.is_(None),
+        )
+        .options(joinedload(models.Subscription.contest))
+        .order_by(models.Subscription.created_at.asc())
+        .all()
+    )
+    subs_by_user: Dict[Any, List[models.Subscription]] = {}
+    for sub in all_subs:
+        subs_by_user.setdefault(sub.user_id, []).append(sub)
+
     results = []
     for u in users:
-        # ۱. محاسبه بهینه میانگین نمرات کاربر
-        avg_score_query = db.query(func.avg(models.Subscription.score))\
-                            .filter(models.Subscription.user_id == u.id)\
-                            .scalar()
-        average_score = f"{round(float(avg_score_query), 1)}%" if avg_score_query is not None else "---"
+        user_subs = subs_by_user.get(u.id, [])
+        avg_score = avg_map.get(u.id)
+        average_score = f"{round(float(avg_score), 1)}%" if avg_score is not None else "---"
+        participated_contests = [sub.contest.title for sub in user_subs if sub.contest]
+        last_sub = user_subs[-1] if user_subs else None
 
-        # ۲. واکشی یکجای رکوردهای ثبت‌نام کاربر مسابقات حذف نشده
-        all_subs = db.query(models.Subscription)\
-                     .join(models.Contest, models.Subscription.contest_id == models.Contest.id)\
-                     .filter(models.Subscription.user_id == u.id, models.Contest.deleted_at == None)\
-                     .options(joinedload(models.Subscription.contest))\
-                     .all()
-                     
-        participated_contests = [sub.contest.title for sub in all_subs if sub.contest]
-
-        # پیدا کردن آخرین مسابقه شرکت کرده
-        last_sub = all_subs[-1] if all_subs else None
-        
-        # ۳. استخراج سریع نام شهر و استان از روی کش ریلیشن‌ها (بدون زدن کوئری مجدد به دیتابیس)
         province_title = "---"
         city_title = "---"
         if u.city:
@@ -1939,17 +2045,17 @@ def get_admin_users_list(
         results.append({
             "id": u.id,
             "name": f"{u.first_name or ''} {u.last_name or ''}".strip() or "بدون نام",
-            "phone": u.phone_number,  
+            "phone": u.phone_number,
             "national_id": u.national_id or "---",
             "province": province_title,
             "city": city_title,
-            "gender": u.gender or "---", 
+            "gender": u.gender or "---",
             "last_contest": last_sub.contest.title if last_sub and last_sub.contest else "شرکت نکرده",
             "all_contests": participated_contests,
             "average_score": average_score,
             "is_admin": True if u.admin else False
         })
-        
+
     return results
 
 @app.get("/admin/provinces-report")
@@ -2874,6 +2980,7 @@ def submit_exam_results(
 def get_admin_contest_participants(
     contest_id: int,
     search: Optional[str] = None,
+    sort_by: Optional[str] = None,
     db: Session = Depends(database.get_db),
     current_admin: models.User = Depends(require_admin)
 ):
@@ -2891,6 +2998,15 @@ def get_admin_contest_participants(
             (models.User.last_name.like(search_filter)) |
             (models.User.national_id.like(search_filter))
         )
+
+    if sort_by == "lowest_score":
+        query = query.order_by(models.Subscription.score.asc(), models.Subscription.created_at.desc())
+    elif sort_by == "recent_participation":
+        query = query.order_by(models.Subscription.created_at.desc())
+    elif sort_by == "recent_registration":
+        query = query.join(models.User).order_by(models.User.created_at.desc())
+    else:
+        query = query.order_by(models.Subscription.score.desc(), models.Subscription.created_at.asc())
         
     subscriptions = query.options(joinedload(models.Subscription.user)).all()
     results = []
@@ -2921,7 +3037,6 @@ def get_admin_contest_participants(
             "last_four_id": last_four
         })
         
-    results.sort(key=lambda x: (-x["score"], x["time_taken"]))
     for idx, item in enumerate(results):
         item["rank"] = idx + 1
         

@@ -19,6 +19,7 @@ export default function ParticipantsPage() {
   const [contest, setContest] = useState<any>(null); 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortFilter, setSortFilter] = useState<string>('highest_score');
 
   const [sortField, setSortField] = useState<string>('rank'); 
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -62,10 +63,14 @@ export default function ParticipantsPage() {
   useEffect(() => {
     if (!contestId || contestId === 'undefined') return;
 
-    const fetchPageData = async () => {
+    const fetchParticipants = async () => {
       try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (sortFilter) params.set('sort_by', sortFilter);
+        const query = params.toString();
         const [participantsRes, contestRes] = await Promise.all([
-          api.get(`/admin/contests/${contestId}/participants?t=${Date.now()}`),
+          api.get(`/admin/contests/${contestId}/participants?${query}&t=${Date.now()}`),
           api.get(`/contests/${contestId}?t=${Date.now()}`)
         ]);
         
@@ -79,8 +84,8 @@ export default function ParticipantsPage() {
       }
     };
 
-    fetchPageData();
-  }, [contestId]);
+    fetchParticipants();
+  }, [contestId, sortFilter]);
 
   useEffect(() => {
     const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
@@ -233,8 +238,10 @@ export default function ParticipantsPage() {
         birth_date: editFormData.birth_date
       });
       
+      const params = new URLSearchParams();
+      if (sortFilter) params.set('sort_by', sortFilter);
       const [participantsRes] = await Promise.all([
-        api.get(`/admin/contests/${contestId}/participants?t=${Date.now()}`)
+        api.get(`/admin/contests/${contestId}/participants?${params.toString()}&t=${Date.now()}`)
       ]);
       setParticipants(participantsRes.data || []);
       
@@ -282,6 +289,19 @@ export default function ParticipantsPage() {
           >
             <Download size={16} /> خروجی Excel / CSV
           </button>
+
+          <div className="relative w-full sm:w-48">
+            <select
+              value={sortFilter}
+              onChange={(e) => setSortFilter(e.target.value)}
+              className="w-full bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] shadow-sm appearance-none cursor-pointer text-center"
+            >
+              <option value="highest_score">بیشترین نمره (رتبه‌بندی)</option>
+              <option value="lowest_score">کمترین نمره</option>
+              <option value="recent_participation">شرکت‌کنندگان اخیر</option>
+              <option value="recent_registration">ثبت‌نامی‌های اخیر</option>
+            </select>
+          </div>
 
           <div className="bg-blue-50 text-blue-600 px-5 py-3.5 rounded-2xl flex items-center gap-1.5 font-black text-xs border border-blue-100 shadow-sm shrink-0 w-full sm:w-auto justify-center">
             <Users size={16} />
