@@ -2033,6 +2033,16 @@ def get_admin_users_list(
             query = query.order_by(desc(score_col).nullslast(), models.User.created_at.desc())
         else:
             query = query.order_by(asc(score_col).nullslast(), models.User.created_at.desc())
+    elif sort_by == "youngest":
+        query = query.order_by(
+            models.User.birth_date.desc().nullslast(),
+            models.User.created_at.desc(),
+        )
+    elif sort_by == "oldest":
+        query = query.order_by(
+            models.User.birth_date.asc().nullslast(),
+            models.User.created_at.desc(),
+        )
     else:
         query = query.order_by(models.User.created_at.desc())
 
@@ -3049,6 +3059,16 @@ def get_admin_contest_participants(
         query = query.order_by(models.Subscription.created_at.desc())
     elif sort_by == "recent_registration":
         query = query.join(models.User).order_by(models.User.created_at.desc())
+    elif sort_by == "youngest":
+        query = query.join(models.User).order_by(
+            models.User.birth_date.desc().nullslast(),
+            models.Subscription.created_at.desc(),
+        )
+    elif sort_by == "oldest":
+        query = query.join(models.User).order_by(
+            models.User.birth_date.asc().nullslast(),
+            models.Subscription.created_at.desc(),
+        )
     else:
         query = query.order_by(models.Subscription.score.desc(), models.Subscription.created_at.asc())
         

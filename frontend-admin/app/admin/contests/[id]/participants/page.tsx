@@ -303,6 +303,8 @@ export default function ParticipantsPage() {
               <option value="lowest_score">کمترین نمره</option>
               <option value="recent_participation">شرکت‌کنندگان اخیر</option>
               <option value="recent_registration">ثبت‌نامی‌های اخیر</option>
+              <option value="youngest">کمترین سن</option>
+              <option value="oldest">بیشترین سن</option>
             </select>
           </div>
 

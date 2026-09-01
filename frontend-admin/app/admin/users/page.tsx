@@ -296,6 +296,8 @@ export default function AdminUsersPage() {
               <option value="recent_participation">شرکت‌کنندگان اخیر</option>
               <option value="highest_score">بیشترین نمره</option>
               <option value="lowest_score">کمترین نمره</option>
+              <option value="youngest">کمترین سن</option>
+              <option value="oldest">بیشترین سن</option>
               <option value="not_participated">شرکت نکرده‌ها</option>
             </select>
           </div>
