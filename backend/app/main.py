@@ -2740,27 +2740,60 @@ def submit_exam_results(
     if not questions:
         raise HTTPException(status_code=400, detail="این مسابقه سوالی ندارد")
 
+    if not answers_map:
+        raise HTTPException(status_code=400, detail="پاسخی ارسال نشده است")
+
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
-        
-    # ۲. مقایسه انتخاب‌های کاربر با گزینه‌های صحیح دیتابیس
-    correct_count = 0
-    for q in questions:
-        user_option_id = answers_map.get(str(q.id)) or answers_map.get(q.id)
-        correct_option = next((ans for ans in q.answers if ans.is_correct == 1), None)
-        
-        if correct_option and user_option_id and int(user_option_id) == correct_option.id:
-            correct_count += 1
-            
-    score_percentage = (correct_count / len(questions)) * 100 if questions else 0
-    
-    # تبدیل ثانیه‌های فرانت‌ند به شیء استاندارد Time دیتابیس
-    t_seconds = int(payload.get("time_taken", 0))
-    time_obj = time(hour=(t_seconds // 3600) % 24, minute=(t_seconds % 3600) // 60, second=t_seconds % 60)
-    
+
     sub = db.query(models.Subscription).filter(
         models.Subscription.user_id == current_user.id,
         models.Subscription.contest_id == contest_id
     ).first()
+
+    questions_by_id = {q.id: q for q in questions}
+
+    # Denominator = exactly the questions assigned to this user (not the full contest bank).
+    assigned_rows = []
+    if sub:
+        assigned_rows = db.query(models.SubscriptionQuestions).filter(
+            models.SubscriptionQuestions.subscription_id == sub.id,
+            models.SubscriptionQuestions.deleted_at == None
+        ).all()
+
+    if assigned_rows:
+        assigned_question_ids = [row.question_id for row in assigned_rows]
+    else:
+        # Frontend must send every assigned question key, with null for unanswered ones.
+        assigned_question_ids = [int(q_id) for q_id in answers_map.keys()]
+
+    total_assigned = len(assigned_question_ids)
+    if total_assigned == 0:
+        raise HTTPException(status_code=400, detail="سوالی برای محاسبه نمره یافت نشد")
+
+    # ۲. مقایسه انتخاب‌های کاربر با گزینه‌های صحیح — فقط روی سوالات تخصیص‌یافته
+    correct_count = 0
+    for q_id in assigned_question_ids:
+        user_option_id = answers_map.get(str(q_id)) or answers_map.get(q_id)
+
+        if user_option_id is None:
+            continue  # blank: counts against score, but NOT in correct_count
+
+        q = questions_by_id.get(int(q_id))
+        if not q:
+            continue
+
+        correct_option = next(
+            (ans for ans in q.answers if ans.is_correct == 1 and ans.deleted_at is None),
+            None,
+        )
+        if correct_option and int(user_option_id) == correct_option.id:
+            correct_count += 1
+
+    score_percentage = (correct_count / total_assigned) * 100
+    
+    # تبدیل ثانیه‌های فرانت‌ند به شیء استاندارد Time دیتابیس
+    t_seconds = int(payload.get("time_taken", 0))
+    time_obj = time(hour=(t_seconds // 3600) % 24, minute=(t_seconds % 3600) // 60, second=t_seconds % 60)
     
     if not sub:
         sub = models.Subscription(
@@ -2815,7 +2848,7 @@ def submit_exam_results(
     return {
         "score": round(score_percentage),
         "correct_count": correct_count,
-        "total_questions": len(questions)
+        "total_questions": total_assigned
     }
 
 

@@ -251,10 +251,14 @@ export default function ExamPage() {
     const timeTaken = totalTime - timeLeft;
 
     try {
+      const answers_map = Object.fromEntries(
+        questions.map((q) => [q.id, answers[q.id] ?? null])
+      );
+
       const response = await api.post('/submissions', {
         contest_id: parseInt(contestId),
         time_taken: timeTaken,
-        answers_map: answers
+        answers_map
       });
 
       const serverScore = response.data.score ?? 0;
