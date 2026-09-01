@@ -2136,15 +2136,32 @@ def get_admin_user_answers(
     if not subscription:
         raise HTTPException(status_code=404, detail="پاسخنامه‌ای برای این کاربر یافت نشد")
         
-    # ۲. پیدا کردن تمام سوالات این مسابقه خاص به ترتیب ورود
+    # ۲. واکشی فقط سوالاتی که واقعاً به این کاربر تخصیص داده شده‌اند
+    assigned_rows = db.query(models.SubscriptionQuestions).filter(
+        models.SubscriptionQuestions.subscription_id == subscription.id,
+        models.SubscriptionQuestions.deleted_at == None
+    ).order_by(models.SubscriptionQuestions.id.asc()).all()
+
+    assigned_question_ids = [row.question_id for row in assigned_rows]
+
+    if not assigned_question_ids:
+        return []
+
     questions = db.query(models.Question).filter(
+        models.Question.id.in_(assigned_question_ids),
         models.Question.contest_id == contest_id,
         models.Question.is_active == 1,
         models.Question.deleted_at == None
-    ).order_by(models.Question.id.asc()).all()
+    ).all()
+
+    questions_by_id = {q.id: q for q in questions}
     
     results = []
-    for idx, q in enumerate(questions):
+    for idx, assigned_row in enumerate(assigned_rows):
+        q = questions_by_id.get(assigned_row.question_id)
+        if not q:
+            continue
+
         # واکشی گزینه‌های سوال با چیدمان ثابت صعودی (گزینه ۱ تا ۴)
         options_data = db.query(models.Answer).filter(
             models.Answer.question_id == q.id,
@@ -2163,11 +2180,8 @@ def get_admin_user_answers(
         # 🌟 ۴. شاه‌کلید فیکس: استخراج گزینه انتخابی کاربر از جداول رابطه‌ای دیتابیس شما
         selected_option_idx = None
         
-        # پیدا کردن سطر سوال در این سابسکریپشن
-        sub_question = db.query(models.SubscriptionQuestions).filter(
-            models.SubscriptionQuestions.subscription_id == subscription.id,
-            models.SubscriptionQuestions.question_id == q.id
-        ).first()
+        # سطر سوال از همان لیست تخصیص‌یافته
+        sub_question = assigned_row
         
         if sub_question:
             # پیدا کردن پاسخی که کاربر علامت زده است (is_chosen == 1)
