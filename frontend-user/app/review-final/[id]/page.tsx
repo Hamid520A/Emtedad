@@ -52,7 +52,7 @@ export default function FinalReviewPage({ params }: { params: { id: string } }) 
         </button>
         <div>
           <h1 className="font-black text-xl flex items-center gap-2 text-[#1a2e44] dark:text-slate-100">
-            <HelpCircle className="text-[#c5a059]" /> مرور پاسخنامه مسابقه #{toPersianDigits(contestId)}
+            <HelpCircle className="text-[#c5a059]" /> مرور پاسخنامه مسابقه
           </h1>
           <p className="text-gray-400 dark:text-slate-400 text-[10px] font-bold mt-0.5">بررسی وضعیت سوالات و گزینه‌های ثبت شده</p>
         </div>
