@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
 import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime
 from app.services.sms_service import sms_service
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -599,8 +599,16 @@ class OTPRequest(BaseModel):
     phone_number: str
 
 class OTPVerify(BaseModel):
-    phone_number: str
-    code: str
+    phone_number: str = Field(..., pattern=r"^09\d{9}$")
+    code: str = Field(..., min_length=5, max_length=5, pattern=r"^\d{5}$")
+
+    @field_validator("phone_number", "code", mode="before")
+    @classmethod
+    def convert_otp_digits(cls, value):
+        if not value:
+            return value
+        trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        return str(value).translate(trans_table)
 
 @app.post("/send-otp", tags=["Auth"])
 def send_otp(payload: OTPRequest):
@@ -644,8 +652,16 @@ def verify_otp(payload: OTPVerify):
 
 class PasswordReset(BaseModel):
     phone_number: str
-    otp_code: str
+    otp_code: str = Field(..., min_length=5, max_length=5, pattern=r"^\d{5}$")
     new_password: str
+
+    @field_validator("phone_number", "otp_code", mode="before")
+    @classmethod
+    def convert_reset_digits(cls, value):
+        if not value:
+            return value
+        trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        return str(value).translate(trans_table)
 
 @app.post("/reset-password", tags=["Auth"])
 def reset_password_with_otp(payload: PasswordReset, db: Session = Depends(database.get_db)):
