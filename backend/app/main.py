@@ -1182,7 +1182,7 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), cur
             
             results.append({
                 "rank": index + 1,
-                "user_id": sub.user_id,
+                "user_id": str(sub.user_id),
                 "name": f"{sub.user.first_name} {sub.user.last_name or ''}".strip(),
                 "score": score_val,
                 "time": time_taken_seconds,        
@@ -1195,9 +1195,9 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), cur
         
         for idx, item in enumerate(results):
             item["rank"] = idx + 1
-                    # ذخیره در کش ردیس برای ۶۰ ثانیه
+        # ذخیره در کش ردیس برای ۶۰ ثانیه
         try:
-            r.setex(cache_key, 60, json.dumps(results))
+            r.setex(cache_key, 60, json.dumps(jsonable_encoder(results)))
         except Exception as e:
             logger.error(f"Silent failure intercepted: {e}")
 
