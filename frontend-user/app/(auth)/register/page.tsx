@@ -97,6 +97,44 @@ export default function RegisterPage() {
     }
   };
 
+  const validateRegistrationForm = (): string | null => {
+    if (!formData.first_name.trim()) return "وارد کردن نام الزامی است.";
+    if (!formData.last_name.trim()) return "وارد کردن نام خانوادگی الزامی است.";
+
+    const finalPhone = toEnglishDigits(formData.phone || '').trim();
+    if (!finalPhone) return "وارد کردن شماره موبایل الزامی است.";
+    if (!isValidPhoneNumber(finalPhone)) return "شماره موبایل معتبر نیست! (باید با ۰۹ شروع شود)";
+
+    const finalIdentity = toEnglishDigits(formData.national_id || '').trim();
+    if (!finalIdentity) {
+      return formData.is_iranian
+        ? "وارد کردن کد ملی الزامی است."
+        : "وارد کردن شناسه اتباع الزامی است.";
+    }
+    if (!isValidIdentity(finalIdentity, formData.is_iranian)) {
+      return `${formData.is_iranian ? 'کد ملی' : 'شناسه اتباع'} وارد شده نامعتبر است!`;
+    }
+
+    if (!formData.province_id) return "انتخاب استان الزامی است.";
+    if (!formData.city_id) return "انتخاب شهرستان الزامی است.";
+
+    if (!formData.birth_date) return "وارد کردن تاریخ تولد الزامی است.";
+    if (!meetsMinimumRegistrationAge(formData.birth_date)) {
+      return "حداقل سن برای ثبت‌نام ۱۴ سال است.";
+    }
+
+    if (!formData.gender) return "انتخاب جنسیت الزامی است.";
+
+    if (!formData.password) return "وارد کردن رمز عبور الزامی است.";
+    if (formData.password.length < 6) return "رمز عبور باید حداقل ۶ کاراکتر باشد.";
+    if (!formData.confirmPassword) return "وارد کردن تکرار رمز عبور الزامی است.";
+    if (formData.password !== formData.confirmPassword) return "رمز عبور و تکرار آن با هم مطابقت ندارند!";
+
+    return null;
+  };
+
+  const isRegistrationFormValid = validateRegistrationForm() === null;
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const globalWindow = window as any;
@@ -147,24 +185,10 @@ export default function RegisterPage() {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.password.length < 6) return alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد.");
-    if (formData.password !== formData.confirmPassword) return alert("⚠️ رمز عبور و تکرار آن با هم مطابقت ندارند!");
-    
-    const finalPhone = toEnglishDigits(formData.phone || '').trim();
-    const finalIdentity = toEnglishDigits(formData.national_id || '').trim();
+    const validationError = validateRegistrationForm();
+    if (validationError) return alert(`⚠️ ${validationError}`);
 
-    if (!isValidPhoneNumber(finalPhone)) return alert("⚠️ شماره موبایل معتبر نیست! (باید با ۰۹ شروع شود)");
-    
-    // 🌟 اعمال خطای تفکیک شده برای ایرانی/اتباع
-    if (!isValidIdentity(finalIdentity, formData.is_iranian)) {
-      return alert(`⚠️ ${formData.is_iranian ? 'کد ملی' : 'شناسه اتباع'} وارد شده نامعتبر است!`);
-    }
-    
-    if (!formData.city_id) return alert("⚠️ لطفاً شهر محل سکونت خود را انتخاب کنید.");
-    if (!formData.birth_date) return alert("⚠️ لطفاً تاریخ تولد خود را وارد کنید.");
-    if (!meetsMinimumRegistrationAge(formData.birth_date)) {
-      return alert("⚠️ حداقل سن برای ثبت‌نام ۱۴ سال است.");
-    }
+    const finalPhone = toEnglishDigits(formData.phone || '').trim();
 
     setLoading(true);
     try {
@@ -182,9 +206,12 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!otpCode || otpCode.length < 4) return alert("لطفاً کد تایید را به درستی وارد کنید.");
 
+    const validationError = validateRegistrationForm();
+    if (validationError) return alert(`⚠️ ${validationError}`);
+
     setLoading(true);
     const finalPhone = toEnglishDigits(formData.phone).trim();
-    let formattedBirthDate = formData.birth_date ? toEnglishDigits(formData.birth_date).replace(/\//g, '-') : null;
+    const formattedBirthDate = toEnglishDigits(formData.birth_date).replace(/\//g, '-');
 
     try {
       await api.post('/verify-otp', { 
@@ -372,7 +399,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70">
+            <button type="submit" disabled={loading || !isRegistrationFormValid} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70">
               {loading ? 'در حال ارسال پیامک...' : 'ثبت اطلاعات و دریافت کد'}
               {!loading && <ArrowRight size={18} />}
             </button>

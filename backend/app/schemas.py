@@ -35,13 +35,13 @@ def is_valid_iranian_national_id(code: str) -> bool:
 
 class UserBase(BaseModel):
     first_name: str = Field(..., min_length=2, max_length=50, strip_whitespace=True)
-    last_name: Optional[str] = Field(None, max_length=50, strip_whitespace=True)
+    last_name: str = Field(..., min_length=2, max_length=50, strip_whitespace=True)
     phone_number: str = Field(..., pattern=r"^09\d{9}$", strip_whitespace=True)
     national_id: str = Field(..., strip_whitespace=True) # پترن حذف شد تا در ولیدیتور کنترل شود
     is_iranian: bool = True  # 🌟 فلگ تشخیص ملیت (پیش‌فرض: ایرانی)
-    city_id: Optional[int] = None
-    birth_date: Optional[date] = None
-    gender: str = Field("male", max_length=10)
+    city_id: int = Field(..., gt=0)
+    birth_date: date
+    gender: str = Field(..., pattern=r"^(male|female)$", max_length=10)
 
     @field_validator("phone_number", "national_id", mode="before")
     @classmethod
@@ -71,8 +71,8 @@ class UserBase(BaseModel):
     @field_validator("birth_date", mode="before")
     @classmethod
     def validate_min_age(cls, value):
-        if not value:
-            return None
+        if value is None or (isinstance(value, str) and not str(value).strip()):
+            raise ValueError("وارد کردن تاریخ تولد الزامی است.")
         if isinstance(value, date):
             gregorian_date = value.date() if hasattr(value, "date") else value
         else:
@@ -99,6 +99,37 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=128, strip_whitespace=True)
+
+class UserProfileUpdate(BaseModel):
+    first_name: str = Field(..., min_length=2, max_length=50, strip_whitespace=True)
+    last_name: str = Field(..., min_length=2, max_length=50, strip_whitespace=True)
+    birth_date: str = Field(..., min_length=8, strip_whitespace=True)
+    province: str = Field(..., min_length=2, strip_whitespace=True)
+    city: str = Field(..., min_length=2, strip_whitespace=True)
+
+    @field_validator("birth_date", mode="before")
+    @classmethod
+    def validate_profile_birth_date(cls, value):
+        if value is None or not str(value).strip():
+            raise ValueError("وارد کردن تاریخ تولد الزامی است.")
+        val_str = str(value)
+        trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        val_str = val_str.translate(trans_table).replace("-", "/")
+        try:
+            if val_str.startswith("13") or val_str.startswith("14"):
+                parsed_jalali = jdatetime.datetime.strptime(val_str, '%Y/%m/%d')
+                gregorian_date = parsed_jalali.togregorian().date()
+            else:
+                gregorian_date = date.fromisoformat(val_str.replace("/", "-"))
+        except ValueError:
+            raise ValueError("فرمت تاریخ تولد نامعتبر است (مثال صحیح: 1390/01/01)")
+
+        birth_jalali = jdatetime.date.fromgregorian(date=gregorian_date)
+        today_jalali = jdatetime.date.today()
+        earliest_allowed_birth = today_jalali.replace(year=today_jalali.year - MIN_REGISTRATION_AGE)
+        if birth_jalali > earliest_allowed_birth:
+            raise ValueError("حداقل سن برای ثبت‌نام ۱۴ سال است.")
+        return val_str
 
 class User(UserBase):
     id: UUID

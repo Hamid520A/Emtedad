@@ -60,6 +60,13 @@ export default function EditProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.first_name.trim()) return alert("وارد کردن نام الزامی است.");
+    if (!formData.last_name.trim()) return alert("وارد کردن نام خانوادگی الزامی است.");
+    if (!formData.birth_date) return alert("وارد کردن تاریخ تولد الزامی است.");
+    if (!formData.province) return alert("انتخاب استان الزامی است.");
+    if (!formData.city) return alert("انتخاب شهرستان الزامی است.");
+
     setSaving(true);
     try {
       await api.put('/users/me', {

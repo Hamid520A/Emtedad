@@ -708,6 +708,10 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     db_user_national = db.query(models.User).filter(models.User.national_id == user.national_id).first()
     if db_user_national:
         raise HTTPException(status_code=400, detail="کد ملی قبلاً ثبت شده")
+
+    db_city = db.query(models.City).filter(models.City.id == user.city_id).first()
+    if not db_city:
+        raise HTTPException(status_code=400, detail="شهر انتخاب شده معتبر نیست.")
         
     # هش کردن رمز عبور و ساخت کاربر بر اساس فیلدهای جدید (حذف جنسیت و استان متنی)
     hashed_pwd = auth.get_password_hash(user.password)
@@ -1262,48 +1266,25 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), cur
 
 @app.put("/users/me")
 def update_my_profile(
-    payload: dict,
+    payload: schemas.UserProfileUpdate,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="کاربر یافت نشد")
-        
-    # ۱. آپدیت فیلدهای متنی ساده
-    user.first_name = payload.get("first_name", user.first_name)
-    user.last_name = payload.get("last_name", user.last_name)
-    
-    raw_birth_date = payload.get("birth_date")
-    if raw_birth_date:
-        try:
-            normalized_date = fa_to_en_digits(raw_birth_date).replace("-", "/")
-            new_birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
 
-            birth_jalali = jdatetime.date.fromgregorian(date=new_birth_date)
-            today_jalali = jdatetime.date.today()
-            earliest_allowed_birth = today_jalali.replace(
-                year=today_jalali.year - schemas.MIN_REGISTRATION_AGE
-            )
+    user.first_name = payload.first_name
+    user.last_name = payload.last_name
 
-            if birth_jalali > earliest_allowed_birth:
-                raise HTTPException(
-                    status_code=400,
-                    detail="حداقل سن برای ثبت‌نام ۱۴ سال است.",
-                )
+    normalized_date = fa_to_en_digits(payload.birth_date).replace("-", "/")
+    user.birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
 
-            user.birth_date = new_birth_date
-            
-        except ValueError:
-            raise HTTPException(status_code=400, detail="فرمت تاریخ تولد نامعتبر است. لطفاً از فرمت معتبر مانند ۱۳۶۴/۰۵/۳۰ استفاده کنید.")
-                
-    # ۲. 🌟 تبدیل نام متنی شهر فرانت‌ند به city_id معتبر در دیتابیس
-    city_name = payload.get("city")
-    if city_name:
-        db_city = db.query(models.City).filter(models.City.title == city_name).first()
-        if db_city:
-            user.city_id = db_city.id
-            
+    db_city = db.query(models.City).filter(models.City.title == payload.city).first()
+    if not db_city:
+        raise HTTPException(status_code=400, detail="شهر انتخاب شده معتبر نیست.")
+    user.city_id = db_city.id
+
     db.commit()
     return {"message": "اطلاعات پروفایل با موفقیت به‌روزرسانی شد"}
 
