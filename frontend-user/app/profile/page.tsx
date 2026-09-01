@@ -134,6 +134,7 @@ export default function ProfilePage() {
     const token = localStorage.getItem("accessToken") || "";
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://10.10.20.51:8000/api";
     const downloadUrl = `${baseUrl}/users/me/contests/${contestId}/certificate/download?token=${token}`;
+    const downloadLinkCopiedMessage = "لینک مستقیم دانلود فایل با موفقیت کپی شد.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.";
 
     const fallbackCopy = (text: string) => {
       const textArea = document.createElement("textarea");
@@ -145,7 +146,7 @@ export default function ProfilePage() {
       textArea.select();
       try {
         document.execCommand('copy');
-        alert("✅ لینک دانلود گواهی کپی شد!\nلطفاً مرورگر را باز کرده و لینک را در آن پیست کنید تا دانلود انجام شود.");
+        alert(downloadLinkCopiedMessage);
       } catch (err) {
         console.error('Fallback copy failed', err);
         alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
@@ -155,7 +156,7 @@ export default function ProfilePage() {
 
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(downloadUrl)
-        .then(() => alert("✅ لینک دانلود گواهی کپی شد!\nلطفاً مرورگر (کروم/سافاری) را باز کرده و لینک را در آن پیست کنید تا دانلود انجام شود."))
+        .then(() => alert(downloadLinkCopiedMessage))
         .catch(() => fallbackCopy(downloadUrl));
     } else {
       fallbackCopy(downloadUrl);

@@ -781,6 +781,7 @@ export default function ContestLandingPage() {
           ? (typeof window !== 'undefined' ? window.location.origin + cleanPath : cleanPath)
           : cleanPath;
         const fileName = cleanPath.split('/').pop() || 'منبع و جزوه مسابقه.pdf';
+        const downloadLinkCopiedMessage = "لینک مستقیم دانلود فایل با موفقیت کپی شد.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.";
         
         const handleCopyLink = () => {
           const downloadUrl = fullUrl.includes('?') ? fullUrl + '&download=true' : fullUrl + '?download=true';
@@ -795,7 +796,7 @@ export default function ContestLandingPage() {
             textArea.select();
             try {
               document.execCommand('copy');
-              alert("لینک مستقیم دانلود فایل با موفقیت کپی شد.");
+              alert(downloadLinkCopiedMessage);
             } catch (err) {
               console.error('Fallback copy failed', err);
               alert("امکان کپی خودکار وجود ندارد. لطفاً لینک را دستی کپی کنید.");
@@ -805,7 +806,7 @@ export default function ContestLandingPage() {
 
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(downloadUrl)
-              .then(() => alert("لینک مستقیم دانلود فایل با موفقیت کپی شد."))
+              .then(() => alert(downloadLinkCopiedMessage))
               .catch(() => fallbackCopy(downloadUrl));
           } else {
             fallbackCopy(downloadUrl);
