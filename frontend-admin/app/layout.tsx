@@ -1,6 +1,14 @@
 // frontend-admin/app/layout.tsx
+import { Noto_Sans_Arabic } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from './components/ThemeProvider';
+
+const notoSansArabic = Noto_Sans_Arabic({
+  subsets: ['arabic'],
+  weight: ['400', '500', '700', '900'],
+  variable: '--font-noto-sans-arabic',
+  display: 'swap',
+});
 
 export default function RootLayout({
   children,
@@ -8,12 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning>
-      <head>
-        {/* فونت وزیرمتن */}
-        <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
-      </head>
-      <body className="bg-[#faf9f6] text-[#1a2e44] dark:bg-[#0b0f19] dark:text-slate-100 transition-colors duration-200">
+    <html lang="fa" dir="rtl" suppressHydrationWarning className={notoSansArabic.variable}>
+      <body className={`${notoSansArabic.className} font-sans antialiased bg-[#faf9f6] text-[#1a2e44] dark:bg-[#0b0f19] dark:text-slate-100 transition-colors duration-200`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
         </ThemeProvider>

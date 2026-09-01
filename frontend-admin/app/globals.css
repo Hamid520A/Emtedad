@@ -3,7 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: 'Vazirmatn', sans-serif;
+  --font-sans: var(--font-noto-sans-arabic), ui-sans-serif, sans-serif;
 }
 
 :root {
@@ -14,7 +14,7 @@
 
 body {
   direction: rtl; /* تنظیم جهت کل اپلیکیشن به راست به چپ */
-  font-family: 'Vazirmatn', sans-serif;
+  font-family: var(--font-noto-sans-arabic), ui-sans-serif, sans-serif;
   /* background-color: #f3f4f6; Removed: handled by layout.tsx Tailwind classes */
   /* color: #1e293b; Removed: handled by layout.tsx Tailwind classes */
 }

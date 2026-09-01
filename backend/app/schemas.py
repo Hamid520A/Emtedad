@@ -213,6 +213,7 @@ class ContestBase(BaseModel):
     image_url: Optional[str] = None
     poster_url: Optional[str] = None
     video_url: Optional[str] = None
+    audio_url: Optional[str] = None
     max_time: Optional[time] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
@@ -243,6 +244,7 @@ class ContestUpdate(BaseModel):
     image_url: Optional[str] = None
     poster_url: Optional[str] = None
     video_url: Optional[str] = None
+    audio_url: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     status: Optional[str] = None

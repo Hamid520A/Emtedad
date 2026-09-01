@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';
-import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle, Plus, Trash2, FileMinus } from 'lucide-react'; 
+import { ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, CalendarClock, Clock, Award, PlayCircle, Plus, Trash2, FileMinus, Volume2 } from 'lucide-react'; 
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
@@ -36,6 +36,7 @@ export default function CreateContestPage() {
     question_limit: 15,
     certificate_type: 'none', 
     video_url: '',
+    audio_url: '',
     success_message: '',
     failure_message: '',
     sms_message: '',
@@ -80,6 +81,7 @@ export default function CreateContestPage() {
       file_url: formData.file_url || "",
       poster_url: formData.poster_url || "",
       video_url: formData.video_url || "",
+      audio_url: formData.audio_url || "",
       time_limit: durationInMinutes,
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
       certificate_type: formData.certificate_type || 'none',
@@ -338,6 +340,21 @@ export default function CreateContestPage() {
                 <PlayCircle className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={16} />
                 <input type="text" className="w-full p-3 pr-9 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-xs" placeholder="https://www.aparat.com/v/xxxxx" value={formData.video_url} onChange={(e) => setFormData({...formData, video_url: e.target.value})} />
               </div>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+                <Volume2 size={14} /> فایل صوتی مسابقه (اختیاری)
+              </label>
+              <input
+                type="file"
+                accept="audio/*"
+                className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 rounded-xl outline-none text-xs text-gray-500 dark:text-slate-400 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#1a2e44] file:text-white cursor-pointer"
+                onChange={(e) => handleFileUpload(e, 'audio_url')}
+              />
+              {formData.audio_url && (
+                <audio controls src={getCleanImageUrl(formData.audio_url)} className="w-full mt-2" />
+              )}
             </div>
 
             <div>

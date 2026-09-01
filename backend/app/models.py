@@ -81,6 +81,7 @@ class Contest(Base):
     description = Column(Text, nullable=True)
     max_time = Column(Time, nullable=True)
     video_url = Column(String(500), nullable=True)
+    audio_url = Column(String(500), nullable=True)
     start_time = Column(DateTime, nullable=True)
     end_time = Column(DateTime, nullable=True)
     status = Column(String(50), default="upcoming")

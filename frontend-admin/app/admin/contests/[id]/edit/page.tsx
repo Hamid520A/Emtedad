@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import api from '@/app/lib/api';
 import { 
   ArrowRight, Save, Image as ImageIcon, FileText, Trophy, Settings, 
-  CalendarClock, Clock, Award, PlayCircle, Plus, Trash2, Loader2, Eye, UserCheck, X, Edit3
+  CalendarClock, Clock, Award, PlayCircle, Plus, Trash2, Loader2, Eye, UserCheck, X, Edit3, Volume2
 } from 'lucide-react'; 
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
@@ -33,7 +33,7 @@ export default function EditContestPage() {
   const [awards, setAwards] = useState<{ rank: number; title: string }[]>([{ rank: 1, title: '' }]);
   const [formData, setFormData] = useState<any>({
     title: '', description: '', status: 'draft', image_url: '', file_url: '', poster_url: '',
-    start_time: null, end_time: null, time_limit: 10, question_limit: 15, certificate_type: 'none', video_url: '',
+    start_time: null, end_time: null, time_limit: 10, question_limit: 15, certificate_type: 'none', video_url: '', audio_url: '',
     success_message: '', failure_message: '', sms_message: '',
   });
 
@@ -67,6 +67,7 @@ export default function EditContestPage() {
           question_limit: data.question_limit || 15,
           certificate_type: data.certificate_type || 'none',
           video_url: data.video_url || '',
+          audio_url: data.audio_url || '',
           success_message: data.success_message || '',
           failure_message: data.failure_message || '',
           sms_message: data.sms_message || '',
@@ -141,6 +142,7 @@ export default function EditContestPage() {
       file_url: formData.file_url || "",
       poster_url: formData.poster_url || "",
       video_url: formData.video_url || "",
+      audio_url: formData.audio_url || "",
       time_limit: durationInMinutes,
       question_limit: parseInt(formData.question_limit.toString(), 10) || 0,
       certificate_type: formData.certificate_type || 'none',
@@ -416,6 +418,22 @@ export default function EditContestPage() {
               <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">ویدیو آپارات (اختیاری)</label>
               <div className="relative"><PlayCircle className="absolute right-3 top-3.5 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={16} /><input type="text" className="w-full p-3 pr-9 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-xl font-bold text-xs" value={formData.video_url} onChange={(e) => setFormData({...formData, video_url: e.target.value})} /></div>
             </div>
+
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+                <Volume2 size={14} /> فایل صوتی مسابقه (اختیاری) {uploading === 'audio_url' && '⏳'}
+              </label>
+              <input
+                type="file"
+                accept="audio/*"
+                className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 rounded-xl text-xs cursor-pointer"
+                onChange={(e) => handleFileUpload(e, 'audio_url')}
+              />
+              {formData.audio_url && (
+                <audio controls src={getCleanImageUrl(formData.audio_url)} className="w-full mt-2" />
+              )}
+            </div>
+
             <div>
               <label className="flex items-center gap-1.5 text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-1.5"><ImageIcon size={14} /> تصویر بنر مسابقه {uploading === 'image_url' && '⏳'}</label>
               <input type="file" accept="image/*" className="w-full p-2 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border border-dashed border-gray-200 dark:border-slate-800 dark:border-slate-800 rounded-xl text-xs cursor-pointer" onChange={(e) => handleFileUpload(e, 'image_url')} />

@@ -884,6 +884,7 @@ def get_contest_detail(
         "image_url": contest.image_url,
         "poster_url": contest.poster_url,
         "video_url": contest.video_url,
+        "audio_url": contest.audio_url,
         "status": contest.status,
         "start_time": contest.start_time.isoformat() if contest.start_time else None,
         "end_time": contest.end_time.isoformat() if contest.end_time else None,
@@ -979,6 +980,7 @@ def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(dat
         image_url=contest.image_url,
         poster_url=contest.poster_url,
         video_url=contest.video_url,
+        audio_url=contest.audio_url,
         max_time=max_time_obj,
         start_time=contest.start_time,
         end_time=contest.end_time,
@@ -1103,10 +1105,23 @@ async def upload_file(
     import shutil, os, re
     
     try:
-        # ۱. بررسی نوع فایل (MIME Type)
-        allowed_mimes = ["image/jpeg", "image/png", "image/webp", "application/pdf", "image/svg+xml"]
-        if file.content_type not in allowed_mimes:
-            raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
+        # ۱. بررسی نوع فایل (MIME Type + پسوند)
+        allowed_mimes = {
+            "image/jpeg", "image/png", "image/webp", "application/pdf", "image/svg+xml",
+            "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4",
+            "audio/x-wav", "audio/wave", "audio/x-m4a", "audio/aac",
+        }
+        allowed_extensions = {
+            ".jpg", ".jpeg", ".png", ".webp", ".svg", ".pdf",
+            ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+        }
+        mime_to_ext = {
+            "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+            "image/svg+xml": ".svg", "application/pdf": ".pdf",
+            "audio/mpeg": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav",
+            "audio/wave": ".wav", "audio/ogg": ".ogg", "audio/mp4": ".m4a",
+            "audio/x-m4a": ".m4a", "audio/aac": ".aac",
+        }
 
         # ۲. بررسی حجم فایل (فیکس شده برای نسخه‌های جدید FastAPI)
         file_size = getattr(file, "size", 0)
@@ -1115,17 +1130,32 @@ async def upload_file(
             file_size = file.file.tell()
             file.file.seek(0)
         
-        if file_size > 5 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="حجم فایل نباید بیشتر از 5 مگابایت باشد.")
+        if file_size > 30 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="حجم فایل نباید بیشتر از 30 مگابایت باشد.")
 
         # ۳. ایمن‌سازی نام فایل و استخراج فرمت
         original_filename = file.filename or "unknown.jpg"
         safe_filename = re.sub(r'[^a-zA-Z0-9.\-]', '', os.path.basename(original_filename))
         file_ext = os.path.splitext(safe_filename)[1].lower()
+        content_type = (file.content_type or "").lower()
+
+        mime_ok = content_type in allowed_mimes
+        ext_ok = file_ext in allowed_extensions
+        if not mime_ok and not ext_ok:
+            raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
 
         # سوپاپ اطمینان برای اسم‌های کاملاً فارسی که فرمتشان پاک می‌شود
-        if file_ext not in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}:
-            file_ext = ".jpg" if "image" in file.content_type else ".pdf"
+        if file_ext not in allowed_extensions:
+            file_ext = mime_to_ext.get(content_type)
+            if not file_ext:
+                if "image" in content_type:
+                    file_ext = ".jpg"
+                elif "audio" in content_type:
+                    file_ext = ".mp3"
+                elif "pdf" in content_type:
+                    file_ext = ".pdf"
+                else:
+                    raise HTTPException(status_code=400, detail="پسوند فایل قابل تشخیص نیست.")
 
         # ۴. ساخت نام یکتا و مسیر فایل
         unique_filename = f"{uuid.uuid4().hex}{file_ext}"
@@ -1489,14 +1519,16 @@ def get_user_submission_review(
         
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     
-    questions = db.query(models.Question).filter(
-        models.Question.contest_id == contest_id,
-        models.Question.is_active == 1,
-        models.Question.deleted_at == None
-    ).all()
-    
+    # واکشی فقط سوالاتی که واقعاً به این کاربر تخصیص داده شده‌اند
+    assigned_rows = db.query(models.SubscriptionQuestions).filter(
+        models.SubscriptionQuestions.subscription_id == sub.id,
+        models.SubscriptionQuestions.deleted_at == None
+    ).order_by(models.SubscriptionQuestions.id.asc()).all()
+
+    assigned_question_ids = [row.question_id for row in assigned_rows]
+
     dynamic_answers_map = {}
-    for sq in sub.subscription_questions:
+    for sq in assigned_rows:
         chosen_ans = db.query(models.SubscriptionAnswer).filter(
             models.SubscriptionAnswer.subscription_question_id == sq.id
         ).filter(
@@ -1506,35 +1538,47 @@ def get_user_submission_review(
             dynamic_answers_map[str(sq.question_id)] = chosen_ans.answer_id
     
     questions_data = []
-    for q in questions:
-        options_list = []
-        correct_option_id = None
-        
-        for ans in q.answers:
-            if ans.deleted_at == None:
-                options_list.append({
-                    "id": ans.id,
-                    "title": ans.title
-                })
-                if ans.is_correct == 1:
-                    correct_option_id = ans.id
-                    
-        # سنگر امنیت: اگر مسابقه تمام نشده بود، پاسخ صحیح لو نمی‌رود
-        if contest and contest.status != "finished":
+    if assigned_question_ids:
+        questions = db.query(models.Question).filter(
+            models.Question.id.in_(assigned_question_ids),
+            models.Question.contest_id == contest_id,
+            models.Question.is_active == 1,
+            models.Question.deleted_at == None
+        ).all()
+        questions_by_id = {q.id: q for q in questions}
+
+        for assigned_row in assigned_rows:
+            q = questions_by_id.get(assigned_row.question_id)
+            if not q:
+                continue
+
+            options_list = []
             correct_option_id = None
-            
-        # 🌟 فیکس باگ عدم نمایش گزینه انتخابی: دیتای انتخاب کاربر را مستقیم درون خود شیء سوال تزریق می‌کنیم
-        user_selected_ans_id = dynamic_answers_map.get(str(q.id)) or dynamic_answers_map.get(q.id)
-            
-        questions_data.append({
-            "id": q.id,
-            "title": q.title,
-            "description": q.description,
-            "shuffled_options": options_list,
-            "correct_option": correct_option_id,
-            "user_option": user_selected_ans_id,      # فرمت اول برای استیت کامپوننت آزمون
-            "selected_option": user_selected_ans_id  # فرمت دوم جهت اطمینان از رندر رادیوباتن‌ها
-        })
+
+            for ans in q.answers:
+                if ans.deleted_at == None:
+                    options_list.append({
+                        "id": ans.id,
+                        "title": ans.title
+                    })
+                    if ans.is_correct == 1:
+                        correct_option_id = ans.id
+
+            # سنگر امنیت: اگر مسابقه تمام نشده بود، پاسخ صحیح لو نمی‌رود
+            if contest and contest.status != "finished":
+                correct_option_id = None
+
+            user_selected_ans_id = dynamic_answers_map.get(str(q.id)) or dynamic_answers_map.get(q.id)
+
+            questions_data.append({
+                "id": q.id,
+                "title": q.title,
+                "description": q.description,
+                "shuffled_options": options_list,
+                "correct_option": correct_option_id,
+                "user_option": user_selected_ans_id,
+                "selected_option": user_selected_ans_id
+            })
         
     total_seconds = 0
     if sub.time_left:
@@ -2556,7 +2600,7 @@ def update_contest(
                     db.add(models.Certificate(contest_id=contest_id, title=title_str, content="بدین‌وسیله گواهی می‌شود...", is_active=1))
 
         # 🌟 فیکس اصلی: فقط فیلدهای متنی و عددی مجاز را تغییر بده تا دیتابیس روی ریلیشن‌ها کرش نکند
-        elif key in ["title", "description", "image_url", "poster_url", "video_url", "question_limit", "is_active", "success_message", "failure_message", "sms_message"]:
+        elif key in ["title", "description", "image_url", "poster_url", "video_url", "audio_url", "question_limit", "is_active", "success_message", "failure_message", "sms_message"]:
             setattr(db_contest, key, value)
     
     # 🌟 هوشمندسازی: اگر دیتای قالب گواهی همزمان با این فرم پست شده بود، همین‌جا ذخیره‌اش کن

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
+import { getCleanImageUrl } from '../../../lib/utils/url';
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye, LogOut } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { openExternalLink } from '../../../lib/utils/url';
@@ -194,6 +195,17 @@ export default function ExamPage() {
     }
   }, [isSubmitted, result]);
 
+  // انتقال خودکار به کانال ایتا ۵ ثانیه پس از ثبت موفق آزمون
+  useEffect(() => {
+    if (!isSubmitted || !result || showReview) return;
+
+    const timer = setTimeout(() => {
+      window.location.href = 'https://eitaa.com/emtedadeemam';
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [isSubmitted, result, showReview]);
+
   // 🌟 محافظ خروج از آزمون: فعال کردن تایید خروج نیتیو مینی‌اپ ایتا و هشدار قبل از بستن صفحه
   useEffect(() => {
     if (isSubmitted || showReview || loading || questions.length === 0) return;
@@ -325,6 +337,11 @@ export default function ExamPage() {
         <h2 className="text-2xl font-black text-[#1a2e44] dark:text-slate-100 mb-1">پایان مسابقه {result.analysis.emoji}</h2>
         <p className="text-gray-500 dark:text-slate-400 text-sm mb-8">{result.analysis.certMsg}</p>
 
+        <div className="flex items-center justify-center gap-2 text-xs font-bold text-orange-600 dark:text-amber-300 mb-6">
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          <span>درحال انتقال به کانال امتداد امام...</span>
+        </div>
+
         <div className="w-full bg-white dark:bg-[#182234] rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 mb-6">
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-50 dark:bg-[#0b0f19] p-5 rounded-3xl text-center border border-gray-100 dark:border-slate-800">
@@ -416,6 +433,15 @@ export default function ExamPage() {
       </header>
 
       <main className="flex-1 p-6 overflow-y-auto">
+        {!showReview && contest?.audio_url && (
+          <audio
+            controls
+            controlsList="nodownload"
+            className="w-full mb-6"
+            src={getCleanImageUrl(contest.audio_url)}
+          />
+        )}
+
         <div className="mb-8 text-right">
           <h2 className="font-black text-xl text-[#1a2e44] dark:text-slate-100 leading-relaxed mb-4">{question.title}</h2>
           {question.description && (
