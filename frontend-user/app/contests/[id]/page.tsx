@@ -80,6 +80,9 @@ export default function ContestLandingPage() {
         try {
           const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
           setProfile(profileRes.data);
+          if (profileRes.data?.id) {
+            localStorage.setItem('userId', String(profileRes.data.id));
+          }
         } catch(e) {}
 
         if (localStorage.getItem('isAdmin') === 'true') {
@@ -227,8 +230,23 @@ export default function ContestLandingPage() {
   if (loading || !mounted) return <div className="h-screen flex items-center justify-center bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100"><Loader2 className="animate-spin text-[#1a2e44] dark:text-[#c5a059]" size={40} /></div>;
   if (!contest) return <div className="p-6 text-center text-[#1a2e44] dark:text-slate-100 font-bold">مسابقه یافت نشد.</div>;
 
-  const currentUserId = profile?.id || profile?.user_id;
-  const leaderboardMatch = currentUserId ? leaderboard.find((user) => String(user.user_id || user.id).trim() == String(currentUserId).trim()) : null;
+  const normalizeUserId = (id: unknown): string | null => {
+    if (id === undefined || id === null || id === '') return null;
+    return String(id).trim().toLowerCase();
+  };
+
+  const resolvableUserIds = new Set<string>();
+  [profile?.id, profile?.user_id, mounted ? localStorage.getItem('userId') : null].forEach((id) => {
+    const normalized = normalizeUserId(id);
+    if (normalized) resolvableUserIds.add(normalized);
+  });
+
+  const isCurrentLeaderboardUser = (user: any): boolean => {
+    const entryId = normalizeUserId(user?.user_id ?? user?.id);
+    return entryId !== null && resolvableUserIds.has(entryId);
+  };
+
+  const leaderboardMatch = leaderboard.find(isCurrentLeaderboardUser);
   
   const historyMatch = profile?.history?.find((h:any) => 
     String(h.contest_id).trim() == String(contestId).trim() || 
@@ -241,11 +259,9 @@ export default function ContestLandingPage() {
   const showLeaderboard = contest.status === 'active' || contest.status === 'finished';
 
   const getLiveRank = () => {
-    if (leaderboardMatch?.rank) return leaderboardMatch.rank;
-    if (!currentUserId || !leaderboard.length) return '-';
-    const indexInLeaderboard = leaderboard.findIndex(
-      (u) => String(u.user_id || u.id).trim() == String(currentUserId).trim()
-    );
+    if (leaderboardMatch?.rank != null) return leaderboardMatch.rank;
+    if (!resolvableUserIds.size || !leaderboard.length) return '-';
+    const indexInLeaderboard = leaderboard.findIndex(isCurrentLeaderboardUser);
     return indexInLeaderboard !== -1 ? indexInLeaderboard + 1 : '-';
   };
 
@@ -527,15 +543,15 @@ export default function ContestLandingPage() {
               </div>
               <div className="space-y-2">
                 {(() => {
-                  const userIndex = leaderboard.findIndex(u => String(u.user_id || u.id).trim() == String(profile?.id).trim());
+                  const userIndex = leaderboard.findIndex(isCurrentLeaderboardUser);
                   
                   // 🌟 برطرف شدن باگ ریاضی محاسبه رقبای نزدیک
-                  const start = userIndex === -1 ? 0 : Math.max(0, userIndex - 5);
-                  const end = userIndex === -1 ? Math.min(leaderboard.length, 11) : Math.min(leaderboard.length, userIndex + 6);
+                  const start = userIndex === -1 ? 0 : Math.max(0, userIndex - 2);
+                  const end = userIndex === -1 ? Math.min(leaderboard.length, 5) : Math.min(leaderboard.length, userIndex + 3);
                   const surroundingUsers = leaderboard.slice(start, end);
 
                   return surroundingUsers.map((user: any) => {
-                    const isMe = String(user.user_id || user.id).trim() == String(profile?.id).trim();
+                    const isMe = isCurrentLeaderboardUser(user);
                     const shortNationalId = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
                     return (
                       <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] dark:bg-[#c5a059] border-[#1a2e44] dark:border-[#c5a059] shadow-md text-white dark:text-[#1a2e44] scale-[1.02]' : 'bg-white dark:bg-[#0b0f19] border-gray-100 dark:border-slate-800 shadow-sm text-[#1a2e44] dark:text-slate-100'}`}>
