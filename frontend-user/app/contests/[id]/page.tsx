@@ -70,8 +70,12 @@ export default function ContestLandingPage() {
 
         try {
           const lbRes = await api.get(`/contests/${cleanId}/leaderboard?t=${Date.now()}`);
-          setLeaderboard(lbRes.data || []);
-        } catch(e) {}
+          const lbData = Array.isArray(lbRes.data) ? lbRes.data : [];
+          setLeaderboard(lbData);
+        } catch (e) {
+          console.warn('Leaderboard fetch failed:', e);
+          setLeaderboard([]);
+        }
 
         try {
           const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
@@ -234,6 +238,7 @@ export default function ContestLandingPage() {
   const myResult = leaderboardMatch || historyMatch;
   const hasParticipated = !!myResult;
   const topThree = leaderboard.slice(0, 3);
+  const showLeaderboard = contest.status === 'active' || contest.status === 'finished';
 
   const getLiveRank = () => {
     if (leaderboardMatch?.rank) return leaderboardMatch.rank;
@@ -514,7 +519,7 @@ export default function ContestLandingPage() {
           )}
 
           {/* 🌟 فیکس دوم: نمایش رقبای نزدیک بدون خط زدن نفرات اول تا سوم */}
-          {contest.status === 'finished' && hasParticipated && leaderboard.length > 0 && (
+          {showLeaderboard && hasParticipated && leaderboard.length > 0 && (
             <div className="bg-white dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-50 dark:border-slate-800">
                 <h4 className="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14} /> تحلیل جایگاه و رقبای هم‌سطح نزدیک به شما</h4>
@@ -622,14 +627,14 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          {contest.status === 'finished' && (
+          {showLeaderboard && (
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-white dark:bg-[#182234] p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
                 <div className="flex items-center gap-1.5 text-gray-500 dark:text-slate-400 font-bold text-xs"><Users size={16} className="text-[#c5a059]" /> کل شرکت‌کنندگان:</div>
                 <span className="font-black text-base text-[#1a2e44] dark:text-slate-100">{toPersianDigits(leaderboard.length)} نفر</span>
               </div>
               <div className="bg-white dark:bg-[#182234] rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-slate-800">
-                <h3 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> سکوی افتخار و برندگان برتر</h3>
+                <h3 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> {contest.status === 'active' ? 'لیدربورد زنده' : 'سکوی افتخار و برندگان برتر'}</h3>
                 <div className="space-y-2">
                   {topThree.length === 0 ? <p className="text-center text-xs text-gray-400 dark:text-slate-400 italic">آمار لیدربرد هنوز ثبت نشده است.</p> : topThree.map((user: any) => {
                     const shortIdForTop = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
