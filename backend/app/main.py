@@ -16,9 +16,8 @@ from app.services.sms_service import sms_service
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 from jose import JWTError, jwt
-from starlette.middleware.base import BaseHTTPMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from contextlib import asynccontextmanager
 from uuid import UUID
@@ -93,19 +92,18 @@ logger.addHandler(log_handler)
 # غیرفعال‌سازی لاگ‌های دیفالت uvicorn برای جلوگیری از اسپم متنی
 logging.getLogger("uvicorn.access").disabled = True
 
-# 🌟 میدلور تزریق Traceability (Request ID)
-class RequestTracingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        req_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
-        token = request_id_context.set(req_id)
-        
+# 🌟 میدلور تزریق Traceability (Request ID) — pure @app.middleware (avoids BaseHTTPMiddleware sync-route bugs)
+@app.middleware("http")
+async def request_tracing_middleware(request: Request, call_next):
+    req_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
+    token = request_id_context.set(req_id)
+    try:
         response = await call_next(request)
-        response.headers["X-Request-ID"] = req_id
-        
-        request_id_context.reset(token)
+        if response is not None:
+            response.headers["X-Request-ID"] = req_id
         return response
-
-app.add_middleware(RequestTracingMiddleware)
+    finally:
+        request_id_context.reset(token)
 
 # ۱. اتصال به سرور دیتابیس Redis برای Rate Limiting
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
@@ -511,11 +509,21 @@ async def rate_limiter_and_ip_blocker(request: Request, call_next):
         
     # ۲. شاه‌کلید حل باگ CORS Preflight مرورگرها
     if request.method == "OPTIONS":
-        return await call_next(request)
+        try:
+            response = await call_next(request)
+            return response if response is not None else Response(status_code=204)
+        except Exception as e:
+            logger.error(f"OPTIONS request failed: {e}\n{traceback.format_exc()}")
+            return Response(status_code=204)
 
     # ۳. استثنا کردن فایل‌های استاتیک پروژه‌
     if request.url.path.startswith("/static"):
-        return await call_next(request)
+        try:
+            response = await call_next(request)
+            return response if response is not None else JSONResponse(status_code=404, content={"detail": "Not found"})
+        except Exception as e:
+            logger.error(f"Static request failed: {e}\n{traceback.format_exc()}")
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
 
     cors_headers = {
         "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
@@ -530,7 +538,7 @@ async def rate_limiter_and_ip_blocker(request: Request, call_next):
         is_blocked = r.get(block_key)
         if is_blocked:
             ttl = r.ttl(block_key)
-            minutes_left = max(1, ttl // 60)
+            minutes_left = max(1, (ttl if ttl and ttl > 0 else BLOCK_DURATION) // 60)
             return JSONResponse(
                 status_code=403,
                 content={"detail": f"دسترسی شما موقتاً مسدود شده است. لطفا {minutes_left} دقیقه دیگر تلاش کنید."},
@@ -545,12 +553,20 @@ async def rate_limiter_and_ip_blocker(request: Request, call_next):
         route_max_limit = MAX_REQUESTS
         if request.url.path in ["/login", "/register", "/users/change-password"]:
             route_max_limit = 10  
-        elif request.url.path.endswith("/submissions"):
+        elif request.url.path.endswith("/submissions") or request.url.path == "/submissions":
             route_max_limit = 10
         elif request.url.path in ["/admin/login", "/admin/stats"]:
             route_max_limit = 20
         
-        if current_requests and int(current_requests) >= route_max_limit:
+        request_count = 0
+        if current_requests is not None:
+            try:
+                request_count = int(current_requests)
+            except (TypeError, ValueError):
+                r.delete(rate_key)
+                request_count = 0
+
+        if request_count >= route_max_limit:
             r.setex(block_key, BLOCK_DURATION, "true")
             r.delete(rate_key)
             return JSONResponse(
@@ -560,15 +576,43 @@ async def rate_limiter_and_ip_blocker(request: Request, call_next):
             )
 
         # ۶. افزایش یا ایجاد شمارنده زمان‌دار در رم ردیس
-        if not current_requests:
+        if request_count == 0:
             r.setex(rate_key, LIMIT_WINDOW, 1)
         else:
             r.incr(rate_key)
 
-    except redis.exceptions.ConnectionError as e:
-        print(f"⚠️ هشدار امنیتی: سرور ردیس در دسترس نیست. سیستم ریت‌لیمیت موقتاً بای‌پاس شد.")
+    except redis.RedisError as e:
+        logger.warning(f"Redis rate-limit bypassed: {e}")
+    except Exception as e:
+        logger.warning(f"Rate limiter skipped due to error; bypassing. {e}")
 
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except RuntimeError as e:
+        if "No response returned" in str(e):
+            logger.error(f"Downstream returned no response for {request.method} {request.url.path}")
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "خطای داخلی سرور. لطفاً دوباره تلاش کنید."},
+                headers=cors_headers,
+            )
+        raise
+    except Exception as e:
+        logger.error(f"Request failed after rate limiter for {request.method} {request.url.path}: {e}\n{traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "خطای داخلی سرور. لطفاً دوباره تلاش کنید."},
+            headers=cors_headers,
+        )
+
+    if response is None:
+        logger.error(f"No response object from downstream for {request.method} {request.url.path}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "خطای داخلی سرور. لطفاً دوباره تلاش کنید."},
+            headers=cors_headers,
+        )
+
     return response
 
 # =====================================================================
