@@ -260,6 +260,7 @@ export default function ContestLandingPage() {
 
   const getLiveRank = () => {
     if (leaderboardMatch?.rank != null) return leaderboardMatch.rank;
+    if (historyMatch?.rank != null) return historyMatch.rank;
     if (!resolvableUserIds.size || !leaderboard.length) return '-';
     const indexInLeaderboard = leaderboard.findIndex(isCurrentLeaderboardUser);
     return indexInLeaderboard !== -1 ? indexInLeaderboard + 1 : '-';

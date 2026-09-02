@@ -1226,6 +1226,62 @@ async def upload_file(
         print(f"❌ Upload Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"خطا در پردازش فایل: {str(e)}")
 
+def _subscription_time_taken_seconds(time_left) -> int:
+    if not time_left:
+        return 0
+    try:
+        if hasattr(time_left, "hour"):
+            return (time_left.hour * 3600) + (time_left.minute * 60) + time_left.second
+        if hasattr(time_left, "total_seconds"):
+            return int(time_left.total_seconds())
+        return int(time_left)
+    except Exception:
+        return 0
+
+
+def _build_contest_leaderboard(db: Session, contest_id: int) -> List[Dict[str, Any]]:
+    subscriptions = (
+        db.query(models.Subscription)
+        .filter(
+            models.Subscription.contest_id == contest_id,
+            models.Subscription.deleted_at == None,
+        )
+        .options(joinedload(models.Subscription.user))
+        .all()
+    )
+
+    results: List[Dict[str, Any]] = []
+    for sub in subscriptions:
+        if not sub.user or sub.user.deleted_at is not None:
+            continue
+
+        time_taken_seconds = _subscription_time_taken_seconds(sub.time_left)
+        national_id = sub.user.national_id or "****"
+        last_four_digits = national_id[-4:] if len(national_id) >= 4 else national_id
+        score_val = sub.score if sub.score is not None else 0
+
+        results.append({
+            "user_id": str(sub.user_id),
+            "name": f"{sub.user.first_name} {sub.user.last_name or ''}".strip(),
+            "score": score_val,
+            "time": time_taken_seconds,
+            "time_taken": time_taken_seconds,
+            "last_four_id": last_four_digits,
+        })
+
+    results.sort(key=lambda x: (-x["score"], x["time_taken"]))
+    for idx, item in enumerate(results):
+        item["rank"] = idx + 1
+    return results
+
+
+def _get_user_contest_rank(db: Session, contest_id: int, user_id) -> Optional[int]:
+    for entry in _build_contest_leaderboard(db, contest_id):
+        if str(entry["user_id"]).lower() == str(user_id).lower():
+            return entry["rank"]
+    return None
+
+
 @app.get("/contests/{contest_id}/leaderboard")
 def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     cors_headers = {
@@ -1245,50 +1301,7 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), cur
             logger.error(f"Silent failure intercepted: {e}")
             
     try:
-        # دریافت لیست شرکت‌کنندگان
-        subscriptions = db.query(models.Subscription).filter(
-            models.Subscription.contest_id == contest_id,
-            models.Subscription.deleted_at == None
-        ).all()
-        
-        results = []
-        for index, sub in enumerate(subscriptions):
-            if not sub.user:
-                continue
-
-            # 🌟 اصلاح شد: استخراج مستقیم زمان مصرف شده از دیتابیس بدون تفریق معکوس
-            time_taken_seconds = 0
-            if sub.time_left:
-                try:
-                    if hasattr(sub.time_left, "hour"): 
-                        time_taken_seconds = (sub.time_left.hour * 3600) + (sub.time_left.minute * 60) + sub.time_left.second
-                    elif hasattr(sub.time_left, "total_seconds"): 
-                        time_left_seconds = int(sub.time_left.total_seconds())
-                    else: 
-                        time_taken_seconds = int(sub.time_left)
-                except Exception as t_err:
-                    print(f"⚠️ خطای جزیی تایمر: {t_err}")
-                    time_taken_seconds = 0
-
-            national_id = sub.user.national_id or "****"
-            last_four_digits = national_id[-4:] if len(national_id) >= 4 else national_id
-            score_val = sub.score if sub.score is not None else 0
-            
-            results.append({
-                "rank": index + 1,
-                "user_id": str(sub.user_id),
-                "name": f"{sub.user.first_name} {sub.user.last_name or ''}".strip(),
-                "score": score_val,
-                "time": time_taken_seconds,        
-                "time_taken": time_taken_seconds,  
-                "last_four_id": last_four_digits
-            })
-            
-        # مرتب‌سازی نهایی (نمره بیشتر اول، زمان کمتر اول)
-        results.sort(key=lambda x: (-x["score"], x["time_taken"]))
-        
-        for idx, item in enumerate(results):
-            item["rank"] = idx + 1
+        results = _build_contest_leaderboard(db, contest_id)
         # ذخیره در کش ردیس برای ۶۰ ثانیه
         try:
             r.setex(cache_key, 60, json.dumps(jsonable_encoder(results)))
@@ -1349,6 +1362,7 @@ def get_my_complete_profile(
     
     # ۳. واکشی تاریخچه مسابقات کاربر از جدول subscriptions
     history_records = []
+    rank_cache: Dict[int, Optional[int]] = {}
     
     # 🌟 اصلاح شد: اضافه شدن join و فیلتر مسابقات حذف شده (deleted_at == None) در سطح دیتابیس
     subs = db.query(models.Subscription)\
@@ -1360,16 +1374,19 @@ def get_my_complete_profile(
              
     for s in subs:
         if s.contest:
-            total_seconds = 0
-            if s.time_left:
-                total_seconds = (s.time_left.hour * 3600) + (s.time_left.minute * 60) + s.time_left.second
+            total_seconds = _subscription_time_taken_seconds(s.time_left)
+
+            contest_id = s.contest.id
+            if contest_id not in rank_cache:
+                rank_cache[contest_id] = _get_user_contest_rank(db, contest_id, current_user.id)
                 
             history_records.append({
                 "contest_id": s.contest.id,
                 "contest_title": s.contest.title,
                 "score": f"{s.score}%",
                 "time_taken": total_seconds,
-                "status": s.contest.status
+                "status": s.contest.status,
+                "rank": rank_cache[contest_id],
             })
 
     return {
