@@ -530,8 +530,8 @@ export default function ContestLandingPage() {
                   const userIndex = leaderboard.findIndex(u => String(u.user_id || u.id).trim() == String(profile?.id).trim());
                   
                   // 🌟 برطرف شدن باگ ریاضی محاسبه رقبای نزدیک
-                  const start = userIndex === -1 ? 0 : Math.max(0, userIndex - 2);
-                  const end = userIndex === -1 ? Math.min(leaderboard.length, 5) : Math.min(leaderboard.length, userIndex + 3);
+                  const start = userIndex === -1 ? 0 : Math.max(0, userIndex - 5);
+                  const end = userIndex === -1 ? Math.min(leaderboard.length, 11) : Math.min(leaderboard.length, userIndex + 6);
                   const surroundingUsers = leaderboard.slice(start, end);
 
                   return surroundingUsers.map((user: any) => {
@@ -634,7 +634,7 @@ export default function ContestLandingPage() {
                 <span className="font-black text-base text-[#1a2e44] dark:text-slate-100">{toPersianDigits(leaderboard.length)} نفر</span>
               </div>
               <div className="bg-white dark:bg-[#182234] rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-slate-800">
-                <h3 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> {contest.status === 'active' ? 'لیدربورد زنده' : 'سکوی افتخار و برندگان برتر'}</h3>
+                <h3 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> {contest.status === 'active' ? 'رتبه بندی زنده' : 'سکوی افتخار و برندگان برتر'}</h3>
                 <div className="space-y-2">
                   {topThree.length === 0 ? <p className="text-center text-xs text-gray-400 dark:text-slate-400 italic">آمار لیدربرد هنوز ثبت نشده است.</p> : topThree.map((user: any) => {
                     const shortIdForTop = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';

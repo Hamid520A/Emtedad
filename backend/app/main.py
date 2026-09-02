@@ -2011,7 +2011,13 @@ def get_admin_users_list(
             score_col = score_sq.c.sort_score
 
         if sort_by == "highest_score":
-            query = query.order_by(desc(score_col).nullslast(), models.User.created_at.desc())
+            if contest_id is not None:
+                query = query.order_by(
+                    desc(score_col).nullslast(),
+                    models.Subscription.time_left.asc().nullslast(),
+                )
+            else:
+                query = query.order_by(desc(score_col).nullslast(), models.User.created_at.desc())
         else:
             query = query.order_by(asc(score_col).nullslast(), models.User.created_at.desc())
     elif sort_by == "youngest":
@@ -3050,8 +3056,16 @@ def get_admin_contest_participants(
             models.User.birth_date.asc().nullslast(),
             models.Subscription.created_at.desc(),
         )
+    elif sort_by == "highest_score":
+        query = query.order_by(
+            models.Subscription.score.desc(),
+            models.Subscription.time_left.asc().nullslast(),
+        )
     else:
-        query = query.order_by(models.Subscription.score.desc(), models.Subscription.created_at.asc())
+        query = query.order_by(
+            models.Subscription.score.desc(),
+            models.Subscription.time_left.asc().nullslast(),
+        )
         
     subscriptions = query.options(joinedload(models.Subscription.user)).all()
     results = []

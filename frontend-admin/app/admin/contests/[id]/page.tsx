@@ -541,44 +541,6 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          {showLeaderboard && (hasParticipated || isAdminUser) && leaderboard.length > 0 && (
-            <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-50 dark:border-slate-800 dark:border-slate-800">
-                <h4 className="text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14} /> تحلیل جایگاه و رقبای هم‌سطح نزدیک به شما</h4>
-                <span className="bg-[#c5a059]/10 text-[#c5a059] px-2.5 py-1 rounded-md text-[10px] font-black self-start sm:self-auto">رتبه نهایی شما: #{toPersianDigits(getLiveRank())}</span>
-              </div>
-              <div className="space-y-2">
-                {(() => {
-                  const userIndex = leaderboard.findIndex(u => String(u.user_id || u.id).trim() == String(profile?.id).trim());
-                  const start = userIndex === -1 ? 0 : Math.max(0, userIndex - 2);
-                  const end = userIndex === -1 ? Math.min(leaderboard.length, 5) : Math.min(leaderboard.length, userIndex + 3);
-                  const surroundingUsers = leaderboard.slice(start, end);
-
-                  return surroundingUsers.map((user: any) => {
-                    const isMe = String(user.user_id || user.id).trim() == String(profile?.id).trim();
-                    const shortNationalId = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
-                    return (
-                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isMe ? 'bg-[#1a2e44] border-[#1a2e44] shadow-md text-white' : 'bg-white dark:bg-[#182234] dark:bg-[#182234] border-gray-100 dark:border-slate-800 dark:border-slate-800 shadow-sm'}`}>
-                        <div className="flex items-center gap-2.5">
-                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs ${isMe ? 'bg-[#c5a059] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100' : 'bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] text-[#c5a059]'}`}>{toPersianDigits(user.rank)}</span>
-                          <div className="flex flex-col text-right">
-                            <span className="font-bold text-xs">{user.name} {shortNationalId} {isMe && "(شما)"}</span>
-                            <div className={`flex items-center gap-2 mt-0.5 text-[9px] font-bold ${isMe ? 'text-gray-300' : 'text-gray-400 dark:text-slate-400 dark:text-slate-400'}`}>
-                              <span>نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}%</span>
-                              <span>•</span>
-                              <span>زمان: {toPersianDigits(user.time_taken || user.time || 0)} ثانیه</span>
-                            </div>
-                          </div>
-                        </div>
-                        {isMe && <div className="bg-[#c5a059] p-0.5 rounded-full text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 shrink-0"><CheckCircle size={12} /></div>}
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-          )}
-
         </div>
 
         <div className="lg:col-span-1 space-y-6">
@@ -654,7 +616,7 @@ export default function ContestLandingPage() {
                 <span className="font-black text-base text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">{toPersianDigits(leaderboard.length)} نفر</span>
               </div>
               <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800">
-                <h3 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> {contest.status === 'active' ? 'لیدربورد زنده' : 'سکوی افتخار و برندگان برتر'}</h3>
+                <h3 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> {contest.status === 'active' ? 'رتبه بندی زنده' : 'سکوی افتخار و برندگان برتر'}</h3>
                 <div className="space-y-2">
                   {topThree.length === 0 ? <p className="text-center text-xs text-gray-400 dark:text-slate-400 dark:text-slate-400 italic">آمار لیدربرد هنوز ثبت نشده است.</p> : topThree.map((user: any) => {
                     const shortIdForTop = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';

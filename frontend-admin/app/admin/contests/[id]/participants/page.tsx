@@ -362,6 +362,7 @@ export default function ParticipantsPage() {
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 text-gray-400 dark:text-slate-400 dark:text-slate-400 text-xs font-black uppercase select-none">
+                  <th className="pb-4 font-black">ردیف</th>
                   <th onClick={() => handleSortRequest('rank')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
                     رتبه <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
@@ -386,15 +387,16 @@ export default function ParticipantsPage() {
               <tbody className="divide-y divide-gray-50 text-sm">
                 {filteredParticipants.length === 0 ? (
                   <tr>
-                    <td colSpan={hasCertificate ? 6 : 5} className="text-center py-12 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">هیچ شرکت‌کننده‌ای یافت نشد.</td>
+                    <td colSpan={hasCertificate ? 7 : 6} className="text-center py-12 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">هیچ شرکت‌کننده‌ای یافت نشد.</td>
                   </tr>
                 ) : (
-                  filteredParticipants.map((user: any) => (
+                  filteredParticipants.map((user: any, index: number) => (
                     <tr 
                       key={user.user_id}
                       onClick={() => handleUserClick(user.user_id)}
                       className="hover:bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] cursor-pointer transition-colors group"
                     >
+                      <td className="py-4 font-black text-gray-400 dark:text-slate-400">{toPersianDigits(index + 1)}</td>
                       <td className="py-4">
                         <div className="w-8 flex justify-center">
                           {user.rank === 1 ? <Crown size={20} className="text-yellow-500" /> : user.rank === 2 || user.rank === 3 ? <Medal size={18} className={user.rank === 2 ? "text-gray-400 dark:text-slate-400 dark:text-slate-400" : "text-amber-700"} /> : <span className="font-black text-gray-400 dark:text-slate-400 dark:text-slate-400">#{user.rank}</span>}

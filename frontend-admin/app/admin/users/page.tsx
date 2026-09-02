@@ -338,6 +338,7 @@ export default function AdminUsersPage() {
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 text-gray-400 dark:text-slate-400 dark:text-slate-400 text-xs font-black uppercase select-none">
+                  <th className="pb-4 font-black">ردیف</th>
                   <th onClick={() => handleSortRequest('name')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors items-center gap-1">
                     نام و نام خانوادگی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
                   </th>
@@ -361,19 +362,20 @@ export default function AdminUsersPage() {
               <tbody className="divide-y divide-gray-50 text-sm">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
+                    <td colSpan={9} className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
+                    <td colSpan={9} className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user: any) => (
+                  filteredUsers.map((user: any, index: number) => (
                     <tr 
                       key={user.id} 
                       onClick={() => handleUserClick(user.id)}
                       className="hover:bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] cursor-pointer transition-colors group"
                     >
+                      <td className="py-4 font-black text-gray-400 dark:text-slate-400">{toPersianDigits(index + 1)}</td>
                       <td className="py-4 font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 group-hover:text-[#c5a059] transition-colors">{user.name}</td>
                       <td className="py-4 font-bold text-gray-500 dark:text-slate-400 dark:text-slate-400 tracking-wider font-mono">{user.phone}</td>
                       <td className="py-4 text-gray-500 dark:text-slate-400 dark:text-slate-400 font-mono">{user.national_id}</td>
