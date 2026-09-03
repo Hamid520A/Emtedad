@@ -161,6 +161,7 @@ async def add_download_headers(request: Request, call_next):
 # ۲. هماهنگ‌سازی کلیدهای JWT با فایل auth
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 EITAA_API_URL = os.getenv("EITAA_API_URL", "http://127.0.0.1:3000/send")
+EITAA_DISABLED = os.getenv("EITAA_DISABLED", "true").lower() in ("true", "1", "yes")
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 LIMIT_WINDOW = 60       # پنجره زمانی بر اساس ثانیه (۱ دقیقه)
@@ -215,13 +216,16 @@ def readiness_probe(db: Session = Depends(database.get_db)):
         health_status["status"] = "error"
         
     # Check Redis Eitaa
-    try:
-        if not r_eitaa.ping():
-            raise Exception("Redis Eitaa ping returned False")
-    except Exception as e:
-        logger.error(f"HealthCheck Redis Eitaa Error: {str(e)}")
-        health_status["redis_eitaa"] = "error"
-        health_status["status"] = "error"
+    if EITAA_DISABLED:
+        health_status["redis_eitaa"] = "skipped"
+    else:
+        try:
+            if not r_eitaa.ping():
+                raise Exception("Redis Eitaa ping returned False")
+        except Exception as e:
+            logger.error(f"HealthCheck Redis Eitaa Error: {str(e)}")
+            health_status["redis_eitaa"] = "error"
+            health_status["status"] = "error"
         
     if health_status["status"] == "error":
         raise HTTPException(status_code=503, detail=health_status)
@@ -1908,6 +1912,14 @@ def proxy_get_profile_photo(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    # Temporary isolation from Eitaa bridge (10.10.x.x:3000 /send)
+    if EITAA_DISABLED:
+        logger.info("Eitaa disabled — returning mock /proxy-upload response")
+        method = (request_data or {}).get("method")
+        if method == "upload.getFile":
+            return {"status": "mocked", "bytes": {}, "message": "Eitaa temporarily disabled"}
+        return {"status": "mocked", "users": [], "message": "Eitaa temporarily disabled"}
+
     # Prefer env; keep legacy host as fallback for existing deploys
     eitaa_target_url = os.getenv("EITAA_API_URL", "http://10.10.20.51:3000/send")
 
