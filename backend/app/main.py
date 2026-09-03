@@ -507,121 +507,97 @@ def draw_certificate_canvas(user, contest, subscription):
 # =====================================================================
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-@app.middleware("http")
-async def rate_limiter_and_ip_blocker(request: Request, call_next):
-    client_ip = request.client.host if request.client else "unknown_ip"
-    
-    # ۱. یکسان‌سازی فوق‌سخت‌گیرانه و قطعی آی‌پی
-    if "127.0.0.1" in client_ip or client_ip in ["::1", "localhost", "::ffff:127.0.0.1"]:
-        client_ip = "127.0.0.1"
-        
-    # ۲. شاه‌کلید حل باگ CORS Preflight مرورگرها
-    if request.method == "OPTIONS":
+
+# Pure ASGI rate limiter — avoids BaseHTTPMiddleware / call_next stream bugs
+# (StaticFiles streaming + client disconnects no longer raise "No response returned")
+class RateLimiterASGIMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "GET")
+        path = scope.get("path", "") or "/"
+
+        # Pass OPTIONS + static through natively (no response buffering)
+        if method == "OPTIONS" or path.startswith("/static"):
+            await self.app(scope, receive, send)
+            return
+
+        client = scope.get("client")
+        client_ip = client[0] if client else "unknown_ip"
+        if "127.0.0.1" in client_ip or client_ip in ["::1", "localhost", "::ffff:127.0.0.1"]:
+            client_ip = "127.0.0.1"
+
+        cors_headers = {
+            "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+
         try:
-            response = await call_next(request)
-            return response if response is not None else Response(status_code=204)
-        except Exception as e:
-            logger.error(f"OPTIONS request failed: {e}\n{traceback.format_exc()}")
-            return Response(status_code=204)
+            block_key = f"blocked_ip:{client_ip}"
+            is_blocked = r.get(block_key)
+            if is_blocked:
+                ttl = r.ttl(block_key)
+                minutes_left = max(1, (ttl if ttl and ttl > 0 else BLOCK_DURATION) // 60)
+                response = JSONResponse(
+                    status_code=403,
+                    content={"detail": f"دسترسی شما موقتاً مسدود شده است. لطفا {minutes_left} دقیقه دیگر تلاش کنید."},
+                    headers=cors_headers,
+                )
+                await response(scope, receive, send)
+                return
 
-    # ۳. استثنا کردن فایل‌های استاتیک پروژه‌
-    if request.url.path.startswith("/static"):
-        try:
-            response = await call_next(request)
-            return response if response is not None else JSONResponse(status_code=404, content={"detail": "Not found"})
-        except Exception as e:
-            logger.error(f"Static request failed: {e}\n{traceback.format_exc()}")
-            return JSONResponse(status_code=404, content={"detail": "Not found"})
+            path_suffix = path.strip("/").replace("/", "_") or "root"
+            rate_key = f"rate_limit:{client_ip}:{path_suffix}"
+            current_requests = r.get(rate_key)
 
-    cors_headers = {
-        "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Allow-Methods": "*",
-        "Access-Control-Allow-Headers": "*",
-    }
+            route_max_limit = MAX_REQUESTS
+            if path in ["/login", "/register", "/users/change-password"]:
+                route_max_limit = 10
+            elif path.endswith("/submissions") or path == "/submissions":
+                route_max_limit = 10
+            elif path in ["/admin/login", "/admin/stats"]:
+                route_max_limit = 20
 
-    try:
-        # ۴. بررسی وضعیت بلاک IP در ردیس
-        block_key = f"blocked_ip:{client_ip}"
-        is_blocked = r.get(block_key)
-        if is_blocked:
-            ttl = r.ttl(block_key)
-            minutes_left = max(1, (ttl if ttl and ttl > 0 else BLOCK_DURATION) // 60)
-            return JSONResponse(
-                status_code=403,
-                content={"detail": f"دسترسی شما موقتاً مسدود شده است. لطفا {minutes_left} دقیقه دیگر تلاش کنید."},
-                headers=cors_headers
-            )
+            request_count = 0
+            if current_requests is not None:
+                try:
+                    request_count = int(current_requests)
+                except (TypeError, ValueError):
+                    r.delete(rate_key)
+                    request_count = 0
 
-        # 🌟 ۵. تفکیک کلید شمارنده ردیس بر اساس مسیر اختصاصی هر روت برای جلوگیری از تداخل ترافیک صفحات
-        path_suffix = request.url.path.strip("/").replace("/", "_") or "root"
-        rate_key = f"rate_limit:{client_ip}:{path_suffix}"
-        current_requests = r.get(rate_key)
-
-        route_max_limit = MAX_REQUESTS
-        if request.url.path in ["/login", "/register", "/users/change-password"]:
-            route_max_limit = 10  
-        elif request.url.path.endswith("/submissions") or request.url.path == "/submissions":
-            route_max_limit = 10
-        elif request.url.path in ["/admin/login", "/admin/stats"]:
-            route_max_limit = 20
-        
-        request_count = 0
-        if current_requests is not None:
-            try:
-                request_count = int(current_requests)
-            except (TypeError, ValueError):
+            if request_count >= route_max_limit:
+                r.setex(block_key, BLOCK_DURATION, "true")
                 r.delete(rate_key)
-                request_count = 0
+                response = JSONResponse(
+                    status_code=429,
+                    content={"detail": "تعداد درخواست‌های شما بیش از حد مجاز است! دسترسی شما به مدت ۱۵ دقیقه مسدود شد."},
+                    headers=cors_headers,
+                )
+                await response(scope, receive, send)
+                return
 
-        if request_count >= route_max_limit:
-            r.setex(block_key, BLOCK_DURATION, "true")
-            r.delete(rate_key)
-            return JSONResponse(
-                status_code=429,
-                content={"detail": "تعداد درخواست‌های شما بیش از حد مجاز است! دسترسی شما به مدت ۱۵ دقیقه مسدود شد."},
-                headers=cors_headers
-            )
+            if request_count == 0:
+                r.setex(rate_key, LIMIT_WINDOW, 1)
+            else:
+                r.incr(rate_key)
 
-        # ۶. افزایش یا ایجاد شمارنده زمان‌دار در رم ردیس
-        if request_count == 0:
-            r.setex(rate_key, LIMIT_WINDOW, 1)
-        else:
-            r.incr(rate_key)
+        except redis.RedisError as e:
+            logger.warning(f"Redis rate-limit bypassed: {e}")
+        except Exception as e:
+            logger.warning(f"Rate limiter skipped due to error; bypassing. {e}")
 
-    except redis.RedisError as e:
-        logger.warning(f"Redis rate-limit bypassed: {e}")
-    except Exception as e:
-        logger.warning(f"Rate limiter skipped due to error; bypassing. {e}")
+        await self.app(scope, receive, send)
 
-    try:
-        response = await call_next(request)
-    except RuntimeError as e:
-        if "No response returned" in str(e):
-            logger.error(f"Downstream returned no response for {request.method} {request.url.path}")
-            return JSONResponse(
-                status_code=500,
-                content={"detail": "خطای داخلی سرور. لطفاً دوباره تلاش کنید."},
-                headers=cors_headers,
-            )
-        raise
-    except Exception as e:
-        logger.error(f"Request failed after rate limiter for {request.method} {request.url.path}: {e}\n{traceback.format_exc()}")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "خطای داخلی سرور. لطفاً دوباره تلاش کنید."},
-            headers=cors_headers,
-        )
 
-    if response is None:
-        logger.error(f"No response object from downstream for {request.method} {request.url.path}")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "خطای داخلی سرور. لطفاً دوباره تلاش کنید."},
-            headers=cors_headers,
-        )
-
-    return response
+app.add_middleware(RateLimiterASGIMiddleware)
 
 # 🌟 Gauge: track concurrent in-flight requests for worker-pool exhaustion alerts
 @app.middleware("http")
