@@ -3078,6 +3078,146 @@ def submit_exam_results(
     }
 
 
+def _recalculate_subscription_score(
+    db: Session,
+    sub: models.Subscription,
+    questions_by_id: Dict[int, models.Question],
+) -> Optional[int]:
+    """Recompute score from stored answers. Returns None if no assigned questions."""
+    assigned_rows = (
+        db.query(models.SubscriptionQuestions)
+        .filter(
+            models.SubscriptionQuestions.subscription_id == sub.id,
+            models.SubscriptionQuestions.deleted_at == None,
+        )
+        .all()
+    )
+
+    total_assigned = len(assigned_rows)
+    if total_assigned == 0:
+        return None
+
+    correct_count = 0
+    for sq in assigned_rows:
+        chosen = (
+            db.query(models.SubscriptionAnswer)
+            .filter(models.SubscriptionAnswer.subscription_question_id == sq.id)
+            .filter(
+                (models.SubscriptionAnswer.is_chosen == 1)
+                | (models.SubscriptionAnswer.is_chosen == None)
+            )
+            .first()
+        )
+        if not chosen:
+            continue
+
+        q = questions_by_id.get(sq.question_id)
+        if not q:
+            continue
+
+        correct_option = next(
+            (ans for ans in q.answers if ans.is_correct == 1 and ans.deleted_at is None),
+            None,
+        )
+        if correct_option and int(chosen.answer_id) == correct_option.id:
+            correct_count += 1
+
+    return round((correct_count / total_assigned) * 100)
+
+
+@app.post("/admin/contests/{contest_id}/recalculate-scores")
+def admin_recalculate_contest_scores(
+    contest_id: int,
+    target_user_id: Optional[str] = None,
+    dry_run: bool = True,
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin),
+):
+    """
+    Temporary admin utility — recalculate subscription scores from stored answers.
+    Swagger workflow:
+      1) target_user_id + dry_run=true  → preview one user
+      2) target_user_id + dry_run=false → apply one user
+      3) omit target_user_id + dry_run=true → preview entire contest
+      4) omit target_user_id + dry_run=false → apply entire contest
+    """
+    contest = (
+        db.query(models.Contest)
+        .filter(models.Contest.id == contest_id, models.Contest.deleted_at == None)
+        .first()
+    )
+    if not contest:
+        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+
+    parsed_user_id = None
+    if target_user_id is not None and str(target_user_id).strip():
+        try:
+            parsed_user_id = UUID(str(target_user_id).strip())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="target_user_id نامعتبر است")
+
+    questions = (
+        db.query(models.Question)
+        .filter(
+            models.Question.contest_id == contest_id,
+            models.Question.deleted_at == None,
+        )
+        .options(joinedload(models.Question.answers))
+        .all()
+    )
+    questions_by_id = {q.id: q for q in questions}
+
+    query = db.query(models.Subscription).filter(
+        models.Subscription.contest_id == contest_id,
+        models.Subscription.deleted_at == None,
+    )
+    if parsed_user_id is not None:
+        query = query.filter(models.Subscription.user_id == parsed_user_id)
+
+    subscriptions = query.all()
+    if parsed_user_id is not None and not subscriptions:
+        raise HTTPException(
+            status_code=404,
+            detail="اشتراکی برای این کاربر در این مسابقه یافت نشد",
+        )
+
+    details: List[Dict[str, Any]] = []
+    processed = 0
+
+    for sub in subscriptions:
+        new_score = _recalculate_subscription_score(db, sub, questions_by_id)
+        if new_score is None:
+            continue
+
+        processed += 1
+        old_score = sub.score if sub.score is not None else 0
+
+        if new_score != old_score:
+            details.append({
+                "user_id": str(sub.user_id),
+                "old_score": old_score,
+                "new_score": new_score,
+            })
+            if not dry_run:
+                sub.score = new_score
+
+    if not dry_run and details:
+        db.commit()
+        try:
+            r.delete(f"cache:leaderboard:{contest_id}")
+        except redis.RedisError as e:
+            logger.warning(
+                f"Leaderboard cache invalidation failed after score recalc for contest {contest_id}: {e}"
+            )
+
+    return {
+        "dry_run": dry_run,
+        "processed": processed,
+        "changes_found": len(details),
+        "details": details,
+    }
+
+
 @app.get("/admin/contests/{contest_id}/participants")
 def get_admin_contest_participants(
     contest_id: int,
