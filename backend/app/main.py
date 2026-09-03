@@ -19,6 +19,7 @@ from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from jose import JWTError, jwt
 from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import Gauge
 from contextlib import asynccontextmanager
 from uuid import UUID
 
@@ -51,6 +52,13 @@ models.Base.metadata.create_all(bind=database.engine)
 
 # 🌟 فعال‌سازی متریک‌های پرومتئوس به صورت مخفی و محدود شده به شبکه داخلی
 Instrumentator().instrument(app).expose(app, include_in_schema=False)
+
+# In-flight requests currently held by Uvicorn workers (detect pool exhaustion)
+HTTP_REQUESTS_IN_PROGRESS = Gauge(
+    "http_requests_in_progress",
+    "Number of HTTP requests currently being processed",
+    multiprocess_mode="livesum",
+)
 
 # 🌟 میدلور امنیتی: محدود کردن دسترسی به /metrics فقط برای سرور پرومتئوس
 @app.middleware("http")
@@ -614,6 +622,19 @@ async def rate_limiter_and_ip_blocker(request: Request, call_next):
         )
 
     return response
+
+# 🌟 Gauge: track concurrent in-flight requests for worker-pool exhaustion alerts
+@app.middleware("http")
+async def track_http_requests_in_progress(request: Request, call_next):
+    # Do not count Prometheus scrapes against worker load
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
+    HTTP_REQUESTS_IN_PROGRESS.inc()
+    try:
+        return await call_next(request)
+    finally:
+        HTTP_REQUESTS_IN_PROGRESS.dec()
 
 # =====================================================================
 # بخش دوم فایل main.py: روت‌های احراز هویت، مسابقات، سوالات و کارنامه
