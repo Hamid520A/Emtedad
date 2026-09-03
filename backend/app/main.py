@@ -12,7 +12,6 @@ from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
 import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime
-import ipaddress
 from app.services.sms_service import sms_service
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timedelta, date, time
@@ -60,33 +59,6 @@ HTTP_REQUESTS_IN_PROGRESS = Gauge(
     "Number of HTTP requests currently being processed",
     multiprocess_mode="livesum",
 )
-
-# 🌟 میدلور امنیتی: محدود کردن دسترسی به /metrics فقط برای سرور پرومتئوس
-@app.middleware("http")
-async def restrict_metrics_endpoint(request: Request, call_next):
-    if request.url.path == "/metrics":
-        raw_client = request.client.host if request.client else ""
-        # Normalize IPv6-mapped IPv4 (e.g. ::ffff:172.30.0.9)
-        client_ip = raw_client.replace("::ffff:", "")
-        allowed_ips_env = os.getenv("PROMETHEUS_ALLOWED_IPS", "127.0.0.1,localhost,::1,172.30.0.8,172.30.0.1")
-        allowed_ips = [ip.strip() for ip in allowed_ips_env.split(",")]
-
-        # Allow RFC1918 Docker bridge subnet 172.16.0.0/12 by default
-        in_docker_bridge = False
-        try:
-            in_docker_bridge = ipaddress.ip_address(client_ip) in ipaddress.ip_network("172.16.0.0/12")
-        except ValueError:
-            in_docker_bridge = False
-
-        # Optional hostname allow (for proxy/pass-through setups)
-        is_backend_hostname = client_ip in {"backend", "backend-emtedad", "localhost"}
-
-        if "*" not in allowed_ips and client_ip not in allowed_ips and not in_docker_bridge and not is_backend_hostname:
-            return JSONResponse(
-                status_code=403, 
-                content={"detail": "Access forbidden: Your IP is not allowed to view metrics."}
-            )
-    return await call_next(request)
 
 # 🌟 متغیر کانتکست ایمن برای لاگین یکپارچه
 request_id_context = contextvars.ContextVar("request_id", default="unknown")
@@ -615,18 +587,31 @@ class RateLimiterASGIMiddleware:
 
 app.add_middleware(RateLimiterASGIMiddleware)
 
-# 🌟 Gauge: track concurrent in-flight requests for worker-pool exhaustion alerts
-@app.middleware("http")
-async def track_http_requests_in_progress(request: Request, call_next):
-    # Do not count Prometheus scrapes against worker load
-    if request.url.path == "/metrics":
-        return await call_next(request)
+# Pure ASGI gauge — avoids BaseHTTPMiddleware / call_next stream bugs
+# (StaticFiles streaming + client disconnects no longer raise "No response returned")
+class InProgressRequestsASGIMiddleware:
+    def __init__(self, app):
+        self.app = app
 
-    HTTP_REQUESTS_IN_PROGRESS.inc()
-    try:
-        return await call_next(request)
-    finally:
-        HTTP_REQUESTS_IN_PROGRESS.dec()
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "") or "/"
+        # Do not count Prometheus scrapes against worker load
+        if path == "/metrics":
+            await self.app(scope, receive, send)
+            return
+
+        HTTP_REQUESTS_IN_PROGRESS.inc()
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            HTTP_REQUESTS_IN_PROGRESS.dec()
+
+
+app.add_middleware(InProgressRequestsASGIMiddleware)
 
 # =====================================================================
 # بخش دوم فایل main.py: روت‌های احراز هویت، مسابقات، سوالات و کارنامه
