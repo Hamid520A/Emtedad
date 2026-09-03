@@ -1911,26 +1911,35 @@ def proxy_get_profile_photo(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    # 🌟 استفاده مستقیم از متغیر محیطی (فال‌بک به نام کانتینر در داکر شبکه داخلی)
-    eitaa_target_url = "http://10.10.20.51:3000/send"
+    # Prefer env; keep legacy host as fallback for existing deploys
+    eitaa_target_url = os.getenv("EITAA_API_URL", "http://10.10.20.51:3000/send")
+
+    # Soft-fail payload: frontend already treats missing users as "no avatar"
+    unavailable = {
+        "status": "unavailable",
+        "users": [],
+        "message": "سرویس ایتا موقتاً در دسترس نیست",
+    }
 
     try:
         session_json_str = r_eitaa.get(ACCOUNT_KEY)
         if not session_json_str:
-            return {"status": "error", "message": f"500: کلید سشن {ACCOUNT_KEY} در ردیس یافت نشد."}
+            logger.warning(f"Eitaa session key missing: {ACCOUNT_KEY}")
+            return unavailable
         
         session_data = json.loads(session_json_str)
         token = session_data.get("token")
         imei = session_data.get("imei")
 
         if not token or not imei:
-            return {"status": "error", "message": "500: مقادیر token یا imei در ردیس مفقود هستند."}
+            logger.warning("Eitaa session missing token/imei")
+            return unavailable
         
         request_data["token"] = token
         request_data["imei"] = imei
 
-        # 🌟 افزایش شدید تایم‌اوت برای جلوگیری از ارور ۵۰۲ در دریافت عکس
-        dynamic_timeout = (5.0, 30.0) if request_data.get("method") == "upload.getFile" else (5.0, 10.0)
+        # Keep upstream waits short so workers are not starved when Eitaa is down
+        dynamic_timeout = (2.0, 4.0) if request_data.get("method") == "upload.getFile" else (2.0, 3.0)
         
         # اضافه کردن هدر Connection: close برای جلوگیری از پر شدن استخر کانکشن‌های وب‌سرور
         headers = {"Connection": "close"}
@@ -1939,7 +1948,7 @@ def proxy_get_profile_photo(
         # اگر ایتا ارور ۵۰۲ یا ۵۰۴ داد، آن را به درستی به فرانت بفرست
         if response.status_code >= 500:
             logger.error(f"Eitaa API returned status {response.status_code}: {response.text}")
-            raise HTTPException(status_code=502, detail="سرور ایتا در حال حاضر پاسخگو نیست.")
+            return unavailable
             
         response_data = response.json()
 
@@ -1970,14 +1979,17 @@ def proxy_get_profile_photo(
         return response_data
             
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-        logger.error(f"Eitaa Upstream Failed: {str(e)}")
-        raise HTTPException(status_code=502, detail="ارتباط با سرور واسط ایتا برقرار نشد (تایم‌اوت یا قطعی شبکه).")
+        logger.warning(f"Eitaa Upstream Failed (soft): {str(e)}")
+        return unavailable
     except json.JSONDecodeError as e:
-        logger.error(f"Eitaa Upstream Failed: JSONDecodeError - {str(e)}")
-        raise HTTPException(status_code=500, detail="ساختار متنی ایتا معتبر نیست.")
+        logger.warning(f"Eitaa Upstream Failed: JSONDecodeError - {str(e)}")
+        return unavailable
+    except redis.RedisError as e:
+        logger.warning(f"Eitaa Redis session read failed (soft): {e}")
+        return unavailable
     except Exception as e:
-        logger.error(f"Eitaa Proxy General Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="خطای نامشخص در برقراری ارتباط با سرور آپ‌استریم.")
+        logger.warning(f"Eitaa Proxy General Error (soft): {str(e)}")
+        return unavailable
 
 @app.get("/admin/users", response_model=List[Dict[str, Any]])
 @app.get("/admin/users-list", response_model=List[Dict[str, Any]])
