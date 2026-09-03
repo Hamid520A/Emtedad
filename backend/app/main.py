@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
 import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime
+import ipaddress
 from app.services.sms_service import sms_service
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timedelta, date, time
@@ -64,12 +65,23 @@ HTTP_REQUESTS_IN_PROGRESS = Gauge(
 @app.middleware("http")
 async def restrict_metrics_endpoint(request: Request, call_next):
     if request.url.path == "/metrics":
-        client_ip = request.client.host if request.client else ""
+        raw_client = request.client.host if request.client else ""
+        # Normalize IPv6-mapped IPv4 (e.g. ::ffff:172.30.0.9)
+        client_ip = raw_client.replace("::ffff:", "")
         allowed_ips_env = os.getenv("PROMETHEUS_ALLOWED_IPS", "127.0.0.1,localhost,::1,172.30.0.8,172.30.0.1")
         allowed_ips = [ip.strip() for ip in allowed_ips_env.split(",")]
-        
-        # در داکر معمولا آی‌پی کلاینت همان آی‌پی گیت‌وی داکر (مثلا 172.x.x.x) است
-        if "*" not in allowed_ips and client_ip not in allowed_ips and not client_ip.startswith("172."):
+
+        # Allow RFC1918 Docker bridge subnet 172.16.0.0/12 by default
+        in_docker_bridge = False
+        try:
+            in_docker_bridge = ipaddress.ip_address(client_ip) in ipaddress.ip_network("172.16.0.0/12")
+        except ValueError:
+            in_docker_bridge = False
+
+        # Optional hostname allow (for proxy/pass-through setups)
+        is_backend_hostname = client_ip in {"backend", "backend-emtedad", "localhost"}
+
+        if "*" not in allowed_ips and client_ip not in allowed_ips and not in_docker_bridge and not is_backend_hostname:
             return JSONResponse(
                 status_code=403, 
                 content={"detail": "Access forbidden: Your IP is not allowed to view metrics."}
