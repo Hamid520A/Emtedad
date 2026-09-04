@@ -68,6 +68,12 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch (refreshError) {
+        // Network blips must NOT force logout / exam expulsion
+        const refreshFailedWithoutHttp =
+          !axios.isAxiosError(refreshError) || !refreshError.response;
+        if (refreshFailedWithoutHttp) {
+          return Promise.reject(refreshError);
+        }
         localStorage.clear();
         window.location.href = '/login';
         return Promise.reject(refreshError);

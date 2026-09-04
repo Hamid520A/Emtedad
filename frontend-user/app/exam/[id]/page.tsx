@@ -1,6 +1,6 @@
 // frontend-user/app/exam/[id]/page.tsx
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { getCleanImageUrl } from '../../../lib/utils/url';
@@ -93,6 +93,14 @@ export default function ExamPage() {
   const [showReview, setShowReview] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const examLoadedRef = useRef(false);
+
+  const isNetworkFailure = (error: any) => {
+    // Axios network/timeout: no HTTP response (unlike 4xx/5xx expulsion paths)
+    return !error?.response;
+  };
 
   // ۱. افکت هوشمند دریافت اطلاعات جامع مسابقه و پلمپ وضعیت مرور در رفرش
   useEffect(() => {
@@ -142,15 +150,28 @@ export default function ExamPage() {
           setTimeLeft(limitInSeconds);
           setQuestions(questionsRes.data || []);
           setCertificateType(contestRes.data.certificate_type || 'none');
+          examLoadedRef.current = true;
+          setNetworkError(null);
         }
       } catch (error: any) {
         if (!isCurrent) return;
 
+        if (isNetworkFailure(error)) {
+          setNetworkError('خطای شبکه — اتصال برقرار نیست. پاسخ‌های شما حفظ شده‌اند.');
+          return;
+        }
+
         if (error.response && error.response.status === 403) {
+          // After start-lock, a remount/refetch 403 must NOT expel an in-progress exam
+          if (examLoadedRef.current) {
+            setNetworkError('ارتباط موقتاً قطع شد. روی صفحه آزمون بمانید و دوباره تلاش کنید.');
+            return;
+          }
           alert(error.response.data?.detail || "شما قبلاً در این آزمون شرکت کرده‌اید و مجاز به ورود مجدد نیستید.");
           router.replace(`/contests/${contestId}`); 
         } else {
           console.error("خطا در دریافت اطلاعات آزمون", error);
+          setNetworkError('خطا در دریافت اطلاعات. لطفاً دوباره تلاش کنید.');
         }
       } finally {
         if (isCurrent) setLoading(false);
@@ -239,6 +260,28 @@ export default function ExamPage() {
     };
   }, [isSubmitted, showReview, loading, questions.length]);
 
+  // Network status: UI only — never abort / submit / redirect
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const goOffline = () => {
+      setIsOffline(true);
+      setNetworkError('اتصال اینترنت قطع شد. پس از وصل شدن می‌توانید ثبت را دوباره بزنید.');
+    };
+    const goOnline = () => {
+      setIsOffline(false);
+      setNetworkError((prev) =>
+        prev ? 'اتصال برقرار شد. می‌توانید دوباره تلاش کنید.' : null
+      );
+    };
+    if (!navigator.onLine) goOffline();
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
+    return () => {
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online', goOnline);
+    };
+  }, []);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
@@ -258,7 +301,12 @@ export default function ExamPage() {
 
   const handleSubmitExam = async () => {
     if (submitting) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setNetworkError('آفلاین هستید. پس از وصل شدن اینترنت، ثبت را دوباره بزنید.');
+      return;
+    }
     setSubmitting(true);
+    setNetworkError(null);
     
     const timeTaken = totalTime - timeLeft;
 
@@ -283,8 +331,14 @@ export default function ExamPage() {
         analysis: getAnalysis(serverScore, questions.length, certificateType, contest)
       });
       setIsSubmitted(true);
+      setNetworkError(null);
     } catch (error) {
-      alert("خطا در ثبت نهایی نمره. اینترنت خود را چک کنید.");
+      if (isNetworkFailure(error)) {
+        setNetworkError('خطای شبکه در ثبت نمره. روی صفحه بمانید و دوباره «تایید و ثبت نتایج» را بزنید.');
+      } else {
+        setNetworkError('ثبت نمره ناموفق بود. لطفاً دوباره تلاش کنید — از آزمون خارج نشوید.');
+      }
+      // Do NOT setIsSubmitted, redirect, or clear answers
     } finally {
       setSubmitting(false);
     }
@@ -322,8 +376,22 @@ export default function ExamPage() {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans transition-colors duration-200">
         <AlertCircle className="w-16 h-16 text-[#c5a059] mb-4" />
-        <h2 className="font-bold text-lg text-[#1a2e44] dark:text-slate-100">سوالی یافت نشد</h2>
-        <button onClick={() => router.push('/')} className="mt-4 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] px-8 py-3 rounded-3xl font-bold">بازگشت</button>
+        <h2 className="font-bold text-lg text-[#1a2e44] dark:text-slate-100">
+          {networkError ? 'در حال اتصال مجدد...' : 'سوالی یافت نشد'}
+        </h2>
+        {networkError && (
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-2 mb-4 px-4">{networkError}</p>
+        )}
+        {networkError ? (
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] px-8 py-3 rounded-3xl font-bold"
+          >
+            تلاش مجدد
+          </button>
+        ) : (
+          <button onClick={() => router.push('/')} className="mt-4 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] px-8 py-3 rounded-3xl font-bold">بازگشت</button>
+        )}
       </div>
     );
   }
@@ -395,6 +463,20 @@ export default function ExamPage() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 flex flex-col font-sans transition-colors duration-200" dir="rtl">
+      {(networkError || isOffline) && (
+        <div className="sticky top-0 z-20 px-4 py-3 bg-amber-50 dark:bg-amber-950/50 border-b border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs font-bold text-center">
+          {isOffline ? 'آفلاین — منتظر وصل شدن اینترنت بمانید' : networkError}
+          {!isOffline && networkError && (
+            <button
+              type="button"
+              className="mr-2 underline"
+              onClick={() => setNetworkError(null)}
+            >
+              بستن
+            </button>
+          )}
+        </div>
+      )}
       <header className="bg-white dark:bg-[#182234] p-5 shadow-sm flex justify-between items-center sticky top-0 z-10 rounded-b-3xl border-b border-gray-50 dark:border-slate-800">
         <div className="flex flex-col">
           <span className="text-[10px] text-gray-500 dark:text-slate-400 font-bold mb-1 uppercase tracking-widest">
