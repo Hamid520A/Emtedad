@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.encoders import jsonable_encoder
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, text, desc, asc
+from sqlalchemy import func, text, desc, asc, insert
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
@@ -216,7 +216,7 @@ def readiness_probe(db: Session = Depends(database.get_db)):
         
     return health_status
 
-async def get_current_user_optional(request: Request, db: Session = Depends(database.get_db)):
+def get_current_user_optional(request: Request, db: Session = Depends(database.get_db)):
     """تابع کمکی برای احراز هویت اختیاری؛ اگر کاربر توکن فرستاده بود هویتش مشخص می‌شود، در غیر این صورت None برمی‌گرداند"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -653,7 +653,7 @@ class OTPVerify(BaseModel):
         return str(value).translate(trans_table)
 
 @app.post("/send-otp", tags=["Auth"])
-def send_otp(payload: OTPRequest):
+def send_otp(payload: OTPRequest, background_tasks: BackgroundTasks):
     mobile = fa_to_en_digits(payload.phone_number)
     
     # ۱. تولید کد ۵ رقمی کاملاً تصادفی
@@ -667,14 +667,14 @@ def send_otp(payload: OTPRequest):
         raise HTTPException(status_code=500, detail="خطا در ارتباط با حافظه موقت (ردیس).")
         
     # ۳. ساخت متن و ارسال پیامک از طریق سرویس TSMS
-    from app.services.sms_service import sms_service
     text = f"سامانه مسابقات امتداد امام\nکد تایید شما: {otp_code}\nاز در اختیار گذاشتن این کد به دیگران خودداری کنید."
-    success = sms_service.send_sms(receiver_mobile=mobile, message_text=text)
-    
-    if success:
-        return {"message": "کد تایید با موفقیت پیامک شد."}
-    else:
-        raise HTTPException(status_code=500, detail="خطا در ارسال پیامک. لطفا دقایقی دیگر تلاش کنید.")
+    # Offload sync TSMS HTTP call so the event loop / worker returns immediately
+    background_tasks.add_task(
+        sms_service.send_sms,
+        receiver_mobile=mobile,
+        message_text=text,
+    )
+    return {"message": "کد تایید با موفقیت پیامک شد."}
 
 @app.post("/verify-otp", tags=["Auth"])
 def verify_otp(payload: OTPVerify):
@@ -1841,7 +1841,7 @@ def get_admin_contests_list(
     return contests
 
 @app.get("/admin/stats")
-async def get_admin_stats(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+def get_admin_stats(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     total_users = db.query(models.User).count()
     total_contests = db.query(models.Contest).filter(models.Contest.deleted_at == None).count()
     active_contests = db.query(models.Contest).filter(
@@ -2179,7 +2179,7 @@ def get_admin_users_list(
     return results
 
 @app.get("/admin/provinces-report")
-async def get_admin_provinces_report(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+def get_admin_provinces_report(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
     total_users = db.query(models.User).count() or 1
 
     # واکشی آمار استان‌ها با جوین درختی جدول جدید مکانی Cities
@@ -3064,24 +3064,37 @@ def submit_exam_results(
     db.query(models.SubscriptionQuestions).filter(models.SubscriptionQuestions.subscription_id == sub.id).delete()
     db.commit()
 
-    # 🌟 شاه‌کلید فیکس: ذخیره تک‌تک پاسخ‌ها در جداول واسط برای دیتاماینینگ و آنالیز نمودار ادمین
-    for q_id, a_id in answers_map.items():
-        if a_id is not None:
-            db_sub_q = models.SubscriptionQuestions(
-                subscription_id=sub.id,
-                question_id=int(q_id)
-            )
-            db.add(db_sub_q)
-            db.commit()
-            db.refresh(db_sub_q)
+    # Bulk insert answers (one RETURNING round-trip + one INSERT) instead of N commits
+    answered_items = [
+        (int(q_id), int(a_id))
+        for q_id, a_id in answers_map.items()
+        if a_id is not None
+    ]
+    if answered_items:
+        sq_result = db.execute(
+            insert(models.SubscriptionQuestions).returning(
+                models.SubscriptionQuestions.id,
+                models.SubscriptionQuestions.question_id,
+            ),
+            [
+                {"subscription_id": sub.id, "question_id": q_id}
+                for q_id, _ in answered_items
+            ],
+        )
+        sq_id_by_question = {row.question_id: row.id for row in sq_result}
 
-            db_sub_a = models.SubscriptionAnswer(
-                subscription_question_id=db_sub_q.id,
-                answer_id=int(a_id),
-                is_chosen=1
-            )
-            db.add(db_sub_a)
-            
+        db.execute(
+            insert(models.SubscriptionAnswer),
+            [
+                {
+                    "subscription_question_id": sq_id_by_question[q_id],
+                    "answer_id": a_id,
+                    "is_chosen": 1,
+                }
+                for q_id, a_id in answered_items
+            ],
+        )
+
     db.commit()
 
     sms_text = contest.sms_message.strip() if contest and contest.sms_message else ""
