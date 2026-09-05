@@ -500,7 +500,8 @@ export default function ContestLandingPage() {
                   <CheckCircle size={32} className="text-green-500 mx-auto mb-2" />
                   <h3 className="font-black text-[#1a2e44] dark:text-slate-100 text-sm sm:text-base mb-0.5">{profile?.first_name} {profile?.last_name}</h3>
                   <p className="text-green-700 dark:text-green-400 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
-                  <div className="grid grid-cols-3 gap-1.5 sm:gap-3 max-w-md mx-auto">
+                  {/* TODO: Temporary bypass for time_taken — hide زمان مصرفی from result card */}
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 max-w-md mx-auto">
                     <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">امتیاز</span>
                       <span className="font-black text-sm sm:text-base text-[#1a2e44] dark:text-slate-100">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
@@ -509,10 +510,12 @@ export default function ContestLandingPage() {
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">رتبه فعلی</span>
                       <span className="font-black text-sm sm:text-base text-[#c5a059]">#{toPersianDigits(getLiveRank())}</span>
                     </div>
+                    {/* TODO: Temporary bypass for time_taken
                     <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">زمان مصرفی</span>
                       <span className="font-black text-xs sm:text-base text-blue-600 dark:text-blue-400 truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)} ثانیه</span>
                     </div>
+                    */}
                   </div>
                   <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full mt-4 bg-white dark:bg-[#182234] hover:bg-gray-50 dark:hover:bg-[#233044] text-[#1a2e44] dark:text-slate-100 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 dark:border-slate-700 shadow-sm">
                     <FileText size={15} className="text-[#c5a059]" /> مشاهده پاسخنامه و مرور مجدد سوالات
@@ -562,8 +565,10 @@ export default function ContestLandingPage() {
                             <span className="font-bold text-xs">{user.name} {shortNationalId} {isMe && "(شما)"}</span>
                             <div className={`flex items-center gap-2 mt-0.5 text-[9px] font-bold ${isMe ? 'text-gray-300 dark:text-slate-800' : 'text-gray-400 dark:text-slate-400'}`}>
                               <span>نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}%</span>
+                              {/* TODO: Temporary bypass for time_taken
                               <span>•</span>
                               <span>زمان: {toPersianDigits(user.time_taken || user.time || 0)} ثانیه</span>
+                              */}
                             </div>
                           </div>
                         </div>
@@ -596,19 +601,22 @@ export default function ContestLandingPage() {
 
           {contest.status === 'finished' && hasParticipated && (
             <div className="bg-white dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-3">
-              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] dark:from-[#0b0f19] dark:to-[#182234] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-3 gap-1 border border-transparent dark:border-slate-800">
+              {/* TODO: Temporary bypass for time_taken — hide زمان مصرفی from finished summary */}
+              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] dark:from-[#0b0f19] dark:to-[#182234] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-2 gap-1 border border-transparent dark:border-slate-800">
                 <div className="text-center border-l border-white/10 flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">رتبه نهایی</span>
                   <span className="font-black text-sm sm:text-lg text-white">#{toPersianDigits(getLiveRank())}</span>
                 </div>
-                <div className="text-center border-l border-white/10 flex flex-col justify-center">
+                <div className="text-center flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">نمره شما</span>
                   <span className="font-black text-sm sm:text-lg text-white">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
                 </div>
+                {/* TODO: Temporary bypass for time_taken
                 <div className="text-center flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">زمان مصرفی</span>
                   <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}ثانیه</span>
                 </div>
+                */}
               </div>
               <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-[#233044] py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100 dark:border-slate-800"><FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات</button>
             </div>
@@ -662,7 +670,9 @@ export default function ContestLandingPage() {
                           <div className="flex flex-col text-right">
                             <span className="font-bold text-xs text-[#1a2e44] dark:text-slate-100">{user.name} {shortIdForTop}</span>
                             <span className="text-[9px] text-gray-400 dark:text-slate-400 font-bold mt-0.5">
-                              نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}% | زمان: {toPersianDigits(user.time_taken || user.time || 0)}ثانیه
+                              {/* TODO: Temporary bypass for time_taken — hide time from podium */}
+                              نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}%
+                              {/* | زمان: {toPersianDigits(user.time_taken || user.time || 0)}ثانیه */}
                             </span>
                           </div>
                         </div>

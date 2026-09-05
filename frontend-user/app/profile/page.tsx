@@ -307,7 +307,9 @@ export default function ProfilePage() {
                     <div>
                       <h4 className="font-bold text-base mb-1 text-[#1a2e44] dark:text-slate-100 group-hover:text-[#c5a059] transition-colors">{item.contest_title}</h4>
                       <div className="flex gap-2 text-[10px] font-bold text-gray-400 dark:text-slate-400">
+                        {/* TODO: Temporary bypass for time_taken
                         <span className="bg-gray-50 dark:bg-[#0b0f19] px-2 py-0.5 rounded-md">زمان: {toPersianDigits(item.time_taken)} ثانیه</span>
+                        */}
                         <span className={item.status === 'active' ? 'text-green-500' : ''}>
                           {item.status === 'active' ? '● در حال برگزاری' : 'پایان یافته'}
                         </span>

@@ -1259,17 +1259,23 @@ def _build_contest_leaderboard(db: Session, contest_id: int) -> List[Dict[str, A
         score_val = sub.score if sub.score is not None else 0
 
         results.append({
+            "id": sub.id,
             "user_id": str(sub.user_id),
             "name": f"{sub.user.first_name} {sub.user.last_name or ''}".strip(),
             "score": score_val,
             "time": time_taken_seconds,
             "time_taken": time_taken_seconds,
             "last_four_id": last_four_digits,
+            "updated_at": sub.updated_at.isoformat() if sub.updated_at else None,
+            "_updated_at_sort": sub.updated_at or sub.created_at or datetime.min,
         })
 
-    results.sort(key=lambda x: (-x["score"], x["time_taken"]))
+    # TODO: Temporary bypass for time_taken — FCFS by submit completion (updated_at)
+    # results.sort(key=lambda x: (-x["score"], x["time_taken"]))
+    results.sort(key=lambda x: (-x["score"], x["_updated_at_sort"]))
     for idx, item in enumerate(results):
         item["rank"] = idx + 1
+        item.pop("_updated_at_sort", None)
     return results
 
 
@@ -2093,7 +2099,9 @@ def get_admin_users_list(
             if contest_id is not None:
                 query = query.order_by(
                     desc(score_col).nullslast(),
-                    models.Subscription.time_left.asc().nullslast(),
+                    # TODO: Temporary bypass for time_taken — FCFS by submit completion (updated_at)
+                    # models.Subscription.time_left.asc().nullslast(),
+                    models.Subscription.updated_at.asc().nullslast(),
                 )
             else:
                 query = query.order_by(desc(score_col).nullslast(), models.User.created_at.desc())
@@ -3291,12 +3299,16 @@ def get_admin_contest_participants(
     elif sort_by == "highest_score":
         query = query.order_by(
             models.Subscription.score.desc(),
-            models.Subscription.time_left.asc().nullslast(),
+            # TODO: Temporary bypass for time_taken — FCFS by submit completion (updated_at)
+            # models.Subscription.time_left.asc().nullslast(),
+            models.Subscription.updated_at.asc().nullslast(),
         )
     else:
         query = query.order_by(
             models.Subscription.score.desc(),
-            models.Subscription.time_left.asc().nullslast(),
+            # TODO: Temporary bypass for time_taken — FCFS by submit completion (updated_at)
+            # models.Subscription.time_left.asc().nullslast(),
+            models.Subscription.updated_at.asc().nullslast(),
         )
         
     subscriptions = query.options(joinedload(models.Subscription.user)).all()
