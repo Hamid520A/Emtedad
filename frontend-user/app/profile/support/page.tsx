@@ -29,14 +29,14 @@ export default function SupportPage() {
         </div>
 
         <div className="space-y-4">
-          <a href="https://eitaa.com/dallfa" target="_blank" className="bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between hover:border-blue-500 hover:shadow-md transition-all group">
+          <a href="https://eitaa.com/admin_emtedad_emam1" target="_blank" className="bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between hover:border-blue-500 hover:shadow-md transition-all group">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-[#faf9f6] dark:bg-[#0b0f19] text-gray-500 dark:text-slate-400 rounded-2xl flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-950/40 group-hover:text-blue-500 transition-colors">
                 <MessageCircle size={24} />
               </div>
               <div>
                 <span className="font-black text-[#1a2e44] dark:text-slate-100 block mb-1">پشتیبانی ایتا</span>
-                <span className="text-xs text-gray-400 dark:text-slate-400 font-bold" dir="ltr">@dallfa</span>
+                <span className="text-xs text-gray-400 dark:text-slate-400 font-bold" dir="ltr">@admin_emtedad_emam1</span>
               </div>
             </div>
           </a>

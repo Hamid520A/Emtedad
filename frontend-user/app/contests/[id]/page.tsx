@@ -501,15 +501,18 @@ export default function ContestLandingPage() {
                   <h3 className="font-black text-[#1a2e44] dark:text-slate-100 text-sm sm:text-base mb-0.5">{profile?.first_name} {profile?.last_name}</h3>
                   <p className="text-green-700 dark:text-green-400 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
                   {/* TODO: Temporary bypass for time_taken — hide زمان مصرفی from result card */}
-                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 max-w-md mx-auto">
+                  {/* TODO: Temporary bypass for ranking visibility — score only */}
+                  <div className="grid grid-cols-1 gap-1.5 sm:gap-3 max-w-md mx-auto">
                     <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">امتیاز</span>
                       <span className="font-black text-sm sm:text-base text-[#1a2e44] dark:text-slate-100">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
                     </div>
+                    {/* TODO: Temporary bypass for ranking visibility
                     <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">رتبه فعلی</span>
                       <span className="font-black text-sm sm:text-base text-[#c5a059]">#{toPersianDigits(getLiveRank())}</span>
                     </div>
+                    */}
                     {/* TODO: Temporary bypass for time_taken
                     <div className="bg-white dark:bg-[#0b0f19] p-2 sm:p-3 rounded-xl border border-green-100 dark:border-slate-800 text-center">
                       <span className="block text-[8px] sm:text-[9px] text-gray-400 dark:text-slate-400 font-bold mb-0.5">زمان مصرفی</span>
@@ -538,8 +541,9 @@ export default function ContestLandingPage() {
             </div>
           )}
 
+          {/* TODO: Temporary bypass for ranking visibility — hide nearby rivals */}
           {/* 🌟 فیکس دوم: نمایش رقبای نزدیک بدون خط زدن نفرات اول تا سوم */}
-          {showLeaderboard && hasParticipated && leaderboard.length > 0 && (
+          {false && showLeaderboard && hasParticipated && leaderboard.length > 0 && (
             <div className="bg-white dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-50 dark:border-slate-800">
                 <h4 className="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14} /> تحلیل جایگاه و رقبای هم‌سطح نزدیک به شما</h4>
@@ -602,11 +606,14 @@ export default function ContestLandingPage() {
           {contest.status === 'finished' && hasParticipated && (
             <div className="bg-white dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-3">
               {/* TODO: Temporary bypass for time_taken — hide زمان مصرفی from finished summary */}
-              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] dark:from-[#0b0f19] dark:to-[#182234] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-2 gap-1 border border-transparent dark:border-slate-800">
+              {/* TODO: Temporary bypass for ranking visibility — score only */}
+              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] dark:from-[#0b0f19] dark:to-[#182234] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-1 gap-1 border border-transparent dark:border-slate-800">
+                {/* TODO: Temporary bypass for ranking visibility
                 <div className="text-center border-l border-white/10 flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">رتبه نهایی</span>
                   <span className="font-black text-sm sm:text-lg text-white">#{toPersianDigits(getLiveRank())}</span>
                 </div>
+                */}
                 <div className="text-center flex flex-col justify-center">
                   <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">نمره شما</span>
                   <span className="font-black text-sm sm:text-lg text-white">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
@@ -652,7 +659,8 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          {showLeaderboard && (
+          {/* TODO: Temporary bypass for ranking visibility — hide top-3 podium & participant count */}
+          {false && showLeaderboard && (
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-white dark:bg-[#182234] p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
                 <div className="flex items-center gap-1.5 text-gray-500 dark:text-slate-400 font-bold text-xs"><Users size={16} className="text-[#c5a059]" /> کل شرکت‌کنندگان:</div>
