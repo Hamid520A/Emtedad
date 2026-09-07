@@ -114,11 +114,31 @@ export default function ProfilePage() {
     setAnswerLoading(true);
     setAnswerModalOpen(true);
     try {
-      const response = await api.get(`/users/me/contests/${contestId}/answers`);
+      // Same source as contest-details /review-final: only assigned SubscriptionQuestions
+      const response = await api.get(`/users/me/submissions/${contestId}`);
+      const rawQuestions = response.data?.questions || [];
+
+      // Map submissions payload → existing modal shape (options[], 1-based indices)
+      const questions = rawQuestions.map((q: any, idx: number) => {
+        const opts = q.shuffled_options || [];
+        const selectedId = q.user_option ?? q.selected_option ?? null;
+        const correctId = q.correct_option ?? null;
+        const selectedIdx = selectedId == null ? -1 : opts.findIndex((o: any) => o.id === selectedId);
+        const correctIdx = correctId == null ? -1 : opts.findIndex((o: any) => o.id === correctId);
+
+        return {
+          question_index: idx + 1,
+          title: q.title,
+          options: opts.map((o: any) => o.title),
+          selected_option: selectedIdx >= 0 ? selectedIdx + 1 : null,
+          correct_answer: correctIdx >= 0 ? correctIdx + 1 : null,
+        };
+      });
+
       setAnswerSheet({
         contest_title: contestTitle,
-        contest_status: contestStatus, 
-        questions: response.data || []
+        contest_status: response.data?.contest_status || contestStatus,
+        questions,
       });
     } catch (error) {
       console.error("Error fetching answer sheet:", error);
