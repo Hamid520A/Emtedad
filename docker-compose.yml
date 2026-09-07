@@ -4,6 +4,7 @@ networks:
 volumes:
   postgres_data: null
   redis_data: null
+  grafana_data: null
 services:
   frontend-user:
     build:
@@ -27,16 +28,13 @@ services:
         reservations:
           cpus: '0.2'
           memory: 256M
-    # TODO: Temporary bypass — curl often missing in Next alpine; healthcheck marked containers unhealthy
-    # healthcheck:
-    #   test:
-    #   - CMD
-    #   - curl
-    #   - -f
-    #   - http://localhost:3000
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -q -O - http://localhost:3000 > /dev/null 2>&1 || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
   frontend-admin:
     build:
       context: ./frontend-admin
@@ -59,16 +57,13 @@ services:
         reservations:
           cpus: '0.2'
           memory: 256M
-    # TODO: Temporary bypass — curl often missing in Next alpine; healthcheck marked containers unhealthy
-    # healthcheck:
-    #   test:
-    #   - CMD
-    #   - curl
-    #   - -f
-    #   - http://localhost:3000
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -q -O - http://localhost:3000 > /dev/null 2>&1 || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
   backend:
     build:
       context: ./backend
@@ -180,7 +175,9 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-    - "3001:3000"
+    - "3030:3000"
+    volumes:
+    - grafana_data:/var/lib/grafana
     restart: unless-stopped
     networks:
     - emtedad_network
