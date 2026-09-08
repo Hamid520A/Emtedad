@@ -16,6 +16,7 @@ export default function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [timer, setTimer] = useState(120);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const toEnglishDigits = (str: string) => {
     return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728))
@@ -31,6 +32,31 @@ export default function ForgotPasswordPage() {
     const cleanPhone = toEnglishDigits(p).trim();
     return /^09\d{9}$/.test(cleanPhone);
   };
+
+  const getApiErrorMessage = (error: any, fallback: string): string => {
+    const detail = error?.response?.data?.detail;
+    if (Array.isArray(detail)) {
+      const first = detail[0];
+      if (first?.msg) return String(first.msg).replace(/^Value error,\s*/i, "");
+      if (typeof first === "string") return first;
+    }
+    if (typeof detail === "string" && detail.trim()) return detail;
+    return fallback;
+  };
+
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const FieldError = ({ name }: { name: string }) =>
+    fieldErrors[name] ? (
+      <p className="mt-1.5 text-xs font-bold text-red-600 dark:text-red-400">{fieldErrors[name]}</p>
+    ) : null;
 
   // 🌟 تایمر پیامک
   useEffect(() => {
@@ -57,8 +83,9 @@ export default function ForgotPasswordPage() {
       await api.post('/send-otp', { phone_number: toEnglishDigits(phone) });
       setStep(2);
       setTimer(120);
+      setFieldErrors({});
     } catch (error: any) {
-      alert("خطا در ارسال پیامک: " + (error.response?.data?.detail || "لطفاً دوباره تلاش کنید."));
+      alert("خطا در ارسال پیامک: " + getApiErrorMessage(error, "لطفاً دوباره تلاش کنید."));
     } finally {
       setLoading(false);
     }
@@ -67,23 +94,29 @@ export default function ForgotPasswordPage() {
   // 🌟 مرحله دوم: تایید کد و تغییر رمز
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!otpCode || otpCode.length < 4) return alert("لطفاً کد تایید را وارد کنید.");
-    if (newPassword.length < 6) return alert("رمز عبور جدید باید حداقل ۶ کاراکتر باشد.");
-    if (newPassword !== confirmPassword) return alert("رمز عبور جدید و تکرار آن مطابقت ندارند.");
+
+    const errors: Record<string, string> = {};
+    const cleanOtp = toEnglishDigits(otpCode).trim();
+    if (!cleanOtp || cleanOtp.length !== 5) errors.otpCode = "لطفاً کد تایید ۵ رقمی را وارد کنید.";
+    if (!newPassword) errors.newPassword = "وارد کردن رمز عبور جدید الزامی است.";
+    else if (newPassword.length < 8) errors.newPassword = "رمز عبور جدید باید حداقل ۸ کاراکتر باشد.";
+    if (!confirmPassword) errors.confirmPassword = "وارد کردن تکرار رمز عبور الزامی است.";
+    else if (newPassword !== confirmPassword) errors.confirmPassword = "رمز عبور جدید و تکرار آن مطابقت ندارند.";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setLoading(true);
     try {
       await api.post('/reset-password', { 
         phone_number: toEnglishDigits(phone), 
-        otp_code: toEnglishDigits(otpCode),
+        otp_code: cleanOtp,
         new_password: newPassword
       });
       
       alert("✅ رمز عبور با موفقیت تغییر کرد! اکنون می‌توانید وارد حساب خود شوید.");
       router.push('/login');
     } catch (error: any) {
-      alert("خطا: " + (error.response?.data?.detail || "ارتباط با سرور برقرار نشد."));
+      alert("خطا: " + getApiErrorMessage(error, "ارتباط با سرور برقرار نشد."));
     } finally {
       setLoading(false);
     }
@@ -137,6 +170,7 @@ export default function ForgotPasswordPage() {
                 <Phone className="absolute right-4 top-4 text-gray-400 dark:text-slate-500" size={18} />
                 <input 
                   type="text" required dir="ltr" maxLength={11}
+                  autoComplete="tel"
                   className="w-full p-4 pr-12 bg-white/60 dark:bg-[#0b0f19] border border-gray-100 dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left transition-all backdrop-blur-sm"
                   placeholder="0912..."
                   value={phone}
@@ -165,12 +199,18 @@ export default function ForgotPasswordPage() {
                 <MessageSquare className="absolute right-3 top-4 text-gray-400" size={20} />
                 <input 
                   type="text" required dir="ltr" maxLength={5}
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
                   className="w-full p-4 pr-10 bg-white dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-2 border-gray-100 dark:border-slate-800 focus:border-[#c5a059] rounded-2xl font-black text-center text-xl tracking-[0.4em] outline-none transition-all shadow-inner"
                   placeholder="-----"
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
+                  onChange={(e) => {
+                    setOtpCode(e.target.value);
+                    clearFieldError('otpCode');
+                  }}
                 />
               </div>
+              <FieldError name="otpCode" />
               <div className="text-center text-xs font-bold text-gray-500 mt-3">
                 {timer > 0 ? (
                   <span dir="ltr">{formatTime(timer)} تا ارسال مجدد</span>
@@ -186,12 +226,17 @@ export default function ForgotPasswordPage() {
                 <Lock className="absolute right-4 top-4 text-gray-400 dark:text-slate-500" size={18} />
                 <input 
                   type="password" required dir="ltr"
+                  autoComplete="new-password"
                   className="w-full p-4 pr-12 bg-white/60 dark:bg-[#0b0f19] border border-gray-100 dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left transition-all"
                   placeholder="••••••••"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    clearFieldError('newPassword');
+                  }}
                 />
               </div>
+              <FieldError name="newPassword" />
             </div>
 
             <div>
@@ -200,12 +245,17 @@ export default function ForgotPasswordPage() {
                 <Lock className="absolute right-4 top-4 text-[#c5a059]" size={18} />
                 <input 
                   type="password" required dir="ltr"
+                  autoComplete="new-password"
                   className="w-full p-4 pr-12 bg-white/60 dark:bg-[#0b0f19] border border-gray-100 dark:border-slate-800 rounded-2xl text-[#1a2e44] dark:text-slate-100 focus:ring-2 focus:ring-[#c5a059] outline-none font-bold text-sm text-left transition-all"
                   placeholder="••••••••"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    clearFieldError('confirmPassword');
+                  }}
                 />
               </div>
+              <FieldError name="confirmPassword" />
             </div>
 
             <button 

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import api from '../../../lib/api';
-import { User, Lock, Phone, ArrowRight, CreditCard, MapPin, Calendar, MessageSquare, Edit2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { User, Lock, Phone, ArrowRight, CreditCard, MapPin, Calendar, MessageSquare, Edit2, CheckCircle } from 'lucide-react';
 import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 import persian from "react-date-object/calendars/persian";
@@ -37,6 +37,8 @@ export default function RegisterPage() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [showErrors, setShowErrors] = useState(false);
   const [provinces, setProvinces] = useState<{ id: number; title: string }[]>([]);
   const [availableCities, setAvailableCities] = useState<{ id: number; title: string }[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -97,43 +99,66 @@ export default function RegisterPage() {
     }
   };
 
-  const validateRegistrationForm = (): string | null => {
-    if (!formData.first_name.trim()) return "وارد کردن نام الزامی است.";
-    if (!formData.last_name.trim()) return "وارد کردن نام خانوادگی الزامی است.";
+  const getRegistrationFieldErrors = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.first_name.trim()) errors.first_name = "وارد کردن نام الزامی است.";
+    if (!formData.last_name.trim()) errors.last_name = "وارد کردن نام خانوادگی الزامی است.";
 
     const finalPhone = toEnglishDigits(formData.phone || '').trim();
-    if (!finalPhone) return "وارد کردن شماره موبایل الزامی است.";
-    if (!isValidPhoneNumber(finalPhone)) return "شماره موبایل معتبر نیست! (باید با ۰۹ شروع شود)";
+    if (!finalPhone) errors.phone = "وارد کردن شماره موبایل الزامی است.";
+    else if (!isValidPhoneNumber(finalPhone)) errors.phone = "شماره موبایل معتبر نیست! (باید با ۰۹ شروع شود و ۱۱ رقم باشد)";
 
     const finalIdentity = toEnglishDigits(formData.national_id || '').trim();
     if (!finalIdentity) {
-      return formData.is_iranian
+      errors.national_id = formData.is_iranian
         ? "وارد کردن کد ملی الزامی است."
         : "وارد کردن شناسه اتباع الزامی است.";
-    }
-    if (!isValidIdentity(finalIdentity, formData.is_iranian)) {
-      return `${formData.is_iranian ? 'کد ملی' : 'شناسه اتباع'} وارد شده نامعتبر است!`;
-    }
-
-    if (!formData.province_id) return "انتخاب استان الزامی است.";
-    if (!formData.city_id) return "انتخاب شهرستان الزامی است.";
-
-    if (!formData.birth_date) return "وارد کردن تاریخ تولد الزامی است.";
-    if (!meetsMinimumRegistrationAge(formData.birth_date)) {
-      return "حداقل سن برای ثبت‌نام ۱۴ سال است.";
+    } else if (!isValidIdentity(finalIdentity, formData.is_iranian)) {
+      errors.national_id = formData.is_iranian
+        ? "کد ملی وارد شده نامعتبر است (رقم کنترل نادرست است)."
+        : "شناسه اتباع وارد شده نامعتبر است!";
     }
 
-    if (!formData.gender) return "انتخاب جنسیت الزامی است.";
+    if (!formData.province_id) errors.province_id = "انتخاب استان الزامی است.";
+    if (!formData.city_id) errors.city_id = "انتخاب شهرستان الزامی است.";
 
-    if (!formData.password) return "وارد کردن رمز عبور الزامی است.";
-    if (formData.password.length < 6) return "رمز عبور باید حداقل ۶ کاراکتر باشد.";
-    if (!formData.confirmPassword) return "وارد کردن تکرار رمز عبور الزامی است.";
-    if (formData.password !== formData.confirmPassword) return "رمز عبور و تکرار آن با هم مطابقت ندارند!";
+    if (!formData.birth_date) errors.birth_date = "وارد کردن تاریخ تولد الزامی است.";
+    else if (!meetsMinimumRegistrationAge(formData.birth_date)) {
+      errors.birth_date = "حداقل سن برای ثبت‌نام ۱۴ سال است.";
+    }
 
-    return null;
+    if (!formData.gender) errors.gender = "انتخاب جنسیت الزامی است.";
+
+    if (!formData.password) errors.password = "وارد کردن رمز عبور الزامی است.";
+    else if (formData.password.length < 8) errors.password = "رمز عبور باید حداقل ۸ کاراکتر باشد.";
+
+    if (!formData.confirmPassword) errors.confirmPassword = "وارد کردن تکرار رمز عبور الزامی است.";
+    else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = "رمز عبور و تکرار آن با هم مطابقت ندارند!";
+    }
+
+    return errors;
   };
 
-  const isRegistrationFormValid = validateRegistrationForm() === null;
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const updateField = (field: string, value: string | boolean) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    clearFieldError(field);
+  };
+
+  const FieldError = ({ name }: { name: string }) =>
+    showErrors && fieldErrors[name] ? (
+      <p className="mt-1.5 text-xs font-bold text-red-600 dark:text-red-400">{fieldErrors[name]}</p>
+    ) : null;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -185,8 +210,10 @@ export default function RegisterPage() {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const validationError = validateRegistrationForm();
-    if (validationError) return alert(`⚠️ ${validationError}`);
+    setShowErrors(true);
+    const errors = getRegistrationFieldErrors();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     const finalPhone = toEnglishDigits(formData.phone || '').trim();
 
@@ -206,12 +233,17 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!otpCode || otpCode.length < 4) return alert("لطفاً کد تایید را به درستی وارد کنید.");
 
-    const validationError = validateRegistrationForm();
-    if (validationError) return alert(`⚠️ ${validationError}`);
+    setShowErrors(true);
+    const errors = getRegistrationFieldErrors();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setStep(1);
+      return;
+    }
 
     setLoading(true);
     const finalPhone = toEnglishDigits(formData.phone).trim();
-    const formattedBirthDate = toEnglishDigits(formData.birth_date).replace(/\//g, '-');
+    const formattedBirthDate = toEnglishDigits(formData.birth_date).trim().replace(/-/g, '/');
 
     try {
       await api.post('/verify-otp', { 
@@ -300,17 +332,19 @@ export default function RegisterPage() {
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام</label>
                 <div className="relative">
                   <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
-                  <input type="text" required value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  <input type="text" required value={formData.first_name} onChange={(e) => updateField('first_name', e.target.value)}
                     className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="" />
                 </div>
+                <FieldError name="first_name" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">نام خانوادگی</label>
                 <div className="relative">
                   <User className="absolute right-3 top-3.5 text-gray-400" size={16} />
-                  <input type="text" required value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  <input type="text" required value={formData.last_name} onChange={(e) => updateField('last_name', e.target.value)}
                     className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="" />
                 </div>
+                <FieldError name="last_name" />
               </div>
             </div>
 
@@ -318,9 +352,9 @@ export default function RegisterPage() {
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ملیت</label>
               <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-xl border border-transparent dark:border-slate-800">
-                <button type="button" onClick={() => setFormData({ ...formData, is_iranian: true, national_id: '' })}
+                <button type="button" onClick={() => { setFormData({ ...formData, is_iranian: true, national_id: '' }); clearFieldError('national_id'); }}
                   className={`py-2 text-xs font-black rounded-lg transition-all ${formData.is_iranian ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>ایرانی</button>
-                <button type="button" onClick={() => setFormData({ ...formData, is_iranian: false, national_id: '' })}
+                <button type="button" onClick={() => { setFormData({ ...formData, is_iranian: false, national_id: '' }); clearFieldError('national_id'); }}
                   className={`py-2 text-xs font-black rounded-lg transition-all ${!formData.is_iranian ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>اتباع غیرایرانی</button>
               </div>
             </div>
@@ -332,29 +366,33 @@ export default function RegisterPage() {
                 </label>
                 <div className="relative">
                   <CreditCard className="absolute right-3 top-3.5 text-gray-400" size={16} />
-                  <input type="text" required dir="ltr" maxLength={formData.is_iranian ? 10 : 16} value={formData.national_id} onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
+                  <input type="text" required dir="ltr" maxLength={formData.is_iranian ? 10 : 16} value={formData.national_id} onChange={(e) => updateField('national_id', e.target.value)}
                     className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" 
                     placeholder={formData.is_iranian ? "0012345678" : ""} />
                 </div>
+                <FieldError name="national_id" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">شماره موبایل</label>
                 <div className="relative">
                   <Phone className="absolute right-3 top-3.5 text-gray-400" size={16} />
-                  <input type="text" required dir="ltr" maxLength={11} value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  <input type="text" required dir="ltr" maxLength={11} value={formData.phone} onChange={(e) => updateField('phone', e.target.value)}
                     className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="0912..." />
                 </div>
+                <FieldError name="phone" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">استان</label>
-                <SearchableDropdown options={provinces} value={formData.province_id} onChange={(id) => setFormData({ ...formData, province_id: String(id) })} placeholder="انتخاب استان" icon={MapPin} />
+                <SearchableDropdown options={provinces} value={formData.province_id} onChange={(id) => updateField('province_id', String(id))} placeholder="انتخاب استان" icon={MapPin} />
+                <FieldError name="province_id" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">شهرستان</label>
-                <SearchableDropdown options={availableCities} value={formData.city_id} onChange={(id) => setFormData({ ...formData, city_id: String(id) })} placeholder={formData.province_id ? "انتخاب شهر" : "ابتدا استان"} icon={MapPin} disabled={!formData.province_id || availableCities.length === 0} />
+                <SearchableDropdown options={availableCities} value={formData.city_id} onChange={(id) => updateField('city_id', String(id))} placeholder={formData.province_id ? "انتخاب شهر" : "ابتدا استان"} icon={MapPin} disabled={!formData.province_id || availableCities.length === 0} />
+                <FieldError name="city_id" />
               </div>
             </div>
 
@@ -365,18 +403,23 @@ export default function RegisterPage() {
                   <Calendar className="absolute right-3 top-3.5 text-gray-400 z-10" size={16} />
                   <DatePickerComponent calendar={persian} locale={persian_fa} calendarPosition="bottom-right"
                     value={formData.birth_date} maxDate={maxBirthDate}
-                    onChange={(date: any) => setFormData({ ...formData, birth_date: date?.format?.("YYYY-MM-DD") || "" })}
+                    onChange={(date: any) => {
+                      const raw = date?.format?.("YYYY-MM-DD") || "";
+                      updateField('birth_date', toEnglishDigits(raw).replace(/-/g, '/'));
+                    }}
                     containerClassName="w-full" inputClass="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-none rounded-xl font-bold text-sm text-left focus:ring-2 focus:ring-[#c5a059] outline-none" placeholder="1380/01/01" />
                 </div>
+                <FieldError name="birth_date" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">جنسیت</label>
                 <div className="grid grid-cols-2 gap-1 p-1 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-xl border border-transparent dark:border-slate-800">
-                  <button type="button" onClick={() => setFormData({ ...formData, gender: 'male' })}
+                  <button type="button" onClick={() => updateField('gender', 'male')}
                     className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'male' ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>آقا</button>
-                  <button type="button" onClick={() => setFormData({ ...formData, gender: 'female' })}
+                  <button type="button" onClick={() => updateField('gender', 'female')}
                     className={`py-2 text-xs font-black rounded-lg transition-all ${formData.gender === 'female' ? 'bg-white dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 shadow-sm' : 'bg-transparent text-gray-400'}`}>خانم</button>
                 </div>
+                <FieldError name="gender" />
               </div>
             </div>
 
@@ -385,21 +428,23 @@ export default function RegisterPage() {
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">رمز عبور</label>
                 <div className="relative">
                   <Lock className="absolute right-3 top-3.5 text-gray-400" size={16} />
-                  <input type="password" required dir="ltr" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  <input type="password" required dir="ltr" autoComplete="new-password" value={formData.password} onChange={(e) => updateField('password', e.target.value)}
                     className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="••••••••" />
                 </div>
+                <FieldError name="password" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">تکرار رمز</label>
                 <div className="relative">
                   <Lock className="absolute right-3 top-3.5 text-[#c5a059]" size={16} />
-                  <input type="password" required dir="ltr" value={formData.confirmPassword} onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  <input type="password" required dir="ltr" autoComplete="new-password" value={formData.confirmPassword} onChange={(e) => updateField('confirmPassword', e.target.value)}
                     className="w-full p-3 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] border-none rounded-xl font-bold text-sm text-left outline-none focus:ring-2 focus:ring-[#c5a059]" placeholder="••••••••" />
                 </div>
+                <FieldError name="confirmPassword" />
               </div>
             </div>
 
-            <button type="submit" disabled={loading || !isRegistrationFormValid} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70">
+            <button type="submit" disabled={loading} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 rounded-2xl font-black text-md flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] transition-all shadow-md active:scale-95 mt-2 disabled:opacity-70">
               {loading ? 'در حال ارسال پیامک...' : 'ثبت اطلاعات و دریافت کد'}
               {!loading && <ArrowRight size={18} />}
             </button>
@@ -414,6 +459,7 @@ export default function RegisterPage() {
                 <MessageSquare className="absolute right-3 top-4 text-gray-400" size={20} />
                 <input 
                   type="text" required dir="ltr" maxLength={5}
+                  autoComplete="one-time-code"
                   className="w-full p-4 pr-10 bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 border-2 border-transparent focus:border-[#c5a059] rounded-2xl font-black text-center text-xl tracking-[0.5em] outline-none transition-all shadow-inner"
                   placeholder="-----"
                   value={otpCode}

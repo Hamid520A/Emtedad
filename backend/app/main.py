@@ -638,7 +638,22 @@ def get_cities(
 # کدهای مدیریت پیامک و OTP (ذخیره در کانکشن Redis اصلی پروژه)
 # =====================================================================
 class OTPRequest(BaseModel):
-    phone_number: str
+    phone_number: str = Field(..., strip_whitespace=True)
+
+    @field_validator("phone_number", mode="before")
+    @classmethod
+    def convert_otp_request_digits(cls, value):
+        if not value:
+            return value
+        trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        return str(value).translate(trans_table).strip()
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_otp_request_phone(cls, value: str):
+        if not re.match(r"^09\d{9}$", value):
+            raise ValueError("شماره موبایل باید با ۰۹ شروع شود و ۱۱ رقم باشد.")
+        return value
 
 class OTPVerify(BaseModel):
     phone_number: str = Field(..., pattern=r"^09\d{9}$")
@@ -693,17 +708,31 @@ def verify_otp(payload: OTPVerify):
     return {"message": "شماره موبایل تایید شد."}
 
 class PasswordReset(BaseModel):
-    phone_number: str
+    phone_number: str = Field(..., strip_whitespace=True)
     otp_code: str = Field(..., min_length=5, max_length=5, pattern=r"^\d{5}$")
-    new_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
 
-    @field_validator("phone_number", "otp_code", mode="before")
+    @field_validator("phone_number", "otp_code", "new_password", mode="before")
     @classmethod
     def convert_reset_digits(cls, value):
         if not value:
             return value
         trans_table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
         return str(value).translate(trans_table)
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_reset_phone(cls, value: str):
+        if not re.match(r"^09\d{9}$", value):
+            raise ValueError("شماره موبایل باید با ۰۹ شروع شود و ۱۱ رقم باشد.")
+        return value
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_reset_password(cls, value: str):
+        if len(value) < 8:
+            raise ValueError("رمز عبور باید حداقل ۸ کاراکتر باشد.")
+        return value
 
 @app.post("/reset-password", tags=["Auth"])
 def reset_password_with_otp(payload: PasswordReset, db: Session = Depends(database.get_db)):
@@ -719,10 +748,7 @@ def reset_password_with_otp(payload: PasswordReset, db: Session = Depends(databa
     if not user:
         raise HTTPException(status_code=404, detail="کاربری با این شماره یافت نشد.")
         
-    # ۳. اعتبارسنجی و تغییر رمز عبور
-    if len(fa_to_en_digits(payload.new_password)) < 6:
-        raise HTTPException(status_code=400, detail="رمز عبور باید حداقل ۶ کاراکتر باشد.")
-        
+    # ۳. تغییر رمز عبور (طول رمز در PasswordReset اعتبارسنجی شده است)
     user.password = auth.get_password_hash(fa_to_en_digits(payload.new_password))
     db.commit()
     
