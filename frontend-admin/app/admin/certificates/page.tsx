@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-admin/app/admin/certificates/page.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
@@ -97,7 +98,7 @@ export default function CertificateSettingsPage() {
       });
       setTemplateData((prev: any) => ({ ...prev, [fieldName]: response.data.url }));
     } catch (error) {
-      alert("خطا در آپلود فایل انتخابی");
+      toast.error("خطا در آپلود فایل انتخابی");
     } finally {
       setActiveUploadField(null);
     }
@@ -111,10 +112,10 @@ export default function CertificateSettingsPage() {
     setSubmitting(true);
     try {
       await api.put(`/admin/contests/${selectedContestId}/certificate-template`, templateData);
-      alert("تنظیمات، امضاها و قالب گواهی این مسابقه با موفقیت ذخیره و فعال شد!");
+      toast.success("تنظیمات، امضاها و قالب گواهی این مسابقه با موفقیت ذخیره و فعال شد!");
       router.push('/admin/dashboard');
     } catch (error) {
-      alert("خطا در ذخیره‌سازی اطلاعات گواهی روی سرور");
+      toast.error("خطا در ذخیره‌سازی اطلاعات گواهی روی سرور");
     } finally {
       setSubmitting(false);
     }

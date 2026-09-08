@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-admin/app/admin/contests/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
@@ -61,8 +62,8 @@ export default function AdminContestsPage() {
 
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(fullTextToCopy)
-        .then(() => alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید."))
-        .catch(() => alert("❌ خطا در کپی کردن لینک."));
+        .then(() => toast.success("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را ارسال کنید."))
+        .catch(() => toast.error("❌ خطا در کپی کردن لینک."));
     } else {
       try {
         const textArea = document.createElement("textarea");
@@ -76,12 +77,12 @@ export default function AdminContestsPage() {
         document.body.removeChild(textArea);
         
         if (successful) {
-          alert("✅ لینک مسابقه با موفقیت در کلیپ‌بورد کپی شد! می‌توانید آن را پیست کنید.");
+          toast.success("✅ لینک مسابقه با موفقیت در کلیپ‌بورد کپی شد! می‌توانید آن را پیست کنید.");
         } else {
-          alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+          toast.error("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
         }
       } catch (err) {
-        alert("❌ خطا در کپی کردن لینک.");
+        toast.error("❌ خطا در کپی کردن لینک.");
       }
     }
   };

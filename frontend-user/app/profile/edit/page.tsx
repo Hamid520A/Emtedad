@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-user/app/profile/edit/page.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
@@ -99,14 +100,14 @@ export default function EditProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.first_name.trim()) return alert("وارد کردن نام الزامی است.");
-    if (!formData.last_name.trim()) return alert("وارد کردن نام خانوادگی الزامی است.");
-    if (!formData.birth_date) return alert("وارد کردن تاریخ تولد الزامی است.");
+    if (!formData.first_name.trim()) return toast.error("وارد کردن نام الزامی است.");
+    if (!formData.last_name.trim()) return toast.error("وارد کردن نام خانوادگی الزامی است.");
+    if (!formData.birth_date) return toast.error("وارد کردن تاریخ تولد الزامی است.");
     if (!meetsMinimumRegistrationAge(formData.birth_date)) {
-      return alert("حداقل سن برای ثبت‌نام ۱۴ سال است.");
+      return toast.error("حداقل سن برای ثبت‌نام ۱۴ سال است.");
     }
-    if (!formData.province) return alert("انتخاب استان الزامی است.");
-    if (!formData.city) return alert("انتخاب شهرستان الزامی است.");
+    if (!formData.province) return toast.error("انتخاب استان الزامی است.");
+    if (!formData.city) return toast.error("انتخاب شهرستان الزامی است.");
 
     setSaving(true);
     try {
@@ -117,14 +118,14 @@ export default function EditProfilePage() {
         province: formData.province,
         city: formData.city
       });
-      alert('اطلاعات با موفقیت به‌روزرسانی شد! 🎉');
+      toast.success('اطلاعات با موفقیت به‌روزرسانی شد! 🎉');
       router.push('/profile');
     } catch (error: any) {
       const errorMessage = getApiErrorMessage(
         error,
         "خطا در ذخیره اطلاعات. لطفاً دوباره تلاش کنید."
       );
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

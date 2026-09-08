@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-admin/app/admin/users/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
@@ -59,7 +60,7 @@ export default function AdminUsersPage() {
     } catch (error: any) {
       console.error("Error fetching users:", error);
       if (error.response?.status === 403 || error.response?.status === 401) {
-        alert("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
+        toast.error("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
         localStorage.clear();
         window.location.href = '/admin/login';
       }
@@ -75,7 +76,7 @@ export default function AdminUsersPage() {
     } catch (error: any) {
       console.error("Error fetching data:", error);
       if (error.response?.status === 403 || error.response?.status === 401) {
-        alert("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
+        toast.error("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
         localStorage.clear();
         window.location.href = '/admin/login';
       }
@@ -144,7 +145,7 @@ export default function AdminUsersPage() {
 
   const exportToCSV = () => {
     if (filteredUsers.length === 0) {
-      alert("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
+      toast.error("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
       return;
     }
 
@@ -201,7 +202,7 @@ export default function AdminUsersPage() {
         is_admin: checkAdmin
       });
     } catch (error) {
-      alert("خطا در دریافت پرونده کامل کاربر");
+      toast.error("خطا در دریافت پرونده کامل کاربر");
       setModalOpen(false);
     } finally {
       setModalLoading(false);
@@ -220,7 +221,7 @@ export default function AdminUsersPage() {
       });
     } catch (error) {
       console.error(error);
-      alert("خطا در بارگذاری لیست پاسخ‌های کاربر از سرور.");
+      toast.error("خطا در بارگذاری لیست پاسخ‌های کاربر از سرور.");
       setAnswerModalOpen(false);
     } finally {
       setAnswerLoading(false);
@@ -232,7 +233,7 @@ export default function AdminUsersPage() {
     setSaveLoading(true);
     try {
       await api.put(`/admin/users/${selectedUser.id}/update`, editFormData);
-      alert("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
+      toast.success("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
       setIsEditing(false);
       
       setSelectedUser({
@@ -250,7 +251,7 @@ export default function AdminUsersPage() {
       
       fetchUsers(selectedContestId, sortFilter);
     } catch (error) {
-      alert("خطا در ذخیره‌سازی تغییرات پرونده");
+      toast.error("خطا در ذخیره‌سازی تغییرات پرونده");
     } finally {
       setSaveLoading(false);
     }
@@ -333,11 +334,11 @@ export default function AdminUsersPage() {
       </header>
 
       <main className="px-8">
-        <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-[2.5rem] p-8 shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 overflow-hidden">
+        <div className="hidden md:block bg-white dark:bg-[#182234] rounded-[2.5rem] p-8 shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
-                <tr className="border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 text-gray-400 dark:text-slate-400 dark:text-slate-400 text-xs font-black uppercase select-none">
+                <tr className="border-b border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-400 text-xs font-black uppercase select-none">
                   <th className="pb-4 font-black">ردیف</th>
                   <th onClick={() => handleSortRequest('name')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors items-center gap-1">
                     نام و نام خانوادگی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
@@ -362,26 +363,26 @@ export default function AdminUsersPage() {
               <tbody className="divide-y divide-gray-50 text-sm">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
+                    <td colSpan={9} className="text-center py-8 text-gray-400 dark:text-slate-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-8 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
+                    <td colSpan={9} className="text-center py-8 text-gray-400 dark:text-slate-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
                   </tr>
                 ) : (
                   filteredUsers.map((user: any, index: number) => (
                     <tr 
                       key={user.id} 
                       onClick={() => handleUserClick(user.id)}
-                      className="hover:bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] cursor-pointer transition-colors group"
+                      className="hover:bg-[#faf9f6] dark:bg-[#182234] cursor-pointer transition-colors group"
                     >
                       <td className="py-4 font-black text-gray-400 dark:text-slate-400">{toPersianDigits(index + 1)}</td>
-                      <td className="py-4 font-bold text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 group-hover:text-[#c5a059] transition-colors">{user.name}</td>
-                      <td className="py-4 font-bold text-gray-500 dark:text-slate-400 dark:text-slate-400 tracking-wider font-mono">{user.phone}</td>
-                      <td className="py-4 text-gray-500 dark:text-slate-400 dark:text-slate-400 font-mono">{user.national_id}</td>
-                      <td className="py-4 font-bold text-gray-600 dark:text-slate-300 dark:text-slate-300">{user.province}</td>
+                      <td className="py-4 font-bold text-[#1a2e44] dark:text-slate-100 group-hover:text-[#c5a059] transition-colors">{user.name}</td>
+                      <td className="py-4 font-bold text-gray-500 dark:text-slate-400 tracking-wider font-mono">{user.phone}</td>
+                      <td className="py-4 text-gray-500 dark:text-slate-400 font-mono">{user.national_id}</td>
+                      <td className="py-4 font-bold text-gray-600 dark:text-slate-300">{user.province}</td>
                       <td className="py-4">
-                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'male' ? 'bg-blue-50 text-blue-600' : user.gender === 'female' ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500 dark:text-slate-400 dark:text-slate-400'}`}>
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'male' ? 'bg-blue-50 text-blue-600' : user.gender === 'female' ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500 dark:text-slate-400'}`}>
                           {user.gender === 'male' ? 'مرد' : user.gender === 'female' ? 'زن' : 'نامشخص'}
                         </span>
                       </td>
@@ -395,7 +396,7 @@ export default function AdminUsersPage() {
                           );
                         })()}
                       </td>
-                      <td className="py-4 text-gray-600 dark:text-slate-300 dark:text-slate-300 font-bold">{user.last_contest || 'شرکت نکرده'}</td>
+                      <td className="py-4 text-gray-600 dark:text-slate-300 font-bold">{user.last_contest || 'شرکت نکرده'}</td>
                       <td className="py-4 text-center">
                         <span className={`font-black text-sm ${user.average_score !== '---' ? 'text-[#c5a059]' : 'text-gray-300'}`}>
                           {user.average_score}
@@ -407,6 +408,50 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="block md:hidden bg-white dark:bg-[#182234] rounded-[2rem] p-4 shadow-sm border border-gray-100 dark:border-slate-800 space-y-3">
+          {loading ? (
+            <p className="text-center py-10 text-gray-400 font-bold text-sm">در حال بارگذاری اطلاعات کاربران...</p>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-10">
+              <Users size={40} className="mx-auto text-gray-200 mb-3" />
+              <p className="text-gray-400 font-bold text-sm">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</p>
+            </div>
+          ) : (
+            filteredUsers.map((user: any) => {
+              const checkIsAdmin =
+                user.is_admin === true ||
+                user.is_admin === 1 ||
+                String(user.is_admin).toLowerCase() === 'true';
+              return (
+                <div
+                  key={user.id}
+                  onClick={() => handleUserClick(user.id)}
+                  className="flex items-center justify-between p-4 rounded-2xl border border-gray-50 dark:border-slate-800 transition-all active:scale-[0.98]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold text-sm text-[#1a2e44] dark:text-slate-100 block truncate">{user.name}</span>
+                    <div className="flex flex-wrap gap-2 items-center mt-1 text-[10px] text-gray-400 font-bold">
+                      <span className="font-mono tracking-wider">{user.phone}</span>
+                      <span className="text-gray-200">•</span>
+                      <span>{user.province || '—'}</span>
+                      <span className="text-gray-200">•</span>
+                      <span className={`px-1.5 py-0.5 rounded-md font-black text-[9px] ${checkIsAdmin ? 'bg-purple-50 text-purple-600' : 'bg-slate-50 text-slate-600'}`}>
+                        {checkIsAdmin ? 'مدیر' : 'کاربر'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-[#0b0f19] px-3 py-2 rounded-xl text-center min-w-[3.5rem] shrink-0 mr-2">
+                    <span className="block text-[9px] font-bold text-gray-400 mb-0.5">میانگین</span>
+                    <span className={`font-black text-sm ${user.average_score !== '---' ? 'text-[#c5a059]' : 'text-gray-300'}`}>
+                      {user.average_score}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </main>
 

@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-user/app/exam/[id]/page.tsx
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
@@ -166,7 +167,7 @@ export default function ExamPage() {
             setNetworkError('ارتباط موقتاً قطع شد. روی صفحه آزمون بمانید و دوباره تلاش کنید.');
             return;
           }
-          alert(error.response.data?.detail || "شما قبلاً در این آزمون شرکت کرده‌اید و مجاز به ورود مجدد نیستید.");
+          toast.error(error.response.data?.detail || "شما قبلاً در این آزمون شرکت کرده‌اید و مجاز به ورود مجدد نیستید.");
           router.replace(`/contests/${contestId}`); 
         } else {
           console.error("خطا در دریافت اطلاعات آزمون", error);

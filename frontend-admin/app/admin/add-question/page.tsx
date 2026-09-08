@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-admin/app/admin/add-question/page.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
@@ -40,15 +41,15 @@ export default function AddQuestionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.contest_id) return alert("لطفاً ابتدا مسابقه را انتخاب کنید");
+    if (!formData.contest_id) return toast.error("لطفاً ابتدا مسابقه را انتخاب کنید");
     
     setSubmitting(true);
     try {
       await api.post(`/contests/${formData.contest_id}/questions`, formData);
-      alert("سوال با موفقیت به بانک سوالات اضافه شد.");
+      toast.success("سوال با موفقیت به بانک سوالات اضافه شد.");
       setFormData({ ...formData, text: '', description: '', option_1: '', option_2: '', option_3: '', option_4: '' });
     } catch (error) {
-      alert("خطا در ثبت سوال. مشخصات را بررسی کنید.");
+      toast.error("خطا در ثبت سوال. مشخصات را بررسی کنید.");
     } finally {
       setSubmitting(false);
     }

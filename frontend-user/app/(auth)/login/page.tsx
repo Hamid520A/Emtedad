@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-user/app/(auth)/login/page.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
@@ -44,7 +45,7 @@ export default function LoginPage() {
 
     // 🌟 این ۳ خط را اینجا اضافه کن تا جلوی خطای 422 گرفته شود
     if (finalPassword.length < 8) {
-      alert("رمز عبور باید حداقل ۸ کاراکتر باشد");
+      toast.error("رمز عبور باید حداقل ۸ کاراکتر باشد");
       return;
     }
 
@@ -61,7 +62,7 @@ export default function LoginPage() {
       localStorage.setItem('accessToken', access_token);
       localStorage.setItem('isAdmin', String(is_admin));
 
-      alert("ورود با موفقیت انجام شد! 🎉");
+      toast.success("ورود با موفقیت انجام شد! 🎉");
       router.push('/');
     } catch (error: any) {
       console.error("جزئیات خطا:", error.response?.data);
@@ -69,13 +70,13 @@ export default function LoginPage() {
       const status = error.response?.status;
 
       if (status === 429) {
-        alert(serverDetail || "⚠️ تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً پس از مدتی دوباره تلاش کنید.");
+        toast.error(serverDetail || "⚠️ تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً پس از مدتی دوباره تلاش کنید.");
       } else if (status === 403) {
-        alert(serverDetail || "⛔ دسترسی یا حساب کاربری شما مسدود شده است.");
+        toast.error(serverDetail || "⛔ دسترسی یا حساب کاربری شما مسدود شده است.");
       } else if (typeof serverDetail === 'string' && serverDetail.trim().length > 0) {
-        alert(serverDetail);
+        toast.error(serverDetail);
       } else {
-        alert("خطا در ورود: شماره موبایل یا رمز عبور اشتباه است.");
+        toast.error("خطا در ورود: شماره موبایل یا رمز عبور اشتباه است.");
       }
     } finally {
       // تحت هر شرایطی لودینگ متوقف می‌شود تا دکمه قفل نکند

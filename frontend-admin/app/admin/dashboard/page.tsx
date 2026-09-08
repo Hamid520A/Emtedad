@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-admin/app/admin/dashboard/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
@@ -76,7 +77,7 @@ export default function AdminDashboard() {
         }
       }
 
-      alert("شما با موفقیت از سیستم خارج شدید.");
+      toast.success("شما با موفقیت از سیستم خارج شدید.");
 
       // ۳. هدایت قطعی به صفحه لاگین ادمین و بازنشانی کامل حافظه مرورگر
       window.location.href = '/admin/login';
@@ -116,7 +117,7 @@ export default function AdminDashboard() {
       XLSX.writeFile(workbook, fileName);
     } catch (error) {
       console.error("Export error:", error);
-      alert("خطا در دریافت دیتا از سرور");
+      toast.error("خطا در دریافت دیتا از سرور");
     }
   };
 

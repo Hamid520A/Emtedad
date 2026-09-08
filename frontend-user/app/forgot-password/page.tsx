@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-user/app/forgot-password/page.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
@@ -74,7 +75,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     
     if (!isValidPhoneNumber(phone)) {
-      alert("⚠️ شماره موبایل معتبر نیست! (باید با ۰۹ شروع شود و ۱۱ رقم باشد)");
+      toast.error("⚠️ شماره موبایل معتبر نیست! (باید با ۰۹ شروع شود و ۱۱ رقم باشد)");
       return;
     }
 
@@ -85,7 +86,7 @@ export default function ForgotPasswordPage() {
       setTimer(120);
       setFieldErrors({});
     } catch (error: any) {
-      alert("خطا در ارسال پیامک: " + getApiErrorMessage(error, "لطفاً دوباره تلاش کنید."));
+      toast.error("خطا در ارسال پیامک: " + getApiErrorMessage(error, "لطفاً دوباره تلاش کنید."));
     } finally {
       setLoading(false);
     }
@@ -113,10 +114,10 @@ export default function ForgotPasswordPage() {
         new_password: newPassword
       });
       
-      alert("✅ رمز عبور با موفقیت تغییر کرد! اکنون می‌توانید وارد حساب خود شوید.");
+      toast.success("✅ رمز عبور با موفقیت تغییر کرد! اکنون می‌توانید وارد حساب خود شوید.");
       router.push('/login');
     } catch (error: any) {
-      alert("خطا: " + getApiErrorMessage(error, "ارتباط با سرور برقرار نشد."));
+      toast.error("خطا: " + getApiErrorMessage(error, "ارتباط با سرور برقرار نشد."));
     } finally {
       setLoading(false);
     }

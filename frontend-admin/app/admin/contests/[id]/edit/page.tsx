@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-admin/app/admin/contests/[id]/edit/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
@@ -158,10 +159,10 @@ export default function EditContestPage() {
       if (formData.certificate_type !== 'none') {
         await api.put(`/admin/contests/${contestId}/certificate-template`, certData);
       }
-      alert("تمامی تغییرات با موفقیت ذخیره شد! 🎉");
+      toast.success("تمامی تغییرات با موفقیت ذخیره شد! 🎉");
       router.push('/admin/dashboard'); 
     } catch (error: any) {
-      alert("خطا در به‌روزرسانی مشخصات");
+      toast.error("خطا در به‌روزرسانی مشخصات");
     } finally {
       setSubmitting(false);
     }
@@ -210,7 +211,7 @@ export default function EditContestPage() {
         setFormData((prev: any) => ({ ...prev, [targetField]: cleanUrl }));
       }
     } catch (error) {
-      alert("خطا در آپلود");
+      toast.error("خطا در آپلود");
     } finally {
       setUploading(null);
     }

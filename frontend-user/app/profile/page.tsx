@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-user/app/profile/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
@@ -142,7 +143,7 @@ export default function ProfilePage() {
       });
     } catch (error) {
       console.error("Error fetching answer sheet:", error);
-      alert("خطا در دریافت جزئیات پاسخنامه.");
+      toast.error("خطا در دریافت جزئیات پاسخنامه.");
       setAnswerModalOpen(false);
     } finally {
       setAnswerLoading(false);
@@ -166,17 +167,17 @@ export default function ProfilePage() {
       textArea.select();
       try {
         document.execCommand('copy');
-        alert(downloadLinkCopiedMessage);
+        toast.error(downloadLinkCopiedMessage);
       } catch (err) {
         console.error('Fallback copy failed', err);
-        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+        toast.error("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
       }
       document.body.removeChild(textArea);
     };
 
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(downloadUrl)
-        .then(() => alert(downloadLinkCopiedMessage))
+        .then(() => toast.error(downloadLinkCopiedMessage))
         .catch(() => fallbackCopy(downloadUrl));
     } else {
       fallbackCopy(downloadUrl);

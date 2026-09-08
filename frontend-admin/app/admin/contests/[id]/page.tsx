@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-admin/app/admin/contests/[id]/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
@@ -144,7 +145,7 @@ export default function ContestLandingPage() {
         const targetLimit = parseInt(contest.question_limit || 0, 10);
 
         if (actualQuestionsCount === 0) {
-          alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید سوال طرح کنید.");
+          toast.error("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید سوال طرح کنید.");
           return;
         }
 
@@ -152,7 +153,7 @@ export default function ContestLandingPage() {
           if (!window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`)) return;
         }
       } catch (error) {
-        alert("خطا در اعتبارسنجی سوالات");
+        toast.error("خطا در اعتبارسنجی سوالات");
         return;
       }
     }
@@ -172,9 +173,9 @@ export default function ContestLandingPage() {
         start_time: response.data.start_time
       });
       if (response.data.status === 'active') setTimeLeft(null);
-      alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
+      toast.success("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
     } catch (error) {
-      alert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
+      toast.error("خطا در اعمال تغییرات وضعیت در بک‌ند.");
     }
   };
 
@@ -183,7 +184,7 @@ export default function ContestLandingPage() {
     e.stopPropagation();
 
     if (!contest || !contest.id) {
-      alert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
+      toast.error("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
       return;
     }
 
@@ -191,12 +192,12 @@ export default function ContestLandingPage() {
     
     try {
       await api.delete(`/admin/contests/${contest.id}`);
-      alert("مسابقه با موفقیت از سیستم حذف شد.");
+      toast.success("مسابقه با موفقیت از سیستم حذف شد.");
       router.push('/admin/contests');
       router.refresh(); 
     } catch (error: any) {
       console.error(error);
-      alert(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'دوباره تلاش کنید.'}`);
+      toast.error(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'دوباره تلاش کنید.'}`);
     }
   };
 
@@ -391,7 +392,7 @@ export default function ContestLandingPage() {
                   <p className="text-green-700 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
 
                   <button
-                    onClick={() => alert("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
+                    onClick={() => toast("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
                     className="w-full mt-4 bg-white dark:bg-[#182234] dark:bg-[#182234] hover:bg-gray-50 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 shadow-sm"
                   >
                     <FileText size={15} className="text-[#c5a059]" />

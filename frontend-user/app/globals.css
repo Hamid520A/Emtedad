@@ -1,5 +1,7 @@
 /* frontend-user/app/globals.css */
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
+@config "../tailwind.config.js";
 
 @theme {
   --font-sans: var(--font-noto-sans-arabic), ui-sans-serif, sans-serif;

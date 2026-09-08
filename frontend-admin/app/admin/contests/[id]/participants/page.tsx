@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 // frontend-admin/app/admin/contests/[id]/participants/page.tsx
 'use client';
 import React, { useEffect, useState } from 'react';
@@ -129,7 +130,7 @@ export default function ParticipantsPage() {
 
   const exportToCSV = () => {
     if (filteredParticipants.length === 0) {
-      alert("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
+      toast.error("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
       return;
     }
 
@@ -192,7 +193,7 @@ export default function ParticipantsPage() {
         birth_date: response.data.birth_date || ''
       });
     } catch (error) {
-      alert("خطا در دریافت پرونده کامل کاربر");
+      toast.error("خطا در دریافت پرونده کامل کاربر");
       setModalOpen(false);
     } finally {
       setModalLoading(false);
@@ -211,7 +212,7 @@ export default function ParticipantsPage() {
       });
     } catch (error) {
       console.error(error);
-      alert("خطا در بارگذاری لیست پاسخ‌های کاربر از سرور.");
+      toast.error("خطا در بارگذاری لیست پاسخ‌های کاربر از سرور.");
       setAnswerModalOpen(false);
     } finally {
       setAnswerLoading(false);
@@ -223,7 +224,7 @@ export default function ParticipantsPage() {
     setSaveLoading(true);
     try {
       await api.put(`/admin/users/${selectedUser.id}/update`, editFormData);
-      alert("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
+      toast.success("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
       setIsEditing(false);
       
       setSelectedUser({
@@ -246,7 +247,7 @@ export default function ParticipantsPage() {
       setParticipants(participantsRes.data || []);
       
     } catch (error) {
-      alert("خطا در ذخیره‌سازی تغییرات پرونده");
+      toast.error("خطا در ذخیره‌سازی تغییرات پرونده");
     } finally {
       setSaveLoading(false);
     }
