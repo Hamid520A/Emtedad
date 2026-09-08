@@ -6,11 +6,8 @@ const nextConfig = {
     workerThreads: false, 
   },
   async rewrites() {
-    // 🌟 آدرس واقعی بک‌اند را مستقیماً اینجا وارد می‌کنیم
-    // از آنجایی که بک‌اند و فرانت‌ند در یک سرور هستند، مستقیماً به آی‌پی و پورت بک‌اند پاس می‌دهیم
-    const backendUrl = 'http://10.10.20.51:64000'; 
-    
-    // (اگر فرانت‌ند و بک‌اند در یک فایل docker-compose.yml هستند، حتی می‌توانید از 'http://backend:8000' هم استفاده کنید)
+    // Docker network default; override via BACKEND_INTERNAL_URL at build/runtime
+    const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://backend:8000'; 
     
     return [
       {

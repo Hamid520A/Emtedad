@@ -61,7 +61,7 @@ export default function AdminUsersPage() {
       if (error.response?.status === 403 || error.response?.status === 401) {
         alert("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = '/admin/login';
       }
     } finally {
       setLoading(false);
@@ -77,7 +77,7 @@ export default function AdminUsersPage() {
       if (error.response?.status === 403 || error.response?.status === 401) {
         alert("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = '/admin/login';
       }
     }
   };

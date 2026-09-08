@@ -6,13 +6,19 @@ import api from '../../../lib/api';
 import { 
   ArrowRight, Download, FileText, Clock, 
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, MapPin, Share2, Image
+  Crown, Trash2, Award, HelpCircle, X, Eye, ExternalLink, MapPin, Share2, Image
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
-import { 
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
-  XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell 
-} from 'recharts';
+const ContestAnalyticsCharts = dynamic(
+  () => import('./ContestAnalyticsCharts'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[280px] animate-pulse rounded-2xl bg-gray-100 dark:bg-slate-800" />
+    ),
+  }
+);
 
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
@@ -28,6 +34,7 @@ export default function ContestLandingPage() {
   const router = useRouter();
   const pathParams = useParams();
   const contestId = pathParams?.id as string;
+  const adminBase = (process.env.NEXT_PUBLIC_ADMIN_URL || '').replace(/\/$/, '');
   
   const [contest, setContest] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -139,7 +146,7 @@ export default function ContestLandingPage() {
   }, [totalSecondsLeft]);
 
   const handleBack = () => {
-    if (isAdminUser) window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
+    if (isAdminUser) window.location.href = `${adminBase}/admin/dashboard`;
     else router.push('/');
   };
 
@@ -208,7 +215,7 @@ export default function ContestLandingPage() {
     try {
       await api.delete(`/admin/contests/${contest.id}`);
       alert("مسابقه با موفقیت از سیستم حذف شد.");
-      if (isAdminUser) window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
+      if (isAdminUser) window.location.href = `${adminBase}/admin/dashboard`;
       else router.push('/'); 
     } catch (error) {
       alert("خطا در حذف مسابقه. لطفاً دوباره تلاش کنید.");
@@ -311,9 +318,9 @@ export default function ContestLandingPage() {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/edit`} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
-                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/questions`} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
-                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/participants`} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
+                  <button onClick={() => window.location.href = `${adminBase}/admin/contests/${contest.id}/edit`} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
+                  <button onClick={() => window.location.href = `${adminBase}/admin/contests/${contest.id}/questions`} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
+                  <button onClick={() => window.location.href = `${adminBase}/admin/contests/${contest.id}/participants`} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
                   <button onClick={deleteContest} className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
                 </div>
               </div>
@@ -336,91 +343,17 @@ export default function ContestLandingPage() {
           )}
 
           {isAdminUser && analyticsData && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-                  <Clock size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">آنالیز توزیع زمانی حضور شرکت‌کنندگان</h3>
-                </div>
-                <div className="w-full h-64 text-xs font-bold font-sans">
-                  <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={analyticsData.time_distribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorTimeTheme" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#c5a059" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#c5a059" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="name" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right', fontSize: '11px', fontFamily: 'sans-serif' }} />
-                      <Area type="monotone" dataKey="users" name="تعداد شرکت‌کننده" stroke="#1a2e44" strokeWidth={3} fillOpacity={1} fill="url(#colorTimeTheme)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-                  <BarChart3 size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">پاسخ‌های صحیح و اشتباه به تفکیک سوالات</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={analyticsData.questions_stats} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Legend verticalAlign="top" height={36} iconType="circle" />
-                      <Bar dataKey="correct" name="پاسخ صحیح" fill="#0f766e" radius={[4, 4, 0, 0]} barSize={9} onClick={(item) => { if(item?.payload) { setSelectedQuestion(item.payload); setQuestionModalOpen(true); } }} />
-                      <Bar dataKey="incorrect" name="پاسخ اشتباه" fill="#be123c" radius={[4, 4, 0, 0]} barSize={9} onClick={(item) => { if(item?.payload) { setSelectedQuestion(item.payload); setQuestionModalOpen(true); } }} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-                  <MapPin size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">پراکندگی جغرافیایی شرکت‌کنندگان (استان‌ها)</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={analyticsData.province_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="province" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Bar dataKey="count" name="تعداد شرکت‌کننده" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} onClick={(item) => { if (item?.payload) { setSelectedProvince(item.payload); setProvinceModalOpen(true); } }} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-                  <Users size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">تفکیک جنسیت شرکت‌کنندگان</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={analyticsData.gender_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Bar dataKey="count" name="تعداد شرکت‌کننده" radius={[4, 4, 0, 0]} barSize={40}>
-                        { (analyticsData.gender_stats || []).filter((e: any) => e.gender === "مرد" || e.gender === "زن").map((e: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={e.gender === "مرد" ? "#3b82f6" : "#ec4899"} />
-                        )) }
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
+            <ContestAnalyticsCharts
+              analyticsData={analyticsData}
+              onQuestionClick={(payload) => {
+                setSelectedQuestion(payload);
+                setQuestionModalOpen(true);
+              }}
+              onProvinceClick={(payload) => {
+                setSelectedProvince(payload);
+                setProvinceModalOpen(true);
+              }}
+            />
           )}
 
           <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4 pt-6 sm:pt-8">

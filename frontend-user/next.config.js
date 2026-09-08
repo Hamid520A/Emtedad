@@ -6,9 +6,8 @@ const nextConfig = {
     workerThreads: false, 
   },
   async rewrites() {
-    // 🌟 آدرس واقعی و فیزیکی بک‌اند را مستقیماً اینجا وارد می‌کنیم
-    // تا ترافیک به صورت مخفیانه و بدون مشکل CORS به این آی‌پی پاس داده شود
-    const backendUrl = 'http://10.10.20.51:64000'; 
+    // Docker network default; override via BACKEND_INTERNAL_URL at build/runtime
+    const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://backend:8000'; 
     
     return [
       {

@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api'; 
 import { getCleanImageUrl } from '../../../lib/utils/url';
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye, LogOut } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { openExternalLink } from '../../../lib/utils/url';
 
 
@@ -206,13 +205,24 @@ export default function ExamPage() {
     if (isSubmitted && result && result.score >= 50) {
       const duration = 3 * 1000;
       const end = Date.now() + duration;
+      let cancelled = false;
 
-      const frame = () => {
-        confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
-        confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
-        if (Date.now() < end) requestAnimationFrame(frame);
+      (async () => {
+        const { default: confetti } = await import('canvas-confetti');
+        if (cancelled) return;
+
+        const frame = () => {
+          if (cancelled) return;
+          confetti({ particleCount: 4, angle: 60, speed: 55, origin: { x: 0 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
+          confetti({ particleCount: 4, angle: 120, speed: 55, origin: { x: 1 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
+          if (Date.now() < end) requestAnimationFrame(frame);
+        };
+        frame();
+      })();
+
+      return () => {
+        cancelled = true;
       };
-      frame();
     }
   }, [isSubmitted, result]);
 

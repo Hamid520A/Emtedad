@@ -152,7 +152,7 @@ export default function ProfilePage() {
   // 🌟 تابع جدید جایگزین دانلود: ساخت لینک و کپی در کلیپ‌بورد
   const handleCopyCertificateLink = (contestId: number | string) => {
     const token = localStorage.getItem("accessToken") || "";
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://10.10.20.51:8000/api";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
     const downloadUrl = `${baseUrl}/users/me/contests/${contestId}/certificate/download?token=${token}`;
     const downloadLinkCopiedMessage = "لینک مستقیم دانلود فایل با موفقیت کپی شد.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.";
 
