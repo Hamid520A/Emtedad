@@ -2805,7 +2805,11 @@ def get_admin_questions_list(
     return questions
 
 @app.get("/admin/contests/{contest_id}/analytics")
-def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db)):
+def get_contest_analytics(
+    contest_id: int,
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin),
+):
     cors_headers = {
         "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
