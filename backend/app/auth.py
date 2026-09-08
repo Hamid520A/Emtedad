@@ -16,6 +16,7 @@ if SECRET_KEY == "fallback_temporary_secret_key_for_development" and not DEBUG_M
     raise RuntimeError("FATAL SECURITY ERROR: Running in production with a fallback SECRET_KEY is strictly forbidden.")
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="swagger-login")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -29,7 +30,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(data: dict):
     # Strip any sensitive PII explicitly
     safe_data = {k: v for k, v in data.items() if k not in ("password", "national_id", "hashed_password")}
-    expire = datetime.now(timezone.utc) + timedelta(minutes=1440) # ۲۴ ساعت
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     safe_data.update({"exp": expire})
     return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
 

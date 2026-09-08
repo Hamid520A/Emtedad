@@ -146,7 +146,7 @@ async def add_download_headers(request: Request, call_next):
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 EITAA_API_URL = os.getenv("EITAA_API_URL", "http://127.0.0.1:3000/send")
 EITAA_DISABLED = os.getenv("EITAA_DISABLED", "true").lower() in ("true", "1", "yes")
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 LIMIT_WINDOW = 60       # پنجره زمانی بر اساس ثانیه (۱ دقیقه)
 MAX_REQUESTS = 60       # حداکثر تعداد درخواست مجاز در یک دقیقه برای صفحات عمومی
@@ -258,6 +258,25 @@ def create_jwt_token(data: dict, expires_delta: timedelta):
     expire = datetime.utcnow() + expires_delta
     safe_data.update({"exp": expire})
     return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
+
+def invalidate_contest_list_cache() -> None:
+    """Drop public GET /contests cache keys after contest mutations."""
+    try:
+        for key in r.scan_iter(match="cache:contests:all:*", count=100):
+            r.delete(key)
+    except redis.RedisError as e:
+        logger.warning(f"Contest list cache invalidation failed: {e}")
+
+def invalidate_leaderboard_cache(contest_id: int) -> None:
+    """Drop leaderboard cache after score-changing mutations."""
+    if contest_id is None:
+        return
+    try:
+        r.delete(f"cache:leaderboard:{contest_id}")
+    except redis.RedisError as e:
+        logger.warning(
+            f"Leaderboard cache invalidation failed for contest {contest_id}: {e}"
+        )
 
 def safe_load_image(url_str):
     if not url_str:
@@ -1105,6 +1124,7 @@ def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(dat
 
     db.commit()
     db.refresh(db_contest)
+    invalidate_contest_list_cache()
     return db_contest
 
 @app.post("/contests/{contest_id}/questions", response_model=schemas.Question)
@@ -1785,6 +1805,7 @@ def update_contest_status(contest_id: str, status_update: StatusUpdate, db: Sess
     contest.status = status_update.status
     db.commit()
     db.refresh(contest)
+    invalidate_contest_list_cache()
     return {"message": "وضعیت با موفقیت تغییر کرد", "new_status": contest.status}
 
 @app.post("/admin/login")
@@ -1833,6 +1854,7 @@ def delete_contest(
     db.query(models.Attachment).filter(models.Attachment.contest_id == contest_id).update({"deleted_at": now, "is_active": 0}, synchronize_session=False)
     
     db.commit()
+    invalidate_contest_list_cache()
     return {"message": "مسابقه با موفقیت حذف شد"}
 
 @app.delete("/admin/questions/{question_id}")
@@ -2778,6 +2800,7 @@ def update_contest(
 
     db.commit()
     db.refresh(db_contest)
+    invalidate_contest_list_cache()
     
     return {
         "message": "مسابقه و گواهی متصل به آن با موفقیت ویرایش شدند",
@@ -2972,7 +2995,7 @@ def get_contest_analytics(
     }, headers=cors_headers)
 
 @app.post("/auth/refresh")
-def refresh_access_token(payload: dict):
+def refresh_access_token(payload: dict, db: Session = Depends(database.get_db)):
     refresh_token = payload.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=400, detail="ریفرش توکن ارسال نشده است")
@@ -2980,10 +3003,16 @@ def refresh_access_token(payload: dict):
     try:
         decoded_data = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True, "verify_exp": True})
         username: str = decoded_data.get("sub")
-        is_admin: bool = decoded_data.get("is_admin", False)
         
         if username is None:
             raise HTTPException(status_code=401, detail="توکن نامعتبر است")
+
+        user = db.query(models.User).filter(models.User.phone_number == username).first()
+        if not user or not getattr(user, "is_active", 1):
+            raise HTTPException(status_code=401, detail="کاربر یافت نشد یا غیرفعال است")
+
+        # Recompute privilege from admins table — never trust JWT claim after demotion
+        is_admin = bool(user.admin and user.admin.is_active == 1)
             
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         new_access_token = create_jwt_token(
@@ -3135,6 +3164,8 @@ def submit_exam_results(
 
     db.commit()
 
+    invalidate_leaderboard_cache(contest_id)
+
     sms_text = contest.sms_message.strip() if contest and contest.sms_message else ""
     user_phone = current_user.phone_number
     if sms_text and user_phone:
@@ -3272,12 +3303,7 @@ def admin_recalculate_contest_scores(
 
     if not dry_run and details:
         db.commit()
-        try:
-            r.delete(f"cache:leaderboard:{contest_id}")
-        except redis.RedisError as e:
-            logger.warning(
-                f"Leaderboard cache invalidation failed after score recalc for contest {contest_id}: {e}"
-            )
+        invalidate_leaderboard_cache(contest_id)
 
     return {
         "dry_run": dry_run,
