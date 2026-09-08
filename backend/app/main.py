@@ -26,7 +26,15 @@ from uuid import UUID
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # این لاگر در خطوط پایین‌تر فایل ساخته می‌شود و هنگام استارت در دسترس است
+    global r_async
     logger.info("Application is warming up...")
+    r_async = redis.asyncio.Redis(
+        host=RATELIMIT_REDIS_HOST,
+        port=RATELIMIT_REDIS_PORT,
+        db=RATELIMIT_REDIS_DB,
+        decode_responses=True,
+        socket_timeout=5,
+    )
     yield
     logger.info("Initiating graceful shutdown...")
     try:
@@ -34,6 +42,13 @@ async def lifespan(app: FastAPI):
         logger.info("Closed RateLimiter Redis connection.")
     except Exception as e:
         logger.error(f"Error closing RateLimiter Redis: {e}")
+
+    try:
+        if r_async is not None:
+            await r_async.aclose()
+            logger.info("Closed async RateLimiter Redis connection.")
+    except Exception as e:
+        logger.error(f"Error closing async RateLimiter Redis: {e}")
         
     try:
         r_eitaa.close()
@@ -84,19 +99,6 @@ logger.addHandler(log_handler)
 # غیرفعال‌سازی لاگ‌های دیفالت uvicorn برای جلوگیری از اسپم متنی
 logging.getLogger("uvicorn.access").disabled = True
 
-# 🌟 میدلور تزریق Traceability (Request ID) — pure @app.middleware (avoids BaseHTTPMiddleware sync-route bugs)
-@app.middleware("http")
-async def request_tracing_middleware(request: Request, call_next):
-    req_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
-    token = request_id_context.set(req_id)
-    try:
-        response = await call_next(request)
-        if response is not None:
-            response.headers["X-Request-ID"] = req_id
-        return response
-    finally:
-        request_id_context.reset(token)
-
 # ۱. اتصال به سرور دیتابیس Redis برای Rate Limiting
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() in ("true", "1", "yes")
@@ -109,6 +111,7 @@ RATELIMIT_REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 RATELIMIT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 RATELIMIT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
 r = redis.Redis(host=RATELIMIT_REDIS_HOST, port=RATELIMIT_REDIS_PORT, db=RATELIMIT_REDIS_DB, decode_responses=True, socket_timeout=5)
+r_async = None  # assigned in lifespan for RateLimiterASGIMiddleware
 
 # ۲. اتصال اختصاصی به سرور Redis برای سشن‌های ایتا (پورت ۶۳۸۹ و آی‌پِی ۱۰.۱۰.۲۰.۵۱)
 EITAA_REDIS_HOST = os.getenv("EITAA_REDIS_HOST", "redis")
@@ -132,15 +135,71 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.middleware("http")
-async def add_download_headers(request: Request, call_next):
-    response = await call_next(request)
-    path = request.url.path.lower()
-    if path.startswith("/static/") and path.endswith((".pdf", ".doc", ".docx", ".zip", ".rar", ".mp4")):
-        if request.query_params.get("download") == "true":
-            filename = os.path.basename(request.url.path)
-            response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return response
+# Pure ASGI request tracing (no BaseHTTPMiddleware / call_next)
+class RequestTracingASGIMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        header_map = {
+            k.decode("latin-1").lower(): v.decode("latin-1")
+            for k, v in scope.get("headers", [])
+        }
+        req_id = header_map.get("x-correlation-id") or str(uuid.uuid4())
+        token = request_id_context.set(req_id)
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"x-request-id", req_id.encode("latin-1")))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            request_id_context.reset(token)
+
+
+# Pure ASGI Content-Disposition injector for ?download=true static files
+class DownloadHeadersASGIMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = (scope.get("path") or "").lower()
+        query = (scope.get("query_string") or b"").decode("latin-1")
+        attachment_exts = (".pdf", ".doc", ".docx", ".zip", ".rar", ".mp4")
+        needs_attachment = (
+            path.startswith("/static/")
+            and path.endswith(attachment_exts)
+            and "download=true" in query
+        )
+        if not needs_attachment:
+            await self.app(scope, receive, send)
+            return
+
+        filename = os.path.basename(scope.get("path") or "download")
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((
+                    b"content-disposition",
+                    f'attachment; filename="{filename}"'.encode("latin-1"),
+                ))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 # ۲. هماهنگ‌سازی کلیدهای JWT با فایل auth
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
@@ -171,7 +230,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health", tags=["System"])
 def liveness_probe():
-    return {"status": "alive"}
+    return {"status": "ok"}
 
 @app.get("/ready", tags=["System"])
 def readiness_probe(db: Session = Depends(database.get_db)):
@@ -513,13 +572,42 @@ def draw_certificate_canvas(user, contest, subscription):
 # سیستم پیشرفته Rate Limiting و بلاک موقت IP بر پایه ردیس پروژه
 # =====================================================================
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # Pure ASGI rate limiter — avoids BaseHTTPMiddleware / call_next stream bugs
 # (StaticFiles streaming + client disconnects no longer raise "No response returned")
 class RateLimiterASGIMiddleware:
     def __init__(self, app):
         self.app = app
+
+    @staticmethod
+    def _client_ip(scope) -> str:
+        header_map = {
+            k.decode("latin-1").lower(): v.decode("latin-1")
+            for k, v in scope.get("headers", [])
+        }
+        xff = header_map.get("x-forwarded-for")
+        if xff:
+            client_ip = xff.split(",")[0].strip()
+        else:
+            client = scope.get("client")
+            client_ip = client[0] if client else "unknown_ip"
+
+        if "127.0.0.1" in client_ip or client_ip in ["::1", "localhost", "::ffff:127.0.0.1"]:
+            return "127.0.0.1"
+        return client_ip
+
+    @staticmethod
+    def _is_sensitive_auth_path(path: str) -> bool:
+        return path in {
+            "/login",
+            "/register",
+            "/send-otp",
+            "/verify-otp",
+            "/reset-password",
+            "/admin/login",
+            "/auth/refresh",
+            "/swagger-login",
+            "/users/change-password",
+        }
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -534,10 +622,8 @@ class RateLimiterASGIMiddleware:
             await self.app(scope, receive, send)
             return
 
-        client = scope.get("client")
-        client_ip = client[0] if client else "unknown_ip"
-        if "127.0.0.1" in client_ip or client_ip in ["::1", "localhost", "::ffff:127.0.0.1"]:
-            client_ip = "127.0.0.1"
+        client_ip = self._client_ip(scope)
+        sensitive = self._is_sensitive_auth_path(path)
 
         cors_headers = {
             "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
@@ -547,10 +633,13 @@ class RateLimiterASGIMiddleware:
         }
 
         try:
+            if r_async is None:
+                raise redis.RedisError("async redis client not initialized")
+
             block_key = f"blocked_ip:{client_ip}"
-            is_blocked = r.get(block_key)
+            is_blocked = await r_async.get(block_key)
             if is_blocked:
-                ttl = r.ttl(block_key)
+                ttl = await r_async.ttl(block_key)
                 minutes_left = max(1, (ttl if ttl and ttl > 0 else BLOCK_DURATION) // 60)
                 response = JSONResponse(
                     status_code=403,
@@ -562,10 +651,18 @@ class RateLimiterASGIMiddleware:
 
             path_suffix = path.strip("/").replace("/", "_") or "root"
             rate_key = f"rate_limit:{client_ip}:{path_suffix}"
-            current_requests = r.get(rate_key)
+            current_requests = await r_async.get(rate_key)
 
             route_max_limit = MAX_REQUESTS
-            if path in ["/login", "/register", "/users/change-password"]:
+            if path in [
+                "/login",
+                "/register",
+                "/users/change-password",
+                "/send-otp",
+                "/verify-otp",
+                "/reset-password",
+                "/auth/refresh",
+            ]:
                 route_max_limit = 10
             elif path.endswith("/submissions") or path == "/submissions":
                 route_max_limit = 10
@@ -577,12 +674,12 @@ class RateLimiterASGIMiddleware:
                 try:
                     request_count = int(current_requests)
                 except (TypeError, ValueError):
-                    r.delete(rate_key)
+                    await r_async.delete(rate_key)
                     request_count = 0
 
             if request_count >= route_max_limit:
-                r.setex(block_key, BLOCK_DURATION, "true")
-                r.delete(rate_key)
+                await r_async.setex(block_key, BLOCK_DURATION, "true")
+                await r_async.delete(rate_key)
                 response = JSONResponse(
                     status_code=429,
                     content={"detail": "تعداد درخواست‌های شما بیش از حد مجاز است! دسترسی شما به مدت ۱۵ دقیقه مسدود شد."},
@@ -592,18 +689,35 @@ class RateLimiterASGIMiddleware:
                 return
 
             if request_count == 0:
-                r.setex(rate_key, LIMIT_WINDOW, 1)
+                await r_async.setex(rate_key, LIMIT_WINDOW, 1)
             else:
-                r.incr(rate_key)
+                await r_async.incr(rate_key)
 
         except redis.RedisError as e:
-            logger.warning(f"Redis rate-limit bypassed: {e}")
+            logger.warning(f"Redis rate-limit error: {e}")
+            if sensitive:
+                response = JSONResponse(
+                    status_code=503,
+                    content={"detail": "سرویس موقتاً در دسترس نیست. لطفاً کمی بعد دوباره تلاش کنید."},
+                    headers=cors_headers,
+                )
+                await response(scope, receive, send)
+                return
         except Exception as e:
-            logger.warning(f"Rate limiter skipped due to error; bypassing. {e}")
+            logger.warning(f"Rate limiter unexpected error: {e}")
+            if sensitive:
+                response = JSONResponse(
+                    status_code=503,
+                    content={"detail": "سرویس موقتاً در دسترس نیست. لطفاً کمی بعد دوباره تلاش کنید."},
+                    headers=cors_headers,
+                )
+                await response(scope, receive, send)
+                return
 
         await self.app(scope, receive, send)
 
 
+app.add_middleware(DownloadHeadersASGIMiddleware)
 app.add_middleware(RateLimiterASGIMiddleware)
 
 # Pure ASGI gauge — avoids BaseHTTPMiddleware / call_next stream bugs
@@ -631,6 +745,7 @@ class InProgressRequestsASGIMiddleware:
 
 
 app.add_middleware(InProgressRequestsASGIMiddleware)
+app.add_middleware(RequestTracingASGIMiddleware)
 
 # =====================================================================
 # بخش دوم فایل main.py: روت‌های احراز هویت، مسابقات، سوالات و کارنامه
