@@ -10,10 +10,9 @@ from sqlalchemy.orm import Session
 
 # 🌟 خواندن مستقیم کلیدها از فایل env
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
-DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() in ("true", "1", "yes")
 
-if SECRET_KEY == "fallback_temporary_secret_key_for_development" and not DEBUG_MODE:
-    raise RuntimeError("FATAL SECURITY ERROR: Running in production with a fallback SECRET_KEY is strictly forbidden.")
+if not SECRET_KEY or SECRET_KEY == "fallback_temporary_secret_key_for_development":
+    raise RuntimeError("FATAL SECURITY ERROR: Running with a fallback SECRET_KEY is strictly forbidden.")
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))

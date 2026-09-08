@@ -107,7 +107,7 @@ services:
     - postgres_data:/var/lib/postgresql/data
     environment:
     - POSTGRES_USER=${POSTGRES_USER:-emtedad_user}
-    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-123456}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     - POSTGRES_DB=${POSTGRES_DB:-emtedad_db}
     ports:
     - ${DB_HOST_PORT:-5432}:5432

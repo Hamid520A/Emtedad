@@ -103,8 +103,8 @@ logging.getLogger("uvicorn.access").disabled = True
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() in ("true", "1", "yes")
 
-if SECRET_KEY == "fallback_temporary_secret_key_for_development" and not DEBUG_MODE:
-    raise RuntimeError("FATAL SECURITY ERROR: Running in production with a fallback SECRET_KEY is strictly forbidden.")
+if not SECRET_KEY or SECRET_KEY == "fallback_temporary_secret_key_for_development":
+    raise RuntimeError("FATAL SECURITY ERROR: Running with a fallback SECRET_KEY is strictly forbidden.")
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 RATELIMIT_REDIS_HOST = os.getenv("REDIS_HOST", "redis")
@@ -1016,14 +1016,17 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
         
     results = query.all()
     
-    # ذخیره در کش ردیس (مدت زمان ۳۰ ثانیه)
+    # ذخیره در کش ردیس (مدت زمان ۳۰ ثانیه) — بدون sms_message
     try:
-        from fastapi.encoders import jsonable_encoder
-        r.setex(cache_key, 30, json.dumps(jsonable_encoder(results)))
+        payload = [
+            schemas.ContestListItem.model_validate(c).model_dump(mode="json")
+            for c in results
+        ]
+        r.setex(cache_key, 30, json.dumps(payload, default=str))
+        return payload
     except Exception as e:
         print(f"Cache save error: {e}")
-        
-    return results
+        return results
 
 @app.get("/contests/{contest_id}")
 def get_contest_detail(
@@ -1103,7 +1106,12 @@ def get_contest_detail(
         "certificate_details": cert_payload,
         "success_message": contest.success_message,
         "failure_message": contest.failure_message,
-        "sms_message": contest.sms_message,
+        # Admin-only: public clients must not receive SMS templates
+        **(
+            {"sms_message": contest.sms_message}
+            if current_user and current_user.admin and current_user.admin.is_active == 1
+            else {}
+        ),
     })
 
 @app.get("/contests/{contest_id}/questions", response_model=List[schemas.RandomizedQuestion])
@@ -1312,19 +1320,23 @@ async def upload_file(
     import shutil, os, re
     
     try:
-        # ۱. بررسی نوع فایل (MIME Type + پسوند)
+        # ۱. بررسی نوع فایل (پسوند سخت‌گیرانه؛ MIME فقط کمکی است)
         allowed_mimes = {
-            "image/jpeg", "image/png", "image/webp", "application/pdf", "image/svg+xml",
+            "image/jpeg", "image/png", "image/webp", "application/pdf",
             "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4",
             "audio/x-wav", "audio/wave", "audio/x-m4a", "audio/aac",
         }
         allowed_extensions = {
-            ".jpg", ".jpeg", ".png", ".webp", ".svg", ".pdf",
+            ".jpg", ".jpeg", ".png", ".webp", ".pdf",
             ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+        }
+        blocked_extensions = {
+            ".svg", ".html", ".htm", ".js", ".mjs", ".exe", ".sh", ".bat",
+            ".cmd", ".php", ".asp", ".aspx", ".jsp", ".cgi",
         }
         mime_to_ext = {
             "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
-            "image/svg+xml": ".svg", "application/pdf": ".pdf",
+            "application/pdf": ".pdf",
             "audio/mpeg": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav",
             "audio/wave": ".wav", "audio/ogg": ".ogg", "audio/mp4": ".m4a",
             "audio/x-m4a": ".m4a", "audio/aac": ".aac",
@@ -1346,23 +1358,19 @@ async def upload_file(
         file_ext = os.path.splitext(safe_filename)[1].lower()
         content_type = (file.content_type or "").lower()
 
-        mime_ok = content_type in allowed_mimes
-        ext_ok = file_ext in allowed_extensions
-        if not mime_ok and not ext_ok:
+        if file_ext in blocked_extensions:
             raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
 
-        # سوپاپ اطمینان برای اسم‌های کاملاً فارسی که فرمتشان پاک می‌شود
+        # Missing/odd filenames: map ONLY from an allowlisted MIME — never invent from "image/*"
+        if not file_ext:
+            file_ext = mime_to_ext.get(content_type, "")
+
         if file_ext not in allowed_extensions:
-            file_ext = mime_to_ext.get(content_type)
-            if not file_ext:
-                if "image" in content_type:
-                    file_ext = ".jpg"
-                elif "audio" in content_type:
-                    file_ext = ".mp3"
-                elif "pdf" in content_type:
-                    file_ext = ".pdf"
-                else:
-                    raise HTTPException(status_code=400, detail="پسوند فایل قابل تشخیص نیست.")
+            raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
+
+        # If client sent a MIME, it must match the allowlist (do not trust alone)
+        if content_type and content_type not in allowed_mimes:
+            raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
 
         # ۴. ساخت نام یکتا و مسیر فایل
         unique_filename = f"{uuid.uuid4().hex}{file_ext}"
@@ -1381,9 +1389,8 @@ async def upload_file(
     except HTTPException:
         raise
     except Exception as e:
-        # 🌟 چاپ دقیق خطا در کنسولِ سرور به جای ارور گنگ ۵۰۰
-        print(f"❌ Upload Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"خطا در پردازش فایل: {str(e)}")
+        logger.error(f"Upload Error: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="خطا در پردازش فایل. لطفاً دوباره تلاش کنید.")
 
 def _subscription_time_taken_seconds(time_left) -> int:
     if not time_left:

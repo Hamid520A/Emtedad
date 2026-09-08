@@ -253,7 +253,6 @@ class ContestBase(BaseModel):
     question_limit: Optional[int] = None
     success_message: Optional[str] = None
     failure_message: Optional[str] = None
-    sms_message: Optional[str] = None
 
 class ContestCreate(ContestBase):
     title: str
@@ -268,6 +267,7 @@ class ContestCreate(ContestBase):
     award: Optional[str] = None  
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+    sms_message: Optional[str] = None
 
 class ContestUpdate(BaseModel):
     title: Optional[str] = None
@@ -291,12 +291,14 @@ class ContestUpdate(BaseModel):
 
 class ContestListItem(ContestBase):
     id: int
+    # no sms_message — public list must not expose admin SMS templates
 
     class Config:
         from_attributes = True
 
 class Contest(ContestBase):
     id: int
+    sms_message: Optional[str] = None  # admin create/detail responses only
     questions: List[Question] = []
     attachments: List[Attachment] = []
     class Config:
