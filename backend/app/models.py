@@ -1,5 +1,5 @@
 # backend/app/models.py
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float, Text, SmallInteger, Date, Time, BigInteger, UniqueConstraint
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float, Text, SmallInteger, Date, Time, BigInteger, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -74,6 +74,10 @@ class AdminLog(Base):
 
 class Contest(Base):
     __tablename__ = "contests"
+    __table_args__ = (
+        Index("ix_contests_status_deleted_at", "status", "deleted_at"),
+        Index("ix_contests_start_time", "start_time"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), index=True, nullable=False)
     image_url = Column(String(500), nullable=True)
@@ -82,9 +86,9 @@ class Contest(Base):
     max_time = Column(Time, nullable=True)
     video_url = Column(String(500), nullable=True)
     audio_url = Column(String(500), nullable=True)
-    start_time = Column(DateTime, nullable=True)
-    end_time = Column(DateTime, nullable=True)
-    status = Column(String(50), default="upcoming")
+    start_time = Column(DateTime, nullable=True, index=True)
+    end_time = Column(DateTime, nullable=True, index=True)
+    status = Column(String(50), default="upcoming", index=True)
     is_active = Column(SmallInteger, default=1)
     question_limit = Column(Integer, nullable=True)
     success_message = Column(Text, nullable=True)
@@ -92,7 +96,7 @@ class Contest(Base):
     sms_message = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     questions = relationship("Question", back_populates="contest", cascade="all, delete-orphan")
     subscriptions = relationship("Subscription", back_populates="contest")
@@ -103,7 +107,7 @@ class Contest(Base):
 class Attachment(Base):
     __tablename__ = "attachments"
     id = Column(Integer, primary_key=True, index=True)
-    contest_id = Column(Integer, ForeignKey("contests.id"))
+    contest_id = Column(Integer, ForeignKey("contests.id"), index=True)
     file_name = Column(String(255))
     file_subtitle = Column(String(255), nullable=True)
     file_url = Column(String(500))
@@ -112,7 +116,7 @@ class Attachment(Base):
     is_active = Column(SmallInteger, default=1)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     contest = relationship("Contest", back_populates="attachments")
 
@@ -143,14 +147,17 @@ class AwardContest(Base):
 
 class Question(Base):
     __tablename__ = "questions"
+    __table_args__ = (
+        Index("ix_questions_contest_deleted", "contest_id", "deleted_at"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
-    contest_id = Column(Integer, ForeignKey("contests.id"))
+    contest_id = Column(Integer, ForeignKey("contests.id"), index=True)
     is_active = Column(SmallInteger, default=1)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     contest = relationship("Contest", back_populates="questions")
     answers = relationship("Answer", back_populates="question", cascade="all, delete-orphan")
@@ -158,12 +165,12 @@ class Question(Base):
 class Answer(Base):
     __tablename__ = "answers"
     id = Column(Integer, primary_key=True, index=True)
-    question_id = Column(Integer, ForeignKey("questions.id"))
+    question_id = Column(Integer, ForeignKey("questions.id"), index=True)
     title = Column(String(500), nullable=False)
     is_correct = Column(SmallInteger, default=0)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     question = relationship("Question", back_populates="answers")
 
@@ -171,17 +178,19 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
     __table_args__ = (
         UniqueConstraint('user_id', 'contest_id', name='uix_user_contest_subscription'),
+        Index("ix_subscriptions_contest_deleted", "contest_id", "deleted_at"),
+        Index("ix_subscriptions_user_deleted", "user_id", "deleted_at"),
     )
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    contest_id = Column(Integer, ForeignKey("contests.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    contest_id = Column(Integer, ForeignKey("contests.id"), index=True)
     time_left = Column(Time, nullable=True)
     score = Column(Integer, default=0)
     is_left = Column(SmallInteger, default=0)
     started_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     user = relationship("User", back_populates="subscriptions")
     contest = relationship("Contest", back_populates="subscriptions")
@@ -190,13 +199,13 @@ class Subscription(Base):
 class SubscriptionQuestions(Base):
     __tablename__ = "subscription_questions"
     id = Column(Integer, primary_key=True, index=True)
-    subscription_id = Column(Integer, ForeignKey("subscriptions.id"))
-    question_id = Column(Integer, ForeignKey("questions.id"))
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id"), index=True)
+    question_id = Column(Integer, ForeignKey("questions.id"), index=True)
     time_taken = Column(Time, nullable=True)
     number = Column(Integer)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     subscription = relationship("Subscription", back_populates="subscription_questions")
     subscription_answers = relationship("SubscriptionAnswer", back_populates="subscription_question")
@@ -204,8 +213,8 @@ class SubscriptionQuestions(Base):
 class SubscriptionAnswer(Base):
     __tablename__ = "subscription_answers"
     id = Column(Integer, primary_key=True, index=True)
-    subscription_question_id = Column(Integer, ForeignKey("subscription_questions.id"))
-    answer_id = Column(Integer, ForeignKey("answers.id"))
+    subscription_question_id = Column(Integer, ForeignKey("subscription_questions.id"), index=True)
+    answer_id = Column(Integer, ForeignKey("answers.id"), index=True)
     number = Column(Integer)
     is_chosen = Column(SmallInteger, default=0)
     created_at = Column(DateTime, server_default=func.now())

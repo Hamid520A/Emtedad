@@ -167,10 +167,11 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M
+          memory: 512M
         reservations:
           cpus: '0.1'
           memory: 128M
+    mem_limit: 512M
 
   grafana:
     image: grafana/grafana:latest

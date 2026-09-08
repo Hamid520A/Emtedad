@@ -66,7 +66,13 @@ app = FastAPI(lifespan=lifespan)
 models.Base.metadata.create_all(bind=database.engine)
 
 # 🌟 فعال‌سازی متریک‌های پرومتئوس به صورت مخفی و محدود شده به شبکه داخلی
-Instrumentator().instrument(app).expose(app, include_in_schema=False)
+Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=False,
+    should_group_untemplated=True,  # /contests/123 → grouped, not per-ID series
+    should_respect_env_var=False,
+    excluded_handlers=["/metrics", "/health", "/ready"],
+).instrument(app).expose(app, include_in_schema=False)
 
 # In-flight requests currently held by Uvicorn workers (detect pool exhaustion)
 HTTP_REQUESTS_IN_PROGRESS = Gauge(
@@ -1130,7 +1136,8 @@ def get_questions_list(
         models.Subscription.contest_id == contest_id
     ).first()
 
-    is_admin_user = getattr(current_user, 'is_admin', False) or getattr(current_user, 'role', '') == 'admin'
+    # User model has no is_admin/role attrs — use admins relation
+    is_admin_user = bool(current_user.admin and current_user.admin.is_active == 1)
 
     if existing_subscription and not is_admin_user:
         raise HTTPException(
