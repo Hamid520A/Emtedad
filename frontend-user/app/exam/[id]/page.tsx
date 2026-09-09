@@ -215,8 +215,8 @@ export default function ExamPage() {
 
         const frame = () => {
           if (cancelled) return;
-          confetti({ particleCount: 4, angle: 60, speed: 55, origin: { x: 0 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
-          confetti({ particleCount: 4, angle: 120, speed: 55, origin: { x: 1 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
+          confetti({ particleCount: 4, angle: 60, startVelocity: 55, origin: { x: 0 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
+          confetti({ particleCount: 4, angle: 120, startVelocity: 55, origin: { x: 1 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
           if (Date.now() < end) requestAnimationFrame(frame);
         };
         frame();
