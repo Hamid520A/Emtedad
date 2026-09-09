@@ -41,7 +41,7 @@ export const SearchableDropdown = ({
   }, []);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={dropdownRef}>
       <div 
         className={`w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl flex items-center justify-between cursor-pointer border-none dark:border dark:border-slate-800 focus-within:ring-2 focus-within:ring-[#c5a059] ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -54,7 +54,7 @@ export const SearchableDropdown = ({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-white dark:bg-[#182234] border border-gray-100 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+        <div className="absolute left-0 right-0 top-full z-[60] mt-2 w-full bg-white dark:bg-[#182234] border border-gray-100 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
           <div className="p-2 border-b border-gray-50 dark:border-slate-800 flex items-center bg-gray-50 dark:bg-[#0b0f19]">
             <Search size={14} className="text-gray-400 dark:text-slate-500 mr-2 ml-2" />
             <input 

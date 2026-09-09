@@ -10,12 +10,13 @@ import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
-import { iranProvinces, iranCities } from '../../../lib/utils/iranCities';
 import { SearchableDropdown } from '../../(auth)/register/SearchableDropdown';
 
 
 const DatePickerComponent = DatePicker as any;
 const MIN_REGISTRATION_AGE = 14;
+
+type LocationOption = { id: number; title: string };
 
 const toEnglishDigits = (str: string) => {
   return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728))
@@ -53,10 +54,16 @@ const getApiErrorMessage = (error: any, fallback: string): string => {
   return fallback;
 };
 
+const normalizeLocationTitle = (value?: string | null) => {
+  if (!value || value === '---') return '';
+  return value;
+};
+
 export default function EditProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [citiesLoading, setCitiesLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     first_name: '',
@@ -64,38 +71,102 @@ export default function EditProfilePage() {
     phone: '',
     national_id: '',
     birth_date: '',
+    province_id: '' as number | string,
+    city_id: '' as number | string,
     province: '',
-    city: ''
+    city: '',
   });
 
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [provinces, setProvinces] = useState<LocationOption[]>([]);
+  const [availableCities, setAvailableCities] = useState<LocationOption[]>([]);
 
   useEffect(() => {
-    api.get('/users/me/profile').then(res => {
-      const data = res.data;
-      const currentProvince = data.province_title || data.province || '';
-      const currentCity = data.city_title || data.city || '';
+    const loadProfileAndLocations = async () => {
+      try {
+        const [profileRes, provincesRes] = await Promise.all([
+          api.get('/users/me/profile'),
+          api.get('/cities?parents_only=true'),
+        ]);
 
-      setFormData({
-        first_name: data.first_name || '',
-        last_name: data.last_name || '',
-        phone: data.phone_number || data.phone || '', 
-        national_id: data.national_id || '',
-        birth_date: data.birth_date || '',
-        province: currentProvince, 
-        city: currentCity 
-      });
-      
-      if (currentProvince) {
-        setAvailableCities(iranCities[currentProvince] || []);
+        const data = profileRes.data;
+        const provincesList: LocationOption[] = provincesRes.data || [];
+        setProvinces(provincesList);
+
+        const provinceTitle = normalizeLocationTitle(data.province_title || data.province);
+        const cityTitle = normalizeLocationTitle(data.city_title || data.city);
+        const matchedProvince = provincesList.find((p) => p.title === provinceTitle);
+
+        let citiesList: LocationOption[] = [];
+        let matchedCityId: number | string = '';
+
+        if (matchedProvince) {
+          try {
+            const citiesRes = await api.get(`/cities?parent_id=${matchedProvince.id}`);
+            citiesList = citiesRes.data || [];
+            setAvailableCities(citiesList);
+            const matchedCity = citiesList.find((c) => c.title === cityTitle);
+            matchedCityId = matchedCity?.id ?? '';
+          } catch (error) {
+            console.error('خطا در بارگذاری شهرهای استان فعلی', error);
+            setAvailableCities([]);
+          }
+        } else {
+          setAvailableCities([]);
+        }
+
+        setFormData({
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          phone: data.phone_number || data.phone || '',
+          national_id: data.national_id || '',
+          birth_date: normalizeLocationTitle(data.birth_date) || data.birth_date || '',
+          province_id: matchedProvince?.id ?? '',
+          city_id: matchedCityId,
+          province: provinceTitle,
+          city: cityTitle,
+        });
+      } catch (error) {
+        console.error('خطا در بارگذاری پروفایل', error);
+        router.push('/login');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }).catch(() => router.push('/login'));
+    };
+
+    loadProfileAndLocations();
   }, [router]);
 
-  const handleProvinceChange = (provinceName: string) => {
-    setFormData(prev => ({ ...prev, province: provinceName, city: '' }));
-    setAvailableCities(iranCities[provinceName] || []);
+  const handleProvinceChange = async (provinceId: number, provinceTitle: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      province_id: provinceId,
+      province: provinceTitle,
+      city_id: '',
+      city: '',
+    }));
+    setCitiesLoading(true);
+    try {
+      const response = await api.get(`/cities?parent_id=${provinceId}`);
+      const citiesList: LocationOption[] = response.data || [];
+      setAvailableCities(citiesList);
+      if (citiesList.length === 0) {
+        console.warn('هیچ شهری برای استان برنگشت', { provinceId, provinceTitle, response: response.data });
+      }
+    } catch (error) {
+      console.error('خطا در بارگذاری شهرهای استان', error);
+      setAvailableCities([]);
+      toast.error('خطا در بارگذاری فهرست شهرها. لطفاً دوباره تلاش کنید.');
+    } finally {
+      setCitiesLoading(false);
+    }
+  };
+
+  const handleCityChange = (cityId: number, cityTitle: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      city_id: cityId,
+      city: cityTitle,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,8 +178,8 @@ export default function EditProfilePage() {
     if (!meetsMinimumRegistrationAge(formData.birth_date)) {
       return toast.error("حداقل سن برای ثبت‌نام ۱۴ سال است.");
     }
-    if (!formData.province) return toast.error("انتخاب استان الزامی است.");
-    if (!formData.city) return toast.error("انتخاب شهرستان الزامی است.");
+    if (!formData.province_id || !formData.province) return toast.error("انتخاب استان الزامی است.");
+    if (!formData.city_id || !formData.city) return toast.error("انتخاب شهرستان الزامی است.");
 
     setSaving(true);
     try {
@@ -117,7 +188,7 @@ export default function EditProfilePage() {
         last_name: formData.last_name,
         birth_date: formData.birth_date,
         province: formData.province,
-        city: formData.city
+        city: formData.city,
       });
       toast.success('اطلاعات با موفقیت به‌روزرسانی شد! 🎉');
       router.push('/profile');
@@ -138,12 +209,6 @@ export default function EditProfilePage() {
     </div>
   );
 
-  const provinceOptions = iranProvinces.map((p, idx) => ({ id: idx, title: p.name }));
-  const cityOptions = availableCities.map((c, idx) => ({ id: idx, title: c }));
-
-  const selectedProvinceId = provinceOptions.find(p => p.title === formData.province)?.id ?? '';
-  const selectedCityId = cityOptions.find(c => c.title === formData.city)?.id ?? '';
-
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100 transition-colors duration-200" dir="rtl">
       <header className="p-6 flex items-center gap-3 bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10 rounded-b-3xl shadow-sm">
@@ -154,7 +219,7 @@ export default function EditProfilePage() {
       </header>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-5 pb-12">
-        <div className="bg-white dark:bg-[#182234] p-6 rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
+        <div className="bg-white dark:bg-[#182234] p-6 rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4 overflow-visible">
           
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -205,33 +270,39 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-2 gap-4 relative z-20 overflow-visible">
+            <div className="relative overflow-visible">
               <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">استان</label>
               <SearchableDropdown 
-                options={provinceOptions}
-                value={selectedProvinceId}
-                onChange={(val: any) => handleProvinceChange(val?.title || val)}
+                options={provinces}
+                value={formData.province_id}
+                onChange={handleProvinceChange}
                 placeholder="انتخاب استان"
                 icon={MapPin}
               />
             </div>
-            <div>
+            <div className="relative overflow-visible">
               <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2">شهرستان</label>
               <SearchableDropdown 
-                options={cityOptions}
-                value={selectedCityId}
-                onChange={(val: any) => setFormData({...formData, city: val?.title || val})}
-                placeholder="انتخاب شهر"
+                options={availableCities}
+                value={formData.city_id}
+                onChange={handleCityChange}
+                placeholder={
+                  !formData.province_id
+                    ? 'ابتدا استان'
+                    : citiesLoading
+                      ? 'در حال بارگذاری...'
+                      : 'انتخاب شهر'
+                }
                 icon={MapPin}
-                disabled={!formData.province}
+                disabled={!formData.province_id || citiesLoading}
               />
             </div>
           </div>
 
         </div>
 
-        <div className="space-y-3">
+        <div className="relative z-0 space-y-3">
           <button type="submit" disabled={saving} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] active:scale-95 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70">
             {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} className="text-[#c5a059] dark:text-[#1a2e44]" />}
             {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
