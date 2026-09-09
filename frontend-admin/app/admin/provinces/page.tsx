@@ -1,5 +1,6 @@
-// frontend-admin/app/admin/provinces/page.tsx
 'use client';
+// frontend-admin/app/admin/provinces/page.tsx
+
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';

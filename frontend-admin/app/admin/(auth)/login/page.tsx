@@ -1,6 +1,7 @@
-import toast from 'react-hot-toast';
-// frontend-admin/app/admin/(auth)/login/page.tsx
 'use client';
+// frontend-admin/app/admin/(auth)/login/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';

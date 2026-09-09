@@ -1,5 +1,6 @@
-// frontend-user/app/not-found.tsx
 'use client';
+// frontend-user/app/not-found.tsx
+
 import { useRouter } from 'next/navigation';
 import { HelpCircle, ArrowRight } from 'lucide-react';
 

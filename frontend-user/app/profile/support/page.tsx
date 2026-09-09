@@ -1,5 +1,6 @@
-// frontend-user/app/profile/support/page.tsx
 'use client';
+// frontend-user/app/profile/support/page.tsx
+
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, HelpCircle, MessageCircle, Mail } from 'lucide-react';

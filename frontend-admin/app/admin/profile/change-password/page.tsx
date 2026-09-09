@@ -1,6 +1,7 @@
-import toast from 'react-hot-toast';
-// frontend-admin/app/admin/profile/change-password/page.tsx
 'use client';
+// frontend-admin/app/admin/profile/change-password/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api'; // 🌟 اصلاح شد: هماهنگی کامل مسیر ایمپورت با پنل مدیریت

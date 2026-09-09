@@ -1,5 +1,6 @@
-// frontend-user/app/page.tsx
 'use client';
+// frontend-user/app/page.tsx
+
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 

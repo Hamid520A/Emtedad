@@ -1,5 +1,6 @@
-// frontend-user/app/error.tsx
 'use client';
+// frontend-user/app/error.tsx
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, ServerCrash, RefreshCw, ShieldAlert } from 'lucide-react';

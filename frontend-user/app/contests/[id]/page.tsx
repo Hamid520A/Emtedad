@@ -1,5 +1,6 @@
-// frontend-user/app/contests/[id]/page.tsx
 'use client';
+// frontend-user/app/contests/[id]/page.tsx
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api';
@@ -9,7 +10,6 @@ import {
   Crown, Award, HelpCircle, X, Eye, ExternalLink, MapPin, Share2, Image
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import toast from 'react-hot-toast';
 
 const ContestAnalyticsCharts = dynamic(
   () => import('./ContestAnalyticsCharts'),

@@ -1,6 +1,7 @@
-import toast from 'react-hot-toast';
-// frontend-admin/app/admin/contests/[id]/participants/page.tsx
 'use client';
+// frontend-admin/app/admin/contests/[id]/participants/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import api from '@/app/lib/api';

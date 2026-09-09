@@ -1,6 +1,7 @@
-import toast from 'react-hot-toast';
-// frontend-admin/app/admin/contests/[id]/questions/page.tsx
 'use client';
+// frontend-admin/app/admin/contests/[id]/questions/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation'; // 🌟 اصلاح شد: اضافه شدن useParams برای دریافت پایدار آی‌دی
 import api from '@/app/lib/api';

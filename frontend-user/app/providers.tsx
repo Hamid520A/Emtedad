@@ -1,5 +1,5 @@
-// frontend-user/app/providers.tsx
 'use client';
+// frontend-user/app/providers.tsx
 
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { ReactNode } from 'react';
