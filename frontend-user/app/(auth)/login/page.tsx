@@ -59,9 +59,12 @@ export default function LoginPage() {
       });
 
       // ۳. ذخیره‌سازی توکن jwt و وضعیت ادمین در حافظه مرورگر هماهنگ با دشبورد
-      const { access_token, is_admin } = response.data;
+      const { access_token, refresh_token, is_admin } = response.data;
       localStorage.setItem('accessToken', access_token);
-      localStorage.setItem('isAdmin', String(is_admin));
+      if (refresh_token) {
+        localStorage.setItem('refreshToken', refresh_token);
+      }
+      localStorage.setItem('isAdmin', String(is_admin ?? false));
 
       toast.success("ورود با موفقیت انجام شد! 🎉");
       router.push('/');

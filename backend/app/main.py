@@ -211,8 +211,8 @@ class DownloadHeadersASGIMiddleware:
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 EITAA_API_URL = os.getenv("EITAA_API_URL", "http://127.0.0.1:3000/send")
 EITAA_DISABLED = os.getenv("EITAA_DISABLED", "true").lower() in ("true", "1", "yes")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "180"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 LIMIT_WINDOW = 60       # پنجره زمانی بر اساس ثانیه (۱ دقیقه)
 MAX_REQUESTS = 60       # حداکثر تعداد درخواست مجاز در یک دقیقه برای صفحات عمومی
 BLOCK_DURATION = 900    # زمان بلاک شدن IP در صورت اصرار بر تخلف (۱۵ دقیقه به ثانیه)
@@ -962,10 +962,13 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
         "sub": user.phone_number,
         "is_admin": False
     })
+    refresh = auth.create_refresh_token(data={"sub": user.phone_number})
     
     return {
-        "access_token": token, 
-        "token_type": "bearer"
+        "access_token": token,
+        "refresh_token": refresh,
+        "token_type": "bearer",
+        "is_admin": False,
     }
 
 @app.post("/swagger-login", tags=["System"], include_in_schema=False)
@@ -1970,7 +1973,13 @@ def admin_login(login_data: schemas.UserLogin, db: Session = Depends(database.ge
         
     # ۳. صدور توکن مدیریت
     token = auth.create_access_token(data={"sub": user.phone_number, "is_admin": True})
-    return {"access_token": token, "token_type": "bearer", "is_admin": True}
+    refresh = auth.create_refresh_token(data={"sub": user.phone_number})
+    return {
+        "access_token": token,
+        "refresh_token": refresh,
+        "token_type": "bearer",
+        "is_admin": True,
+    }
 
 @app.delete("/admin/contests/{contest_id}")
 @app.delete("/admin/contest/{contest_id}")
@@ -3145,6 +3154,9 @@ def refresh_access_token(payload: dict, db: Session = Depends(database.get_db)):
         
     try:
         decoded_data = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True, "verify_exp": True})
+        if decoded_data.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="توکن نامعتبر است")
+
         username: str = decoded_data.get("sub")
         
         if username is None:
@@ -3159,12 +3171,15 @@ def refresh_access_token(payload: dict, db: Session = Depends(database.get_db)):
             
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         new_access_token = create_jwt_token(
-            data={"sub": username, "is_admin": is_admin}, 
+            data={"sub": username, "is_admin": is_admin, "type": "access"}, 
             expires_delta=access_token_expires
         )
+        # Rotate refresh token so long sessions (exams) stay alive
+        new_refresh_token = auth.create_refresh_token(data={"sub": username})
         
         return {
             "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
             "token_type": "bearer"
         }
         

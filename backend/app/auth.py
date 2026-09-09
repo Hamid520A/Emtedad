@@ -15,7 +15,9 @@ if not SECRET_KEY or SECRET_KEY == "fallback_temporary_secret_key_for_developmen
     raise RuntimeError("FATAL SECURITY ERROR: Running with a fallback SECRET_KEY is strictly forbidden.")
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+# Exams can run well past 15 minutes — default access TTL is 3 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "180"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="swagger-login")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -30,7 +32,14 @@ def create_access_token(data: dict):
     # Strip any sensitive PII explicitly
     safe_data = {k: v for k, v in data.items() if k not in ("password", "national_id", "hashed_password")}
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    safe_data.update({"exp": expire})
+    safe_data.update({"exp": expire, "type": "access"})
+    return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_refresh_token(data: dict):
+    """Long-lived token used only by /auth/refresh to mint new access tokens."""
+    safe_data = {"sub": data["sub"]}
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    safe_data.update({"exp": expire, "type": "refresh"})
     return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(db: Session = Depends(database.get_db), token: str = Depends(oauth2_scheme)):

@@ -1,6 +1,6 @@
 // frontend-admin/lib/api.ts
 
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // 🌟 اصلاح اول: خواندن آدرس اصلی بک‌ند از فایل env
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -11,6 +11,43 @@ if (!apiUrl) {
 const api = axios.create({
   baseURL: apiUrl, 
 });
+
+type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
+
+let refreshPromise: Promise<string> | null = null;
+
+async function refreshAccessToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        throw new Error('NO_REFRESH_TOKEN');
+      }
+
+      const response = await axios.post(`${apiUrl}/auth/refresh`, {
+        refresh_token: refreshToken,
+      });
+
+      const newAccessToken = response.data.access_token as string;
+      localStorage.setItem('accessToken', newAccessToken);
+      if (response.data.refresh_token) {
+        localStorage.setItem('refreshToken', response.data.refresh_token);
+      }
+      api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+      return newAccessToken;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+function forceLogoutToAdminLogin() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('isAdmin');
+  window.location.href = '/admin/login';
+}
 
 api.interceptors.request.use(
   (config) => {
@@ -25,35 +62,33 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response, 
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError) => {
+    const originalRequest = error.config as RetriableConfig | undefined;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
 
-    if (error.response?.status === 401 && !originalRequest.url?.includes('/login') && !originalRequest._retry) {
+    const url = originalRequest.url || '';
+    const isAuthEndpoint =
+      url.includes('/login') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/admin/login');
+
+    if (error.response?.status === 401 && !isAuthEndpoint && !originalRequest._retry) {
       originalRequest._retry = true; 
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('isAdmin');
-          window.location.href = '/admin/login';
-          return Promise.reject(error);
-        }
-
-        // 🌟 اصلاح دوم: جایگزینی آدرس هاردکد شده با متغیر داینامیک env
-        const response = await axios.post(`${apiUrl}/auth/refresh`, {
-          refresh_token: refreshToken
-        });
-
-        const newAccessToken = response.data.access_token;
-        localStorage.setItem('accessToken', newAccessToken);
-        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+        const newAccessToken = await refreshAccessToken();
+        originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-
         return api(originalRequest);
       } catch (refreshError) {
-        localStorage.clear();
-        window.location.href = '/admin/login';
+        const refreshFailedWithoutHttp =
+          !axios.isAxiosError(refreshError) || !refreshError.response;
+        if (refreshFailedWithoutHttp && !(refreshError instanceof Error && refreshError.message === 'NO_REFRESH_TOKEN')) {
+          return Promise.reject(refreshError);
+        }
+        forceLogoutToAdminLogin();
         return Promise.reject(refreshError);
       }
     }

@@ -33,6 +33,9 @@ export default function AdminLoginPage() {
 
       // ذخیره توکن و پرچم ادمین در حافظه مرورگر
       localStorage.setItem('accessToken', res.data.access_token);
+      if (res.data.refresh_token) {
+        localStorage.setItem('refreshToken', res.data.refresh_token);
+      }
       localStorage.setItem('isAdmin', 'true');
 
       toast.success("ورود با موفقیت انجام شد. به پنل مدیریت خوش آمدید! 👑");
