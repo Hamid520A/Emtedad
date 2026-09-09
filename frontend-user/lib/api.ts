@@ -98,8 +98,10 @@ api.interceptors.response.use(
 
       try {
         const newAccessToken = await refreshAccessToken();
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        if (!originalRequest.headers) {
+          originalRequest.headers = {} as any;
+        }
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         // Network blip during refresh — do not force logout (exam safety)
