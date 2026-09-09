@@ -1516,7 +1516,11 @@ def update_my_profile(
     normalized_date = fa_to_en_digits(payload.birth_date).replace("-", "/")
     user.birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
 
-    db_city = db.query(models.City).filter(models.City.title == payload.city).first()
+    # Resolve by city_id only, and require a real city (must have a province parent)
+    db_city = db.query(models.City).filter(
+        models.City.id == payload.city_id,
+        models.City.parent_id.isnot(None),
+    ).first()
     if not db_city:
         raise HTTPException(status_code=400, detail="شهر انتخاب شده معتبر نیست.")
     user.city_id = db_city.id
@@ -1536,8 +1540,17 @@ def get_my_complete_profile(
                   .first()
                   
     # ۲. استخراج هوشمند نام شهر و استان از جدول رابطه‌ای
-    city_title = user_data.city.title if user_data.city else "---"
-    province_title = user_data.city.parent.title if (user_data.city and user_data.city.parent) else "---"
+    # اگر city_id اشتباهاً به یک استان (parent_id=NULL) اشاره کند، عنوان آن را به‌عنوان استان نشان بده
+    city_id_value = user_data.city.id if user_data.city else None
+    if user_data.city and user_data.city.parent:
+        city_title = user_data.city.title
+        province_title = user_data.city.parent.title
+    elif user_data.city and user_data.city.parent_id is None:
+        province_title = user_data.city.title
+        city_title = "---"
+    else:
+        city_title = "---"
+        province_title = "---"
     
     # ۳. واکشی تاریخچه مسابقات کاربر از جدول subscriptions
     history_records = []
@@ -1576,6 +1589,7 @@ def get_my_complete_profile(
         "national_id": user_data.national_id,
         "is_iranian": getattr(user_data, 'is_iranian', True),
         "birth_date": jdatetime.date.fromgregorian(date=user_data.birth_date).strftime('%Y/%m/%d') if user_data.birth_date else "---",
+        "city_id": city_id_value,
         "city_title": city_title,
         "province_title": province_title,
         "history": history_records

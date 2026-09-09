@@ -257,7 +257,13 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase">استان</p>
-                <p className="font-black text-xs text-[#1a2e44] dark:text-slate-200 mt-1">{profile.province_title || profile.province || "---"}</p>
+                <p className="font-black text-xs text-[#1a2e44] dark:text-slate-200 mt-1">
+                  {profile.province_title
+                    || profile.province
+                    || profile.city?.parent?.title
+                    || profile.city?.parent?.name
+                    || "---"}
+                </p>
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase">شهرستان</p>

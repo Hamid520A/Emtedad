@@ -99,13 +99,21 @@ export default function EditProfilePage() {
         let citiesList: LocationOption[] = [];
         let matchedCityId: number | string = '';
 
+        // Prefer authoritative city_id from API when it is a real city (has province)
+        const profileCityId = data.city_id ? Number(data.city_id) : null;
+
         if (matchedProvince) {
           try {
             const citiesRes = await api.get(`/cities?parent_id=${matchedProvince.id}`);
             citiesList = citiesRes.data || [];
             setAvailableCities(citiesList);
-            const matchedCity = citiesList.find((c) => c.title === cityTitle);
-            matchedCityId = matchedCity?.id ?? '';
+            const matchedById = profileCityId
+              ? citiesList.find((c) => c.id === profileCityId)
+              : undefined;
+            const matchedByTitle = cityTitle
+              ? citiesList.find((c) => c.title === cityTitle)
+              : undefined;
+            matchedCityId = matchedById?.id ?? matchedByTitle?.id ?? '';
           } catch (error) {
             console.error('خطا در بارگذاری شهرهای استان فعلی', error);
             setAvailableCities([]);
@@ -187,6 +195,7 @@ export default function EditProfilePage() {
         first_name: formData.first_name,
         last_name: formData.last_name,
         birth_date: formData.birth_date,
+        city_id: Number(formData.city_id),
         province: formData.province,
         city: formData.city,
       });

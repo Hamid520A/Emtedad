@@ -104,8 +104,11 @@ class UserProfileUpdate(BaseModel):
     first_name: str = Field(..., min_length=2, max_length=50, strip_whitespace=True)
     last_name: str = Field(..., min_length=2, max_length=50, strip_whitespace=True)
     birth_date: str = Field(..., min_length=8, strip_whitespace=True)
-    province: str = Field(..., min_length=2, strip_whitespace=True)
-    city: str = Field(..., min_length=2, strip_whitespace=True)
+    # Prefer city_id so we never accidentally save a province row (parent_id IS NULL)
+    city_id: int = Field(..., gt=0)
+    # Optional legacy title fields (ignored for persistence when city_id is present)
+    province: Optional[str] = Field(None, min_length=2, strip_whitespace=True)
+    city: Optional[str] = Field(None, min_length=2, strip_whitespace=True)
 
     @field_validator("birth_date", mode="before")
     @classmethod
