@@ -200,7 +200,7 @@ export default function EditProfilePage() {
         city: formData.city,
       });
       toast.success('اطلاعات با موفقیت به‌روزرسانی شد! 🎉');
-      router.push('/profile');
+      router.replace('/profile');
     } catch (error: any) {
       const errorMessage = getApiErrorMessage(
         error,
@@ -221,7 +221,7 @@ export default function EditProfilePage() {
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100 transition-colors duration-200" dir="rtl">
       <header className="p-6 flex items-center gap-3 bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 sticky top-0 z-10 rounded-b-3xl shadow-sm">
-        <button onClick={() => router.push('/profile')} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
+        <button onClick={() => router.replace('/profile')} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
           <ArrowRight size={20} />
         </button>
         <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">ویرایش پروفایل</span>
@@ -317,7 +317,7 @@ export default function EditProfilePage() {
             {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
           </button>
           
-          <button type="button" onClick={() => router.push('/profile')} className="w-full bg-white dark:bg-[#182234] text-gray-500 dark:text-slate-300 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-[#233044] transition-all">
+          <button type="button" onClick={() => router.replace('/profile')} className="w-full bg-white dark:bg-[#182234] text-gray-500 dark:text-slate-300 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-[#233044] transition-all">
             انصراف و بازگشت
           </button>
         </div>

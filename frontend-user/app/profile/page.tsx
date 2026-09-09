@@ -212,7 +212,7 @@ export default function ProfilePage() {
         {/* Header */}
         <header className="p-6 flex items-center justify-between border-b border-gray-50 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
+            <button onClick={() => router.push('/')} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
               <ArrowRight size={20} />
             </button>
             <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">حساب کاربری</span>
