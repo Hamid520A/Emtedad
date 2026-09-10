@@ -47,6 +47,7 @@ export default function AdminContestControls({ contest, adminBase, onContestUpda
         ...contest,
         status: response.data.status,
         start_time: response.data.start_time,
+        end_time: response.data.end_time ?? contest.end_time,
       });
       toast.success('وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉');
     } catch {

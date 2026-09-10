@@ -57,6 +57,8 @@ export default function ContestLandingPage() {
   const [selectedProvince, setSelectedProvince] = useState<any>(null);
   const [provinceModalOpen, setProvinceModalOpen] = useState(false);
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
+  const [endSecondsLeft, setEndSecondsLeft] = useState<number | null>(null);
+  const [endTimeLeft, setEndTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
 
   useEffect(() => {
@@ -80,6 +82,10 @@ export default function ContestLandingPage() {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
           const diffSec = Math.floor(diffMs / 1000);
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
+        } else if (contestRes.data.status === 'active' && contestRes.data.end_time) {
+          const endDiffMs = +new Date(contestRes.data.end_time) - +new Date(contestRes.data.server_now);
+          const endDiffSec = Math.floor(endDiffMs / 1000);
+          setEndSecondsLeft(endDiffSec > 0 ? endDiffSec : 0);
         }
 
         try {
@@ -119,7 +125,13 @@ export default function ContestLandingPage() {
     if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null) return;
 
     if (totalSecondsLeft <= 0) {
-      setContest((prev: any) => ({ ...prev, status: 'active' }));
+      setContest((prev: any) => {
+        if (prev?.end_time) {
+          const remaining = Math.floor((+new Date(prev.end_time) - Date.now()) / 1000);
+          setEndSecondsLeft(remaining > 0 ? remaining : 0);
+        }
+        return { ...prev, status: 'active' };
+      });
       return;
     }
 
@@ -127,7 +139,13 @@ export default function ContestLandingPage() {
       setTotalSecondsLeft((prev) => {
         if (prev !== null && prev <= 1) {
           clearInterval(timer);
-          setContest((prevContest: any) => ({ ...prevContest, status: 'active' }));
+          setContest((prevContest: any) => {
+            if (prevContest?.end_time) {
+              const remaining = Math.floor((+new Date(prevContest.end_time) - Date.now()) / 1000);
+              setEndSecondsLeft(remaining > 0 ? remaining : 0);
+            }
+            return { ...prevContest, status: 'active' };
+          });
           return 0;
         }
         return prev && prev > 0 ? prev - 1 : 0;
@@ -136,6 +154,43 @@ export default function ContestLandingPage() {
 
     return () => clearInterval(timer);
   }, [contest, mounted, totalSecondsLeft]);
+
+  useEffect(() => {
+    if (!mounted || contest?.status !== 'active' || endSecondsLeft === null) return;
+
+    if (endSecondsLeft <= 0) {
+      setContest((prev: any) => ({ ...prev, status: 'finished' }));
+      setEndTimeLeft(null);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setEndSecondsLeft((prev) => {
+        if (prev !== null && prev <= 1) {
+          clearInterval(timer);
+          setContest((prevContest: any) => ({ ...prevContest, status: 'finished' }));
+          return 0;
+        }
+        return prev && prev > 0 ? prev - 1 : 0;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [contest?.status, mounted, endSecondsLeft]);
+
+  useEffect(() => {
+    if (endSecondsLeft === null || endSecondsLeft <= 0) {
+      setEndTimeLeft(null);
+      return;
+    }
+    const secs = endSecondsLeft;
+    setEndTimeLeft({
+      days: Math.floor(secs / (3600 * 24)),
+      hours: Math.floor((secs % (3600 * 24)) / 3600),
+      minutes: Math.floor((secs % 3600) / 60),
+      seconds: Math.floor(secs % 60),
+    });
+  }, [endSecondsLeft]);
 
   useEffect(() => {
     if (totalSecondsLeft === null || totalSecondsLeft <= 0) {
@@ -278,7 +333,13 @@ export default function ContestLandingPage() {
               adminBase={adminBase}
               onContestUpdate={(updated) => {
                 setContest(updated);
-                if (updated.status === 'active') setTimeLeft(null);
+                if (updated.status === 'active') {
+                  setTimeLeft(null);
+                  if (updated.end_time) {
+                    const remaining = Math.floor((+new Date(updated.end_time) - Date.now()) / 1000);
+                    setEndSecondsLeft(remaining > 0 ? remaining : 0);
+                  }
+                }
               }}
             />
           )}
@@ -474,6 +535,47 @@ export default function ContestLandingPage() {
                    <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(timeLeft.seconds)}</span><span className="text-[9px] text-gray-400 font-bold">ثانیه</span></div>
                  </div>
                ) : <span className="text-xs font-bold text-gray-300">در انتظار شروع مسابقه توسط مدیر...</span>}
+            </div>
+          )}
+
+          {contest.status === 'active' && contest.end_time && (
+            <div className={`p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border ${
+              endSecondsLeft !== null && endSecondsLeft <= 900
+                ? 'bg-red-700 border-red-500/40'
+                : endSecondsLeft !== null && endSecondsLeft <= 3600
+                  ? 'bg-amber-700 border-amber-500/40'
+                  : 'bg-[#1a2e44] dark:bg-[#182234] border-[#2a405a] dark:border-slate-800'
+            }`}>
+              <Clock className="absolute -left-6 -top-6 opacity-5" size={100} />
+              <h3 className={`text-xs font-black mb-4 flex items-center gap-1.5 ${
+                endSecondsLeft !== null && endSecondsLeft <= 900 ? 'text-red-100' : 'text-[#c5a059]'
+              }`}>
+                <Clock size={16} /> شمارش معکوس تا پایان مسابقه
+              </h3>
+              {endTimeLeft ? (
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center" dir="ltr">
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.days)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">روز</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.hours)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">ساعت</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.minutes)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">دقیقه</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className={`block text-base sm:text-xl font-black ${
+                      endSecondsLeft !== null && endSecondsLeft <= 900 ? 'text-white' : 'text-[#c5a059]'
+                    }`}>{toPersianDigits(endTimeLeft.seconds)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">ثانیه</span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-xs font-bold text-white/80">مسابقه در حال اتمام است...</span>
+              )}
             </div>
           )}
 
