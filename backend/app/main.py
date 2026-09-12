@@ -997,6 +997,7 @@ def get_questions_list(
         )
 
     # 🌟 قفل امنیتی آنی: ثبت رکورد شروع اولیه در دیتابیس تا در صورت بسته شدن مینی‌اپ (کلیک روی ضربدر) یا خروج، امکان شرکت مجدد وجود نداشته باشد
+    active_sub = existing_subscription
     if not existing_subscription and not is_admin_user:
         initial_sub = models.Subscription(
             user_id=current_user.id,
@@ -1007,6 +1008,9 @@ def get_questions_list(
         db.add(initial_sub)
         db.commit()
         db.refresh(initial_sub)
+        active_sub = initial_sub
+    elif is_admin_user and existing_subscription:
+        active_sub = existing_subscription
         
     # ۲. واکشی سوالات حذف‌نشده و فعال
     all_questions = db.query(models.Question).filter(
@@ -1018,6 +1022,41 @@ def get_questions_list(
     # انتخاب تصادفی سوالات بر اساس حد مجاز مسابقه
     limit = contest.question_limit or 15
     selected_questions = random.sample(all_questions, min(len(all_questions), limit))
+
+    # Lock assigned set in DB so submit + recalculate share the same denominator.
+    if active_sub:
+        if is_admin_user:
+            # Admins may retake: replace prior assignment with this draw.
+            old_sq = db.query(models.SubscriptionQuestions).filter(
+                models.SubscriptionQuestions.subscription_id == active_sub.id
+            ).all()
+            for eq in old_sq:
+                db.query(models.SubscriptionAnswer).filter(
+                    models.SubscriptionAnswer.subscription_question_id == eq.id
+                ).delete()
+            db.query(models.SubscriptionQuestions).filter(
+                models.SubscriptionQuestions.subscription_id == active_sub.id
+            ).delete()
+            db.flush()
+
+        already = db.query(models.SubscriptionQuestions).filter(
+            models.SubscriptionQuestions.subscription_id == active_sub.id,
+            models.SubscriptionQuestions.deleted_at == None,
+        ).count()
+        if already == 0:
+            db.execute(
+                insert(models.SubscriptionQuestions),
+                [
+                    {
+                        "subscription_id": active_sub.id,
+                        "question_id": q.id,
+                        "number": idx + 1,
+                    }
+                    for idx, q in enumerate(selected_questions)
+                ],
+            )
+            db.commit()
+
     processed_questions = []
     
     for q in selected_questions:
@@ -3051,7 +3090,9 @@ def submit_exam_results(
     # ۲. مقایسه انتخاب‌های کاربر با گزینه‌های صحیح — فقط روی سوالات تخصیص‌یافته
     correct_count = 0
     for q_id in assigned_question_ids:
-        user_option_id = answers_map.get(str(q_id)) or answers_map.get(q_id)
+        user_option_id = answers_map.get(str(q_id))
+        if user_option_id is None:
+            user_option_id = answers_map.get(q_id)
 
         if user_option_id is None:
             continue  # blank: counts against score, but NOT in correct_count
@@ -3098,25 +3139,28 @@ def submit_exam_results(
     db.query(models.SubscriptionQuestions).filter(models.SubscriptionQuestions.subscription_id == sub.id).delete()
     db.commit()
 
-    # Bulk insert answers (one RETURNING round-trip + one INSERT) instead of N commits
-    answered_items = [
-        (int(q_id), int(a_id))
-        for q_id, a_id in answers_map.items()
-        if a_id is not None
-    ]
-    if answered_items:
-        sq_result = db.execute(
-            insert(models.SubscriptionQuestions).returning(
-                models.SubscriptionQuestions.id,
-                models.SubscriptionQuestions.question_id,
-            ),
-            [
-                {"subscription_id": sub.id, "question_id": q_id}
-                for q_id, _ in answered_items
-            ],
-        )
-        sq_id_by_question = {row.question_id: row.id for row in sq_result}
+    # Persist the full assigned set (including unanswered). Recalculate depends on this denominator.
+    sq_result = db.execute(
+        insert(models.SubscriptionQuestions).returning(
+            models.SubscriptionQuestions.id,
+            models.SubscriptionQuestions.question_id,
+        ),
+        [
+            {"subscription_id": sub.id, "question_id": int(q_id)}
+            for q_id in assigned_question_ids
+        ],
+    )
+    sq_id_by_question = {row.question_id: row.id for row in sq_result}
 
+    answered_items = []
+    for q_id in assigned_question_ids:
+        a_id = answers_map.get(str(q_id))
+        if a_id is None:
+            a_id = answers_map.get(q_id)
+        if a_id is not None:
+            answered_items.append((int(q_id), int(a_id)))
+
+    if answered_items:
         db.execute(
             insert(models.SubscriptionAnswer),
             [
