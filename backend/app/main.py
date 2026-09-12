@@ -904,6 +904,34 @@ def get_contest_detail(
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
     }
     
+    cache_key = f"cache:contest:{contest_id}:detail"
+    cached_payload = _cache_get_json(cache_key)
+
+    if cached_payload is not None:
+        content = dict(cached_payload)
+        # Never serve a stale clock from Redis
+        content["server_now"] = datetime.now().isoformat()
+        # certificate_details is admin-only — never stored in the shared cache
+        content["certificate_details"] = None
+        if current_user and current_user.admin and current_user.admin.is_active == 1:
+            contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+            if contest and contest.certificates:
+                cert = contest.certificates[0]
+                content["certificate_details"] = {
+                    "content": cert.content or "",
+                    "background_url": cert.background_url or "",
+                    "logo_url": cert.logo_url or "",
+                    "signers": [
+                        {
+                            "name": cs.signer.name if cs.signer else "",
+                            "title": cs.signer.title if cs.signer else "",
+                            "sign_url": cs.signer.sign_url if cs.signer else "",
+                        }
+                        for cs in cert.certificate_signers[:3]
+                    ],
+                }
+        return JSONResponse(status_code=200, headers=cors_headers, content=content)
+
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
         return JSONResponse(status_code=404, content={"detail": "مسابقه یافت نشد"}, headers=cors_headers)
@@ -949,7 +977,7 @@ def get_contest_detail(
                 ]
             }
         
-    return JSONResponse(status_code=200, headers=cors_headers, content={
+    public_payload = {
         "id": contest.id,
         "title": contest.title,
         "description": contest.description,
@@ -960,17 +988,22 @@ def get_contest_detail(
         "status": contest.status,
         "start_time": contest.start_time.isoformat() if contest.start_time else None,
         "end_time": contest.end_time.isoformat() if contest.end_time else None,
-        "server_now": datetime.now().isoformat(),
         "question_limit": contest.question_limit,
         "time_limit": time_limit_minutes,
         "file_url": file_url,
         "awards": awards_data,
         "certificate_type": certificate_type,
-        "certificate_details": cert_payload,
+        "certificate_details": None,  # never put admin-only data in shared Redis
         "success_message": contest.success_message,
         "failure_message": contest.failure_message,
         "sms_message": contest.sms_message,
-    })
+    }
+    _cache_set_json(cache_key, public_payload, CACHE_TTL_CONTEST_DETAIL)
+
+    response_content = dict(public_payload)
+    response_content["server_now"] = datetime.now().isoformat()
+    response_content["certificate_details"] = cert_payload
+    return JSONResponse(status_code=200, headers=cors_headers, content=response_content)
 
 @app.get("/contests/{contest_id}/questions", response_model=List[schemas.RandomizedQuestion])
 def get_questions_list(
@@ -1291,6 +1324,47 @@ async def upload_file(
         print(f"❌ Upload Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"خطا در پردازش فایل: {str(e)}")
 
+CACHE_TTL_CONTEST_DETAIL = 3600  # safety net; primary freshness via invalidation
+CACHE_TTL_ANALYTICS = 600
+CACHE_TTL_LEADERBOARD = 60
+
+
+def _cache_get_json(key: str) -> Optional[Any]:
+    try:
+        raw = r.get(key)
+        if not raw:
+            return None
+        return json.loads(raw)
+    except (redis.RedisError, TypeError, ValueError) as e:
+        logger.warning(f"Redis cache get failed for {key}: {e}")
+        return None
+
+
+def _cache_set_json(key: str, value: Any, ttl: int) -> None:
+    try:
+        r.setex(key, ttl, json.dumps(jsonable_encoder(value)))
+    except (redis.RedisError, TypeError, ValueError) as e:
+        logger.warning(f"Redis cache set failed for {key}: {e}")
+
+
+def _invalidate_contest_caches(contest_id: int) -> None:
+    """Drop contest-scoped landing caches after writes."""
+    keys = [
+        f"cache:contest:{contest_id}:detail",
+        f"cache:contest:{contest_id}:analytics",
+        f"cache:leaderboard:{contest_id}",
+        "cache:contests:all:all",
+        "cache:contests:all:active",
+        "cache:contests:all:upcoming",
+        "cache:contests:all:finished",
+        "cache:contests:all:draft",
+    ]
+    try:
+        r.delete(*keys)
+    except redis.RedisError as e:
+        logger.warning(f"Redis contest cache invalidation failed for {contest_id}: {e}")
+
+
 def _subscription_time_taken_seconds(time_left) -> int:
     if not time_left:
         return 0
@@ -1364,21 +1438,13 @@ def get_leaderboard(contest_id: int, db: Session = Depends(database.get_db), cur
     
     # 🌟 سیستم کش پرسرعت ردیس برای لیدربورد (۶۰ ثانیه)
     cache_key = f"cache:leaderboard:{contest_id}"
-    cached_data = r.get(cache_key)
-    if cached_data:
-        try:
-            return JSONResponse(status_code=200, content=json.loads(cached_data), headers=cors_headers)
-        except Exception as e:
-            logger.error(f"Silent failure intercepted: {e}")
+    cached_data = _cache_get_json(cache_key)
+    if cached_data is not None:
+        return JSONResponse(status_code=200, content=cached_data, headers=cors_headers)
             
     try:
         results = _build_contest_leaderboard(db, contest_id)
-        # ذخیره در کش ردیس برای ۶۰ ثانیه
-        try:
-            r.setex(cache_key, 60, json.dumps(jsonable_encoder(results)))
-        except Exception as e:
-            logger.error(f"Silent failure intercepted: {e}")
-
+        _cache_set_json(cache_key, results, CACHE_TTL_LEADERBOARD)
         return JSONResponse(status_code=200, content=jsonable_encoder(results), headers=cors_headers)
 
     except Exception as global_err:
@@ -1826,6 +1892,7 @@ def update_contest_status(contest_id: str, status_update: StatusUpdate, db: Sess
     contest.status = status_update.status
     db.commit()
     db.refresh(contest)
+    _invalidate_contest_caches(int(contest_id))
     return {"message": "وضعیت با موفقیت تغییر کرد", "new_status": contest.status}
 
 @app.post("/admin/login")
@@ -1874,6 +1941,7 @@ def delete_contest(
     db.query(models.Attachment).filter(models.Attachment.contest_id == contest_id).update({"deleted_at": now, "is_active": 0}, synchronize_session=False)
     
     db.commit()
+    _invalidate_contest_caches(contest_id)
     return {"message": "مسابقه با موفقیت حذف شد"}
 
 @app.delete("/admin/questions/{question_id}")
@@ -2553,6 +2621,7 @@ def update_certificate_template(contest_id: int, data: dict, db: Session = Depen
     link_signer(data.get("signer_2_name"), data.get("signer_2_title"), data.get("signer_2_signature_url"))
     link_signer(data.get("signer_3_name"), data.get("signer_3_title"), data.get("signer_3_signature_url"))
     
+    _invalidate_contest_caches(contest_id)
     return {"status": "success", "message": "تنظیمات گواهی با موفقیت ذخیره شد"}
 
 @app.get("/admin/export-data")
@@ -2820,6 +2889,8 @@ def update_contest(
     db.commit()
     db.refresh(db_contest)
     
+    _invalidate_contest_caches(contest_id)
+
     return {
         "message": "مسابقه و گواهی متصل به آن با موفقیت ویرایش شدند",
         "status": db_contest.status,
@@ -2854,6 +2925,11 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
     }
     
+    cache_key = f"cache:contest:{contest_id}:analytics"
+    cached = _cache_get_json(cache_key)
+    if cached is not None:
+        return JSONResponse(status_code=200, content=cached, headers=cors_headers)
+
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
     if not contest:
         return JSONResponse(status_code=404, content={"detail": "مسابقه یافت نشد"}, headers=cors_headers)
@@ -3001,12 +3077,14 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
             "correct_answer": correct_index   
         })
         
-    return JSONResponse(status_code=200, content={
+    payload = {
         "time_distribution": time_payload,
         "questions_stats": questions_payload,
         "province_stats": province_stats,
         "gender_stats": gender_stats # 🌟 ارسال دیتای جنسیت به فرانت‌ند
-    }, headers=cors_headers)
+    }
+    _cache_set_json(cache_key, payload, CACHE_TTL_ANALYTICS)
+    return JSONResponse(status_code=200, content=payload, headers=cors_headers)
 
 @app.post("/auth/refresh")
 def refresh_access_token(payload: dict):
@@ -3314,12 +3392,7 @@ def admin_recalculate_contest_scores(
 
     if not dry_run and details:
         db.commit()
-        try:
-            r.delete(f"cache:leaderboard:{contest_id}")
-        except redis.RedisError as e:
-            logger.warning(
-                f"Leaderboard cache invalidation failed after score recalc for contest {contest_id}: {e}"
-            )
+        _invalidate_contest_caches(contest_id)
 
     return {
         "dry_run": dry_run,
