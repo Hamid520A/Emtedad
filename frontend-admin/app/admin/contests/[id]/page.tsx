@@ -529,8 +529,8 @@ export default function ContestLandingPage() {
                   onClick={() => {
                     const token = localStorage.getItem('accessToken') || '';
                     const refreshToken = localStorage.getItem('refreshToken') || '';
-                    // 🌟 آدرس وب‌اپ مدیریت تست با دامنه جدید
-                    const userAppUrl = `https://emtedad.ir-ma.ir/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
+                    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || 'https://emtedad.ir-ma.ir';
+                    const userAppUrl = `${userAppBaseUrl}/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
                     window.open(userAppUrl, '_blank');
                   }}
                   className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"
@@ -575,7 +575,18 @@ export default function ContestLandingPage() {
                   <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}ثانیه</span>
                 </div>
               </div>
-              <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 hover:bg-gray-100 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100 dark:border-slate-800 dark:border-slate-800"><FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات</button>
+              <button
+                onClick={() => {
+                  const token = localStorage.getItem('accessToken') || '';
+                  const refreshToken = localStorage.getItem('refreshToken') || '';
+                  const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || 'https://emtedad.ir-ma.ir';
+                  const userAppUrl = `${userAppBaseUrl}/review-final/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
+                  window.open(userAppUrl, '_blank');
+                }}
+                className="w-full bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 hover:bg-gray-100 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100 dark:border-slate-800 dark:border-slate-800"
+              >
+                <FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات
+              </button>
             </div>
           )}
 

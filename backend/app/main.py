@@ -988,7 +988,9 @@ def get_questions_list(
         models.Subscription.contest_id == contest_id
     ).first()
 
-    is_admin_user = getattr(current_user, 'is_admin', False) or getattr(current_user, 'role', '') == 'admin'
+    is_admin_user = bool(
+        getattr(current_user, "admin", None) and current_user.admin.is_active == 1
+    )
 
     if existing_subscription and not is_admin_user:
         raise HTTPException(
