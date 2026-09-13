@@ -37,6 +37,8 @@ export default function ContestLandingPage() {
   const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
   const [isAdminUser, setIsAdminUser] = useState<boolean>(false);
   
+  const [endTimeLeft, setEndTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
+  const [endSecondsLeft, setEndSecondsLeft] = useState<number | null>(null);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
@@ -66,6 +68,12 @@ export default function ContestLandingPage() {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
           const diffSec = Math.floor(diffMs / 1000);
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
+        }
+
+        if (contestRes.data.status === 'active' && contestRes.data.end_time) {
+          const endDiffMs = +new Date(contestRes.data.end_time) - +new Date(contestRes.data.server_now);
+          const endDiffSec = Math.floor(endDiffMs / 1000);
+          setEndSecondsLeft(endDiffSec > 0 ? endDiffSec : 0);
         }
 
         try {
@@ -137,6 +145,42 @@ export default function ContestLandingPage() {
       seconds: Math.floor(secs % 60)
     });
   }, [totalSecondsLeft]);
+
+  useEffect(() => {
+    if (!mounted || contest?.status !== 'active' || endSecondsLeft === null) return;
+
+    if (endSecondsLeft <= 0) {
+      setContest((prev: any) => ({ ...prev, status: 'finished' }));
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setEndSecondsLeft((prev) => {
+        if (prev !== null && prev <= 1) {
+          clearInterval(timer);
+          setContest((prevContest: any) => ({ ...prevContest, status: 'finished' }));
+          return 0;
+        }
+        return prev && prev > 0 ? prev - 1 : 0;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [contest, mounted, endSecondsLeft]);
+
+  useEffect(() => {
+    if (endSecondsLeft === null || endSecondsLeft <= 0) {
+      setEndTimeLeft(null);
+      return;
+    }
+    const secs = endSecondsLeft;
+    setEndTimeLeft({
+      days: Math.floor(secs / (3600 * 24)),
+      hours: Math.floor((secs % (3600 * 24)) / 3600),
+      minutes: Math.floor((secs % 3600) / 60),
+      seconds: Math.floor(secs % 60),
+    });
+  }, [endSecondsLeft]);
 
   const handleBack = () => {
     if (isAdminUser) window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
@@ -600,6 +644,39 @@ export default function ContestLandingPage() {
                    <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(timeLeft.seconds)}</span><span className="text-[9px] text-gray-400 font-bold">ثانیه</span></div>
                  </div>
                ) : <span className="text-xs font-bold text-gray-300">در انتظار شروع مسابقه توسط مدیر...</span>}
+            </div>
+          )}
+
+          {contest.status === 'active' && contest.end_time && (
+            <div className="bg-[#1a2e44] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border border-[#2a405a] dark:border-slate-800">
+              <Clock className="absolute -left-6 -top-6 opacity-5" size={100} />
+              <h3 className="text-[#c5a059] text-xs font-black mb-4 flex items-center gap-1.5">
+                <Clock size={16} /> شمارش معکوس تا پایان مسابقه
+              </h3>
+              {endTimeLeft ? (
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center" dir="ltr">
+                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.days)}</span>
+                    <span className="text-[9px] text-gray-400 font-bold">روز</span>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.hours)}</span>
+                    <span className="text-[9px] text-gray-400 font-bold">ساعت</span>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.minutes)}</span>
+                    <span className="text-[9px] text-gray-400 font-bold">دقیقه</span>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5">
+                    <span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(endTimeLeft.seconds)}</span>
+                    <span className="text-[9px] text-gray-400 font-bold">ثانیه</span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-xs font-bold text-gray-300">
+                  مهلت مسابقه به پایان رسیده است
+                </span>
+              )}
             </div>
           )}
 
