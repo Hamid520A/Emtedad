@@ -579,32 +579,6 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          {contest.status === 'finished' && hasParticipated && (
-            <div className="bg-white dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-3">
-              {/* TODO: Temporary bypass for time_taken — hide زمان مصرفی from finished summary */}
-              {/* TODO: Temporary bypass for ranking visibility — score only */}
-              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] dark:from-[#0b0f19] dark:to-[#182234] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-1 gap-1 border border-transparent dark:border-slate-800">
-                {/* TODO: Temporary bypass for ranking visibility
-                <div className="text-center border-l border-white/10 flex flex-col justify-center">
-                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">رتبه نهایی</span>
-                  <span className="font-black text-sm sm:text-lg text-white">#{toPersianDigits(getLiveRank())}</span>
-                </div>
-                */}
-                <div className="text-center flex flex-col justify-center">
-                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">نمره شما</span>
-                  <span className="font-black text-sm sm:text-lg text-white">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
-                </div>
-                {/* TODO: Temporary bypass for time_taken
-                <div className="text-center flex flex-col justify-center">
-                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">زمان مصرفی</span>
-                  <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}ثانیه</span>
-                </div>
-                */}
-              </div>
-              <button onClick={() => router.push(`/review-final/${contest.id}`)} className="w-full bg-[#faf9f6] dark:bg-[#0b0f19] text-[#1a2e44] dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-[#233044] py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100 dark:border-slate-800"><FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات</button>
-            </div>
-          )}
-
           {contest.awards && Array.isArray(contest.awards) && contest.awards.length > 0 && (
             <div className="bg-white dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-2.5 text-right animate-in fade-in duration-300">
               <h4 className="font-black text-xs text-amber-800 dark:text-amber-400 flex items-center gap-1.5 mb-2">
