@@ -9,7 +9,19 @@ import { getCleanImageUrl } from '../../../lib/utils/url';
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye, LogOut } from 'lucide-react';
 import { openExternalLink } from '../../../lib/utils/url';
 
-const examDraftKey = (id: string | number) => `exam_draft_${id}`;
+const LEGACY_EXAM_DRAFT_KEY = (contestId: string | number) => `exam_draft_${contestId}`;
+
+const getDraftUserId = (): string => {
+  if (typeof window === 'undefined') return 'anonymous';
+  return (
+    localStorage.getItem('userId') ||
+    localStorage.getItem('user_id') ||
+    'anonymous'
+  );
+};
+
+const examDraftKey = (contestId: string | number, userId?: string) =>
+  `exam_draft_${contestId}_${userId || getDraftUserId()}`;
 
 const persistExamDraft = (
   contestId: string | number,
@@ -27,7 +39,19 @@ const persistExamDraft = (
 
 const loadExamDraft = (contestId: string | number) => {
   try {
-    const raw = localStorage.getItem(examDraftKey(contestId));
+    const primaryKey = examDraftKey(contestId);
+    let raw = localStorage.getItem(primaryKey);
+
+    // Migrate legacy contest-only drafts (pre user-scoped keys)
+    if (!raw) {
+      const legacyKey = LEGACY_EXAM_DRAFT_KEY(contestId);
+      raw = localStorage.getItem(legacyKey);
+      if (raw) {
+        localStorage.setItem(primaryKey, raw);
+        localStorage.removeItem(legacyKey);
+      }
+    }
+
     if (!raw) return null;
     return JSON.parse(raw) as {
       answers: Record<string | number, number | null>;
@@ -43,6 +67,7 @@ const loadExamDraft = (contestId: string | number) => {
 const clearExamDraft = (contestId: string | number) => {
   try {
     localStorage.removeItem(examDraftKey(contestId));
+    localStorage.removeItem(LEGACY_EXAM_DRAFT_KEY(contestId));
   } catch {}
 };
 
@@ -188,14 +213,32 @@ export default function ExamPage() {
           setQuestions(questionsRes.data || []);
           setCertificateType(contestRes.data.certificate_type || 'none');
 
+          // Ensure user-scoped draft key is available before rehydrate
+          try {
+            const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
+            if (profileRes.data?.id) {
+              localStorage.setItem('userId', String(profileRes.data.id));
+            }
+          } catch {
+            // Draft falls back to anonymous key if profile is unavailable
+          }
+
           // Restore answers if a previous session was interrupted by auth expiry
           const draft = loadExamDraft(cleanId);
           if (draft?.answers && typeof draft.answers === 'object') {
-            setAnswers(draft.answers);
-            if (typeof draft.timeLeft === 'number' && draft.timeLeft > 0 && draft.timeLeft <= limitInSeconds) {
-              setTimeLeft(draft.timeLeft);
+            const restored: { [key: number]: number } = {};
+            Object.entries(draft.answers).forEach(([qId, optId]) => {
+              if (optId !== null && optId !== undefined) {
+                restored[Number(qId)] = Number(optId);
+              }
+            });
+            if (Object.keys(restored).length > 0) {
+              setAnswers(restored);
+              if (typeof draft.timeLeft === 'number' && draft.timeLeft > 0 && draft.timeLeft <= limitInSeconds) {
+                setTimeLeft(draft.timeLeft);
+              }
+              toast.success('پاسخ‌های ذخیره‌شده قبلی بازیابی شد.');
             }
-            toast.success('پاسخ‌های ذخیره‌شده قبلی بازیابی شد.');
           }
 
           examLoadedRef.current = true;
