@@ -1,5 +1,7 @@
 /* frontend-admin/app/globals.css */
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
+@config "../tailwind.config.js";
 @custom-variant dark (&:is(.dark *));
 
 @theme {

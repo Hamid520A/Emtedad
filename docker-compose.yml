@@ -87,16 +87,17 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 1G
         reservations:
           cpus: '0.5'
           memory: 256M
+    mem_limit: 1G
     healthcheck:
       test:
       - CMD
       - curl
       - -f
-      - http://localhost:8000/docs
+      - http://localhost:8000/health
       interval: 30s
       timeout: 10s
       retries: 3
@@ -106,7 +107,7 @@ services:
     - postgres_data:/var/lib/postgresql/data
     environment:
     - POSTGRES_USER=${POSTGRES_USER:-emtedad_user}
-    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-123456}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     - POSTGRES_DB=${POSTGRES_DB:-emtedad_db}
     ports:
     - ${DB_HOST_PORT:-5432}:5432
@@ -156,8 +157,7 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    ports:
-    - "9090:9090"
+    # No host ports: reachable only on emtedad_network (e.g. http://prometheus:9090)
     volumes:
     - ./prometheus.yml:/etc/prometheus/prometheus.yml
     restart: unless-stopped
@@ -167,15 +167,15 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M
+          memory: 512M
         reservations:
           cpus: '0.1'
           memory: 128M
+    mem_limit: 512M
 
   grafana:
     image: grafana/grafana:latest
-    ports:
-    - "3030:3000"
+    # No host ports: reachable only on emtedad_network (e.g. http://grafana:3000)
     volumes:
     - grafana_data:/var/lib/grafana
     restart: unless-stopped

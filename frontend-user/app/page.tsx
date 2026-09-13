@@ -1,5 +1,6 @@
-// frontend-user/app/page.tsx
 'use client';
+// frontend-user/app/page.tsx
+
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api'; 
@@ -28,8 +29,8 @@ export default function DashboardPage() {
     
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
     if (isAdmin) {
-      // 🌟 آی‌پی هاردکد شده ادمین با آدرس تمیز دامنه جایگزین شد
-      window.location.href = `http://emtedad.ir-ma.ir:63001/admin/dashboard`;
+      const adminBase = (process.env.NEXT_PUBLIC_ADMIN_URL || '').replace(/\/$/, '');
+      window.location.href = `${adminBase}/admin/dashboard`;
       return;
     }
 

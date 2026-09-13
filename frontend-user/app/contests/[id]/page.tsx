@@ -1,18 +1,31 @@
-// frontend-user/app/contests/[id]/page.tsx
 'use client';
+// frontend-user/app/contests/[id]/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '../../../lib/api';
 import { 
   ArrowRight, Download, FileText, Clock, 
-  PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, Eye, ExternalLink, MapPin, Share2, Image
+  PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle,
+  Crown, Award, HelpCircle, X, Eye, ExternalLink, MapPin, Share2, Image
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
-import { 
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
-  XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell 
-} from 'recharts';
+const ContestAnalyticsCharts = dynamic(
+  () => import('./ContestAnalyticsCharts'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[280px] animate-pulse rounded-2xl bg-gray-100 dark:bg-slate-800" />
+    ),
+  }
+);
+
+const AdminContestControls = dynamic(
+  () => import('./AdminContestControls'),
+  { ssr: false }
+);
 
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
@@ -28,6 +41,7 @@ export default function ContestLandingPage() {
   const router = useRouter();
   const pathParams = useParams();
   const contestId = pathParams?.id as string;
+  const adminBase = (process.env.NEXT_PUBLIC_ADMIN_URL || '').replace(/\/$/, '');
   
   const [contest, setContest] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -68,9 +82,7 @@ export default function ContestLandingPage() {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
           const diffSec = Math.floor(diffMs / 1000);
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
-        }
-
-        if (contestRes.data.status === 'active' && contestRes.data.end_time) {
+        } else if (contestRes.data.status === 'active' && contestRes.data.end_time) {
           const endDiffMs = +new Date(contestRes.data.end_time) - +new Date(contestRes.data.server_now);
           const endDiffSec = Math.floor(endDiffMs / 1000);
           setEndSecondsLeft(endDiffSec > 0 ? endDiffSec : 0);
@@ -113,7 +125,13 @@ export default function ContestLandingPage() {
     if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null) return;
 
     if (totalSecondsLeft <= 0) {
-      setContest((prev: any) => ({ ...prev, status: 'active' }));
+      setContest((prev: any) => {
+        if (prev?.end_time) {
+          const remaining = Math.floor((+new Date(prev.end_time) - Date.now()) / 1000);
+          setEndSecondsLeft(remaining > 0 ? remaining : 0);
+        }
+        return { ...prev, status: 'active' };
+      });
       return;
     }
 
@@ -121,7 +139,13 @@ export default function ContestLandingPage() {
       setTotalSecondsLeft((prev) => {
         if (prev !== null && prev <= 1) {
           clearInterval(timer);
-          setContest((prevContest: any) => ({ ...prevContest, status: 'active' }));
+          setContest((prevContest: any) => {
+            if (prevContest?.end_time) {
+              const remaining = Math.floor((+new Date(prevContest.end_time) - Date.now()) / 1000);
+              setEndSecondsLeft(remaining > 0 ? remaining : 0);
+            }
+            return { ...prevContest, status: 'active' };
+          });
           return 0;
         }
         return prev && prev > 0 ? prev - 1 : 0;
@@ -130,6 +154,43 @@ export default function ContestLandingPage() {
 
     return () => clearInterval(timer);
   }, [contest, mounted, totalSecondsLeft]);
+
+  useEffect(() => {
+    if (!mounted || contest?.status !== 'active' || endSecondsLeft === null) return;
+
+    if (endSecondsLeft <= 0) {
+      setContest((prev: any) => ({ ...prev, status: 'finished' }));
+      setEndTimeLeft(null);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setEndSecondsLeft((prev) => {
+        if (prev !== null && prev <= 1) {
+          clearInterval(timer);
+          setContest((prevContest: any) => ({ ...prevContest, status: 'finished' }));
+          return 0;
+        }
+        return prev && prev > 0 ? prev - 1 : 0;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [contest?.status, mounted, endSecondsLeft]);
+
+  useEffect(() => {
+    if (endSecondsLeft === null || endSecondsLeft <= 0) {
+      setEndTimeLeft(null);
+      return;
+    }
+    const secs = endSecondsLeft;
+    setEndTimeLeft({
+      days: Math.floor(secs / (3600 * 24)),
+      hours: Math.floor((secs % (3600 * 24)) / 3600),
+      minutes: Math.floor((secs % 3600) / 60),
+      seconds: Math.floor(secs % 60),
+    });
+  }, [endSecondsLeft]);
 
   useEffect(() => {
     if (totalSecondsLeft === null || totalSecondsLeft <= 0) {
@@ -146,44 +207,8 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
-  useEffect(() => {
-    if (!mounted || contest?.status !== 'active' || endSecondsLeft === null) return;
-
-    if (endSecondsLeft <= 0) {
-      setContest((prev: any) => ({ ...prev, status: 'finished' }));
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setEndSecondsLeft((prev) => {
-        if (prev !== null && prev <= 1) {
-          clearInterval(timer);
-          setContest((prevContest: any) => ({ ...prevContest, status: 'finished' }));
-          return 0;
-        }
-        return prev && prev > 0 ? prev - 1 : 0;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [contest, mounted, endSecondsLeft]);
-
-  useEffect(() => {
-    if (endSecondsLeft === null || endSecondsLeft <= 0) {
-      setEndTimeLeft(null);
-      return;
-    }
-    const secs = endSecondsLeft;
-    setEndTimeLeft({
-      days: Math.floor(secs / (3600 * 24)),
-      hours: Math.floor((secs % (3600 * 24)) / 3600),
-      minutes: Math.floor((secs % 3600) / 60),
-      seconds: Math.floor(secs % 60),
-    });
-  }, [endSecondsLeft]);
-
   const handleBack = () => {
-    if (isAdminUser) window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
+    if (isAdminUser) window.location.href = `${adminBase}/admin/dashboard`;
     else router.push('/');
   };
 
@@ -196,8 +221,8 @@ export default function ContestLandingPage() {
 
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(fullTextToCopy)
-        .then(() => alert("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید."))
-        .catch(() => alert("❌ خطا در کپی کردن لینک."));
+        .then(() => toast.success("✅ لینک مسابقه با موفقیت کپی شد! می‌توانید آن را برای دوستان خود ارسال کنید."))
+        .catch(() => toast.error("❌ خطا در کپی کردن لینک."));
     } else {
       try {
         const textArea = document.createElement("textarea");
@@ -209,53 +234,11 @@ export default function ContestLandingPage() {
         textArea.select();
         const successful = document.execCommand('copy');
         document.body.removeChild(textArea);
-        if (successful) alert("✅ لینک مسابقه با موفقیت در کلیپ‌بورد کپی شد! می‌توانید آن را پیست کنید.");
-        else alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+        if (successful) toast.success("✅ لینک مسابقه با موفقیت در کلیپ‌بورد کپی شد! می‌توانید آن را پیست کنید.");
+        else toast.error("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
       } catch (err) {
-        alert("❌ خطا در کپی کردن لینک.");
+        toast.error("❌ خطا در کپی کردن لینک.");
       }
-    }
-  };
-
-  const changeContestStatus = async (newStatus: string) => {
-    if (newStatus === 'active') {
-      try {
-        const questionsRes = await api.get(`/contests/${contest.id}/questions`);
-        const actualQuestionsCount = questionsRes.data?.length || 0;
-        const targetLimit = parseInt(contest.question_limit || 0, 10);
-
-        if (actualQuestionsCount === 0) return alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید از قسمت «مدیریت سوالات» برای مسابقه سوال طرح کنید.");
-        if (actualQuestionsCount < targetLimit) {
-          const ignoreWarning = window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`);
-          if (!ignoreWarning) return;
-        }
-      } catch (error) {
-        return alert("خطا در اعتبارسنجی سوالات");
-      }
-    }
-
-    const actionText = newStatus === 'active' ? 'شروع فوری مسابقه' : newStatus === 'draft' ? 'توقف و مخفی‌سازی مسابقه' : newStatus === 'resume' ? 'فعال‌سازی و انتشار مجدد خودکار' : 'پایان دادن به مسابقه';
-    if (!window.confirm(`آیا از ${actionText} مطمئن هستید؟`)) return;
-
-    try {
-      const response = await api.patch(`/admin/contests/${contest.id}`, { status: newStatus });
-      setContest({ ...contest, status: response.data.status, start_time: response.data.start_time });
-      if (response.data.status === 'active') setTimeLeft(null);
-      alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
-    } catch (error) {
-      alert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
-    }
-  };
-
-  const deleteContest = async () => {
-    if (!window.confirm("⚠️ آیا از حذف کامل این مسابقه مطمئن هستید؟ این عملیات غیرقابل بازگشت است!")) return;
-    try {
-      await api.delete(`/admin/contests/${contest.id}`);
-      alert("مسابقه با موفقیت از سیستم حذف شد.");
-      if (isAdminUser) window.location.href = `https://admin-emtedad.ir-ma.ir/admin/dashboard`;
-      else router.push('/'); 
-    } catch (error) {
-      alert("خطا در حذف مسابقه. لطفاً دوباره تلاش کنید.");
     }
   };
 
@@ -345,126 +328,34 @@ export default function ContestLandingPage() {
         <div className="lg:col-span-2 space-y-6">
           
           {isAdminUser && (
-            <div className="bg-white/95 dark:bg-[#182234]/95 backdrop-blur-md border border-red-100 dark:border-red-900/40 p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] flex flex-col gap-4 shadow-md relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
-              
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-slate-800 pb-3">
-                <div className="flex items-center gap-2">
-                  <Settings size={18} className="text-red-500" />
-                  <span className="text-[11px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest">کنسول مدیریتی ابزارها</span>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/edit`} className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all active:scale-95">✏️ ویرایش مسابقه</button>
-                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/questions`} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black text-[11px] sm:text-xs hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95">📝 مدیریت سوالات</button>
-                  <button onClick={() => window.location.href = `https://admin-emtedad.ir-ma.ir/admin/contests/${contest.id}/participants`} className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Users size={14} /><span>شرکت‌کنندگان</span></button>
-                  <button onClick={deleteContest} className="bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1 font-black text-[11px] sm:text-xs active:scale-95"><Trash2 size={14} /><span>حذف</span></button>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap justify-end gap-2">
-                {(contest.status === 'active' || contest.status === 'upcoming') && (
-                  <button onClick={() => changeContestStatus('draft')} className="w-full sm:w-auto bg-amber-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-amber-600">⏸️ توقف و مخفی‌سازی اضطراری</button>
-                )}
-                {contest.status === 'upcoming' && (
-                  <button onClick={() => changeContestStatus('active')} className="w-full sm:w-auto bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-red-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-red-600"><PlayCircle size={15} /> شروع فوری رقابت</button>
-                )}
-                {contest.status === 'active' && (
-                  <button onClick={() => changeContestStatus('finished')} className="w-full sm:w-auto bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] px-5 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]"><Power size={15} className="text-[#c5a059] dark:text-[#1a2e44]" /> اتمام نهایی مسابقه</button>
-                )}
-                {contest.status === 'draft' && (
-                  <button onClick={() => changeContestStatus('resume')} className="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-emerald-700">▶️ فعال‌سازی و انتشار مجدد مسابقه</button>
-                )}
-              </div>
-            </div>
+            <AdminContestControls
+              contest={contest}
+              adminBase={adminBase}
+              onContestUpdate={(updated) => {
+                setContest(updated);
+                if (updated.status === 'active') {
+                  setTimeLeft(null);
+                  if (updated.end_time) {
+                    const remaining = Math.floor((+new Date(updated.end_time) - Date.now()) / 1000);
+                    setEndSecondsLeft(remaining > 0 ? remaining : 0);
+                  }
+                }
+              }}
+            />
           )}
 
           {isAdminUser && analyticsData && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-                  <Clock size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">آنالیز توزیع زمانی حضور شرکت‌کنندگان</h3>
-                </div>
-                <div className="w-full h-64 text-xs font-bold font-sans">
-                  <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={analyticsData.time_distribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorTimeTheme" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#c5a059" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#c5a059" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="name" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right', fontSize: '11px', fontFamily: 'sans-serif' }} />
-                      <Area type="monotone" dataKey="users" name="تعداد شرکت‌کننده" stroke="#1a2e44" strokeWidth={3} fillOpacity={1} fill="url(#colorTimeTheme)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-                  <BarChart3 size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">پاسخ‌های صحیح و اشتباه به تفکیک سوالات</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={analyticsData.questions_stats} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Legend verticalAlign="top" height={36} iconType="circle" />
-                      <Bar dataKey="correct" name="پاسخ صحیح" fill="#0f766e" radius={[4, 4, 0, 0]} barSize={9} onClick={(item) => { if(item?.payload) { setSelectedQuestion(item.payload); setQuestionModalOpen(true); } }} />
-                      <Bar dataKey="incorrect" name="پاسخ اشتباه" fill="#be123c" radius={[4, 4, 0, 0]} barSize={9} onClick={(item) => { if(item?.payload) { setSelectedQuestion(item.payload); setQuestionModalOpen(true); } }} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-                  <MapPin size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">پراکندگی جغرافیایی شرکت‌کنندگان (استان‌ها)</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={analyticsData.province_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="province" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Bar dataKey="count" name="تعداد شرکت‌کننده" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={12} onClick={(item) => { if (item?.payload) { setSelectedProvince(item.payload); setProvinceModalOpen(true); } }} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-                  <Users size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">تفکیک جنسیت شرکت‌کنندگان</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={analyticsData.gender_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Bar dataKey="count" name="تعداد شرکت‌کننده" radius={[4, 4, 0, 0]} barSize={40}>
-                        { (analyticsData.gender_stats || []).filter((e: any) => e.gender === "مرد" || e.gender === "زن").map((e: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={e.gender === "مرد" ? "#3b82f6" : "#ec4899"} />
-                        )) }
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
+            <ContestAnalyticsCharts
+              analyticsData={analyticsData}
+              onQuestionClick={(payload) => {
+                setSelectedQuestion(payload);
+                setQuestionModalOpen(true);
+              }}
+              onProvinceClick={(payload) => {
+                setSelectedProvince(payload);
+                setProvinceModalOpen(true);
+              }}
+            />
           )}
 
           <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4 pt-6 sm:pt-8">
@@ -570,7 +461,7 @@ export default function ContestLandingPage() {
                 </div>
               ) : contest.status === 'active' ? (
                 <button onClick={() => {
-                  if (!profile) return alert("⚠️ برای شرکت در مسابقه ابتدا باید وارد حساب کاربری خود شوید.");
+                  if (!profile) return toast.error("⚠️ برای شرکت در مسابقه ابتدا باید وارد حساب کاربری خود شوید.");
                   if (window.confirm('⚠️ توجه!\n\nپس از ورود به آزمون، امکان خروج و ادامه مجدد آزمون وجود ندارد.\n\nآیا مطمئن هستید که می‌خواهید وارد آزمون شوید؟')) router.push(`/exam/${contest.id}`);
                 }} className="w-full bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a] dark:hover:bg-[#b08e4a]">
                   <PlayCircle size={20} className="text-[#c5a059] dark:text-[#1a2e44]" /> ورود به آزمون
@@ -648,34 +539,42 @@ export default function ContestLandingPage() {
           )}
 
           {contest.status === 'active' && contest.end_time && (
-            <div className="bg-[#1a2e44] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border border-[#2a405a] dark:border-slate-800">
+            <div className={`p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border ${
+              endSecondsLeft !== null && endSecondsLeft <= 900
+                ? 'bg-red-700 border-red-500/40'
+                : endSecondsLeft !== null && endSecondsLeft <= 3600
+                  ? 'bg-amber-700 border-amber-500/40'
+                  : 'bg-[#1a2e44] dark:bg-[#182234] border-[#2a405a] dark:border-slate-800'
+            }`}>
               <Clock className="absolute -left-6 -top-6 opacity-5" size={100} />
-              <h3 className="text-[#c5a059] text-xs font-black mb-4 flex items-center gap-1.5">
+              <h3 className={`text-xs font-black mb-4 flex items-center gap-1.5 ${
+                endSecondsLeft !== null && endSecondsLeft <= 900 ? 'text-red-100' : 'text-[#c5a059]'
+              }`}>
                 <Clock size={16} /> شمارش معکوس تا پایان مسابقه
               </h3>
               {endTimeLeft ? (
                 <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center" dir="ltr">
-                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5">
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
                     <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.days)}</span>
-                    <span className="text-[9px] text-gray-400 font-bold">روز</span>
+                    <span className="text-[9px] text-white/70 font-bold">روز</span>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5">
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
                     <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.hours)}</span>
-                    <span className="text-[9px] text-gray-400 font-bold">ساعت</span>
+                    <span className="text-[9px] text-white/70 font-bold">ساعت</span>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5">
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
                     <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.minutes)}</span>
-                    <span className="text-[9px] text-gray-400 font-bold">دقیقه</span>
+                    <span className="text-[9px] text-white/70 font-bold">دقیقه</span>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-1.5 sm:p-2 border border-white/5">
-                    <span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(endTimeLeft.seconds)}</span>
-                    <span className="text-[9px] text-gray-400 font-bold">ثانیه</span>
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className={`block text-base sm:text-xl font-black ${
+                      endSecondsLeft !== null && endSecondsLeft <= 900 ? 'text-white' : 'text-[#c5a059]'
+                    }`}>{toPersianDigits(endTimeLeft.seconds)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">ثانیه</span>
                   </div>
                 </div>
               ) : (
-                <span className="text-xs font-bold text-gray-300">
-                  مهلت مسابقه به پایان رسیده است
-                </span>
+                <span className="text-xs font-bold text-white/80">مسابقه در حال اتمام است...</span>
               )}
             </div>
           )}
@@ -913,17 +812,17 @@ export default function ContestLandingPage() {
             textArea.select();
             try {
               document.execCommand('copy');
-              alert(downloadLinkCopiedMessage);
+              toast.error(downloadLinkCopiedMessage);
             } catch (err) {
               console.error('Fallback copy failed', err);
-              alert("امکان کپی خودکار وجود ندارد. لطفاً لینک را دستی کپی کنید.");
+              toast.error("امکان کپی خودکار وجود ندارد. لطفاً لینک را دستی کپی کنید.");
             }
             document.body.removeChild(textArea);
           };
 
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(downloadUrl)
-              .then(() => alert(downloadLinkCopiedMessage))
+              .then(() => toast.error(downloadLinkCopiedMessage))
               .catch(() => fallbackCopy(downloadUrl));
           } else {
             fallbackCopy(downloadUrl);

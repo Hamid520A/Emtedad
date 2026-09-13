@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-# مرحله دوم: بیلد کردن پروژه نکست‌جی‌اس
+# مرحله دوم: بیلد کردن پروژه نکست‌جی‌اس (standalone)
 FROM docker.arvancloud.ir/library/node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -17,19 +17,22 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
 
-# مرحله سوم: اجرای فرانت‌ند در محیط پروداکشن با کمترین حجم ممکن
+# مرحله سوم: اجرای server.js تولیدشده توسط output: 'standalone'
 FROM docker.arvancloud.ir/library/node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
-# کپی کردن فقط فایل‌های ضروری برای اجرا (حذف کدهای اضافی)
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
+RUN apk add --no-cache wget \
+  && addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
 COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+USER nextjs
 EXPOSE 3000
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

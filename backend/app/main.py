@@ -26,7 +26,15 @@ from uuid import UUID
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # این لاگر در خطوط پایین‌تر فایل ساخته می‌شود و هنگام استارت در دسترس است
+    global r_async
     logger.info("Application is warming up...")
+    r_async = redis.asyncio.Redis(
+        host=RATELIMIT_REDIS_HOST,
+        port=RATELIMIT_REDIS_PORT,
+        db=RATELIMIT_REDIS_DB,
+        decode_responses=True,
+        socket_timeout=5,
+    )
     yield
     logger.info("Initiating graceful shutdown...")
     try:
@@ -34,6 +42,13 @@ async def lifespan(app: FastAPI):
         logger.info("Closed RateLimiter Redis connection.")
     except Exception as e:
         logger.error(f"Error closing RateLimiter Redis: {e}")
+
+    try:
+        if r_async is not None:
+            await r_async.aclose()
+            logger.info("Closed async RateLimiter Redis connection.")
+    except Exception as e:
+        logger.error(f"Error closing async RateLimiter Redis: {e}")
         
     try:
         r_eitaa.close()
@@ -51,7 +66,13 @@ app = FastAPI(lifespan=lifespan)
 models.Base.metadata.create_all(bind=database.engine)
 
 # 🌟 فعال‌سازی متریک‌های پرومتئوس به صورت مخفی و محدود شده به شبکه داخلی
-Instrumentator().instrument(app).expose(app, include_in_schema=False)
+Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=False,
+    should_group_untemplated=True,  # /contests/123 → grouped, not per-ID series
+    should_respect_env_var=False,
+    excluded_handlers=["/metrics", "/health", "/ready"],
+).instrument(app).expose(app, include_in_schema=False)
 
 # In-flight requests currently held by Uvicorn workers (detect pool exhaustion)
 HTTP_REQUESTS_IN_PROGRESS = Gauge(
@@ -84,31 +105,19 @@ logger.addHandler(log_handler)
 # غیرفعال‌سازی لاگ‌های دیفالت uvicorn برای جلوگیری از اسپم متنی
 logging.getLogger("uvicorn.access").disabled = True
 
-# 🌟 میدلور تزریق Traceability (Request ID) — pure @app.middleware (avoids BaseHTTPMiddleware sync-route bugs)
-@app.middleware("http")
-async def request_tracing_middleware(request: Request, call_next):
-    req_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
-    token = request_id_context.set(req_id)
-    try:
-        response = await call_next(request)
-        if response is not None:
-            response.headers["X-Request-ID"] = req_id
-        return response
-    finally:
-        request_id_context.reset(token)
-
 # ۱. اتصال به سرور دیتابیس Redis برای Rate Limiting
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback_temporary_secret_key_for_development")
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() in ("true", "1", "yes")
 
-if SECRET_KEY == "fallback_temporary_secret_key_for_development" and not DEBUG_MODE:
-    raise RuntimeError("FATAL SECURITY ERROR: Running in production with a fallback SECRET_KEY is strictly forbidden.")
+if not SECRET_KEY or SECRET_KEY == "fallback_temporary_secret_key_for_development":
+    raise RuntimeError("FATAL SECURITY ERROR: Running with a fallback SECRET_KEY is strictly forbidden.")
 
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 RATELIMIT_REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 RATELIMIT_REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 RATELIMIT_REDIS_DB = int(os.getenv("REDIS_DB", 0))
 r = redis.Redis(host=RATELIMIT_REDIS_HOST, port=RATELIMIT_REDIS_PORT, db=RATELIMIT_REDIS_DB, decode_responses=True, socket_timeout=5)
+r_async = None  # assigned in lifespan for RateLimiterASGIMiddleware
 
 # ۲. اتصال اختصاصی به سرور Redis برای سشن‌های ایتا (پورت ۶۳۸۹ و آی‌پِی ۱۰.۱۰.۲۰.۵۱)
 EITAA_REDIS_HOST = os.getenv("EITAA_REDIS_HOST", "redis")
@@ -132,22 +141,78 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.middleware("http")
-async def add_download_headers(request: Request, call_next):
-    response = await call_next(request)
-    path = request.url.path.lower()
-    if path.startswith("/static/") and path.endswith((".pdf", ".doc", ".docx", ".zip", ".rar", ".mp4")):
-        if request.query_params.get("download") == "true":
-            filename = os.path.basename(request.url.path)
-            response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return response
+# Pure ASGI request tracing (no BaseHTTPMiddleware / call_next)
+class RequestTracingASGIMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        header_map = {
+            k.decode("latin-1").lower(): v.decode("latin-1")
+            for k, v in scope.get("headers", [])
+        }
+        req_id = header_map.get("x-correlation-id") or str(uuid.uuid4())
+        token = request_id_context.set(req_id)
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"x-request-id", req_id.encode("latin-1")))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            request_id_context.reset(token)
+
+
+# Pure ASGI Content-Disposition injector for ?download=true static files
+class DownloadHeadersASGIMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = (scope.get("path") or "").lower()
+        query = (scope.get("query_string") or b"").decode("latin-1")
+        attachment_exts = (".pdf", ".doc", ".docx", ".zip", ".rar", ".mp4")
+        needs_attachment = (
+            path.startswith("/static/")
+            and path.endswith(attachment_exts)
+            and "download=true" in query
+        )
+        if not needs_attachment:
+            await self.app(scope, receive, send)
+            return
+
+        filename = os.path.basename(scope.get("path") or "download")
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((
+                    b"content-disposition",
+                    f'attachment; filename="{filename}"'.encode("latin-1"),
+                ))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 # ۲. هماهنگ‌سازی کلیدهای JWT با فایل auth
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 EITAA_API_URL = os.getenv("EITAA_API_URL", "http://127.0.0.1:3000/send")
 EITAA_DISABLED = os.getenv("EITAA_DISABLED", "true").lower() in ("true", "1", "yes")
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "180"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 LIMIT_WINDOW = 60       # پنجره زمانی بر اساس ثانیه (۱ دقیقه)
 MAX_REQUESTS = 60       # حداکثر تعداد درخواست مجاز در یک دقیقه برای صفحات عمومی
 BLOCK_DURATION = 900    # زمان بلاک شدن IP در صورت اصرار بر تخلف (۱۵ دقیقه به ثانیه)
@@ -171,7 +236,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health", tags=["System"])
 def liveness_probe():
-    return {"status": "alive"}
+    return {"status": "ok"}
 
 @app.get("/ready", tags=["System"])
 def readiness_probe(db: Session = Depends(database.get_db)):
@@ -258,6 +323,25 @@ def create_jwt_token(data: dict, expires_delta: timedelta):
     expire = datetime.utcnow() + expires_delta
     safe_data.update({"exp": expire})
     return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
+
+def invalidate_contest_list_cache() -> None:
+    """Drop public GET /contests cache keys after contest mutations."""
+    try:
+        for key in r.scan_iter(match="cache:contests:all:*", count=100):
+            r.delete(key)
+    except redis.RedisError as e:
+        logger.warning(f"Contest list cache invalidation failed: {e}")
+
+def invalidate_leaderboard_cache(contest_id: int) -> None:
+    """Drop leaderboard cache after score-changing mutations."""
+    if contest_id is None:
+        return
+    try:
+        r.delete(f"cache:leaderboard:{contest_id}")
+    except redis.RedisError as e:
+        logger.warning(
+            f"Leaderboard cache invalidation failed for contest {contest_id}: {e}"
+        )
 
 def safe_load_image(url_str):
     if not url_str:
@@ -494,13 +578,42 @@ def draw_certificate_canvas(user, contest, subscription):
 # سیستم پیشرفته Rate Limiting و بلاک موقت IP بر پایه ردیس پروژه
 # =====================================================================
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # Pure ASGI rate limiter — avoids BaseHTTPMiddleware / call_next stream bugs
 # (StaticFiles streaming + client disconnects no longer raise "No response returned")
 class RateLimiterASGIMiddleware:
     def __init__(self, app):
         self.app = app
+
+    @staticmethod
+    def _client_ip(scope) -> str:
+        header_map = {
+            k.decode("latin-1").lower(): v.decode("latin-1")
+            for k, v in scope.get("headers", [])
+        }
+        xff = header_map.get("x-forwarded-for")
+        if xff:
+            client_ip = xff.split(",")[0].strip()
+        else:
+            client = scope.get("client")
+            client_ip = client[0] if client else "unknown_ip"
+
+        if "127.0.0.1" in client_ip or client_ip in ["::1", "localhost", "::ffff:127.0.0.1"]:
+            return "127.0.0.1"
+        return client_ip
+
+    @staticmethod
+    def _is_sensitive_auth_path(path: str) -> bool:
+        return path in {
+            "/login",
+            "/register",
+            "/send-otp",
+            "/verify-otp",
+            "/reset-password",
+            "/admin/login",
+            "/auth/refresh",
+            "/swagger-login",
+            "/users/change-password",
+        }
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -515,10 +628,8 @@ class RateLimiterASGIMiddleware:
             await self.app(scope, receive, send)
             return
 
-        client = scope.get("client")
-        client_ip = client[0] if client else "unknown_ip"
-        if "127.0.0.1" in client_ip or client_ip in ["::1", "localhost", "::ffff:127.0.0.1"]:
-            client_ip = "127.0.0.1"
+        client_ip = self._client_ip(scope)
+        sensitive = self._is_sensitive_auth_path(path)
 
         cors_headers = {
             "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
@@ -528,10 +639,13 @@ class RateLimiterASGIMiddleware:
         }
 
         try:
+            if r_async is None:
+                raise redis.RedisError("async redis client not initialized")
+
             block_key = f"blocked_ip:{client_ip}"
-            is_blocked = r.get(block_key)
+            is_blocked = await r_async.get(block_key)
             if is_blocked:
-                ttl = r.ttl(block_key)
+                ttl = await r_async.ttl(block_key)
                 minutes_left = max(1, (ttl if ttl and ttl > 0 else BLOCK_DURATION) // 60)
                 response = JSONResponse(
                     status_code=403,
@@ -543,10 +657,18 @@ class RateLimiterASGIMiddleware:
 
             path_suffix = path.strip("/").replace("/", "_") or "root"
             rate_key = f"rate_limit:{client_ip}:{path_suffix}"
-            current_requests = r.get(rate_key)
+            current_requests = await r_async.get(rate_key)
 
             route_max_limit = MAX_REQUESTS
-            if path in ["/login", "/register", "/users/change-password"]:
+            if path in [
+                "/login",
+                "/register",
+                "/users/change-password",
+                "/send-otp",
+                "/verify-otp",
+                "/reset-password",
+                "/auth/refresh",
+            ]:
                 route_max_limit = 10
             elif path.endswith("/submissions") or path == "/submissions":
                 route_max_limit = 10
@@ -558,12 +680,12 @@ class RateLimiterASGIMiddleware:
                 try:
                     request_count = int(current_requests)
                 except (TypeError, ValueError):
-                    r.delete(rate_key)
+                    await r_async.delete(rate_key)
                     request_count = 0
 
             if request_count >= route_max_limit:
-                r.setex(block_key, BLOCK_DURATION, "true")
-                r.delete(rate_key)
+                await r_async.setex(block_key, BLOCK_DURATION, "true")
+                await r_async.delete(rate_key)
                 response = JSONResponse(
                     status_code=429,
                     content={"detail": "تعداد درخواست‌های شما بیش از حد مجاز است! دسترسی شما به مدت ۱۵ دقیقه مسدود شد."},
@@ -573,18 +695,35 @@ class RateLimiterASGIMiddleware:
                 return
 
             if request_count == 0:
-                r.setex(rate_key, LIMIT_WINDOW, 1)
+                await r_async.setex(rate_key, LIMIT_WINDOW, 1)
             else:
-                r.incr(rate_key)
+                await r_async.incr(rate_key)
 
         except redis.RedisError as e:
-            logger.warning(f"Redis rate-limit bypassed: {e}")
+            logger.warning(f"Redis rate-limit error: {e}")
+            if sensitive:
+                response = JSONResponse(
+                    status_code=503,
+                    content={"detail": "سرویس موقتاً در دسترس نیست. لطفاً کمی بعد دوباره تلاش کنید."},
+                    headers=cors_headers,
+                )
+                await response(scope, receive, send)
+                return
         except Exception as e:
-            logger.warning(f"Rate limiter skipped due to error; bypassing. {e}")
+            logger.warning(f"Rate limiter unexpected error: {e}")
+            if sensitive:
+                response = JSONResponse(
+                    status_code=503,
+                    content={"detail": "سرویس موقتاً در دسترس نیست. لطفاً کمی بعد دوباره تلاش کنید."},
+                    headers=cors_headers,
+                )
+                await response(scope, receive, send)
+                return
 
         await self.app(scope, receive, send)
 
 
+app.add_middleware(DownloadHeadersASGIMiddleware)
 app.add_middleware(RateLimiterASGIMiddleware)
 
 # Pure ASGI gauge — avoids BaseHTTPMiddleware / call_next stream bugs
@@ -612,6 +751,7 @@ class InProgressRequestsASGIMiddleware:
 
 
 app.add_middleware(InProgressRequestsASGIMiddleware)
+app.add_middleware(RequestTracingASGIMiddleware)
 
 # =====================================================================
 # بخش دوم فایل main.py: روت‌های احراز هویت، مسابقات، سوالات و کارنامه
@@ -822,10 +962,13 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db))
         "sub": user.phone_number,
         "is_admin": False
     })
+    refresh = auth.create_refresh_token(data={"sub": user.phone_number})
     
     return {
-        "access_token": token, 
-        "token_type": "bearer"
+        "access_token": token,
+        "refresh_token": refresh,
+        "token_type": "bearer",
+        "is_admin": False,
     }
 
 @app.post("/swagger-login", tags=["System"], include_in_schema=False)
@@ -882,14 +1025,17 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
         
     results = query.all()
     
-    # ذخیره در کش ردیس (مدت زمان ۳۰ ثانیه)
+    # ذخیره در کش ردیس (مدت زمان ۳۰ ثانیه) — بدون sms_message
     try:
-        from fastapi.encoders import jsonable_encoder
-        r.setex(cache_key, 30, json.dumps(jsonable_encoder(results)))
+        payload = [
+            schemas.ContestListItem.model_validate(c).model_dump(mode="json")
+            for c in results
+        ]
+        r.setex(cache_key, 30, json.dumps(payload, default=str))
+        return payload
     except Exception as e:
         print(f"Cache save error: {e}")
-        
-    return results
+        return results
 
 @app.get("/contests/{contest_id}")
 def get_contest_detail(
@@ -913,6 +1059,7 @@ def get_contest_detail(
         content["server_now"] = datetime.now().isoformat()
         # certificate_details is admin-only — never stored in the shared cache
         content["certificate_details"] = None
+        content.pop("sms_message", None)
         if current_user and current_user.admin and current_user.admin.is_active == 1:
             contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
             if contest and contest.certificates:
@@ -930,6 +1077,8 @@ def get_contest_detail(
                         for cs in cert.certificate_signers[:3]
                     ],
                 }
+            if contest:
+                content["sms_message"] = contest.sms_message
         return JSONResponse(status_code=200, headers=cors_headers, content=content)
 
     contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
@@ -996,13 +1145,15 @@ def get_contest_detail(
         "certificate_details": None,  # never put admin-only data in shared Redis
         "success_message": contest.success_message,
         "failure_message": contest.failure_message,
-        "sms_message": contest.sms_message,
+        # sms_message is admin-only — never put in shared Redis
     }
     _cache_set_json(cache_key, public_payload, CACHE_TTL_CONTEST_DETAIL)
 
     response_content = dict(public_payload)
     response_content["server_now"] = datetime.now().isoformat()
     response_content["certificate_details"] = cert_payload
+    if current_user and current_user.admin and current_user.admin.is_active == 1:
+        response_content["sms_message"] = contest.sms_message
     return JSONResponse(status_code=200, headers=cors_headers, content=response_content)
 
 @app.get("/contests/{contest_id}/questions", response_model=List[schemas.RandomizedQuestion])
@@ -1021,9 +1172,8 @@ def get_questions_list(
         models.Subscription.contest_id == contest_id
     ).first()
 
-    is_admin_user = bool(
-        getattr(current_user, "admin", None) and current_user.admin.is_active == 1
-    )
+    # User model has no is_admin/role attrs — use admins relation
+    is_admin_user = bool(current_user.admin and current_user.admin.is_active == 1)
 
     if existing_subscription and not is_admin_user:
         raise HTTPException(
@@ -1179,6 +1329,7 @@ def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(dat
 
     db.commit()
     db.refresh(db_contest)
+    invalidate_contest_list_cache()
     return db_contest
 
 @app.post("/contests/{contest_id}/questions", response_model=schemas.Question)
@@ -1251,19 +1402,23 @@ async def upload_file(
     import shutil, os, re
     
     try:
-        # ۱. بررسی نوع فایل (MIME Type + پسوند)
+        # ۱. بررسی نوع فایل (پسوند سخت‌گیرانه؛ MIME فقط کمکی است)
         allowed_mimes = {
-            "image/jpeg", "image/png", "image/webp", "application/pdf", "image/svg+xml",
+            "image/jpeg", "image/png", "image/webp", "application/pdf",
             "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4",
             "audio/x-wav", "audio/wave", "audio/x-m4a", "audio/aac",
         }
         allowed_extensions = {
-            ".jpg", ".jpeg", ".png", ".webp", ".svg", ".pdf",
+            ".jpg", ".jpeg", ".png", ".webp", ".pdf",
             ".mp3", ".wav", ".ogg", ".m4a", ".aac",
+        }
+        blocked_extensions = {
+            ".svg", ".html", ".htm", ".js", ".mjs", ".exe", ".sh", ".bat",
+            ".cmd", ".php", ".asp", ".aspx", ".jsp", ".cgi",
         }
         mime_to_ext = {
             "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
-            "image/svg+xml": ".svg", "application/pdf": ".pdf",
+            "application/pdf": ".pdf",
             "audio/mpeg": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav",
             "audio/wave": ".wav", "audio/ogg": ".ogg", "audio/mp4": ".m4a",
             "audio/x-m4a": ".m4a", "audio/aac": ".aac",
@@ -1285,23 +1440,19 @@ async def upload_file(
         file_ext = os.path.splitext(safe_filename)[1].lower()
         content_type = (file.content_type or "").lower()
 
-        mime_ok = content_type in allowed_mimes
-        ext_ok = file_ext in allowed_extensions
-        if not mime_ok and not ext_ok:
+        if file_ext in blocked_extensions:
             raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
 
-        # سوپاپ اطمینان برای اسم‌های کاملاً فارسی که فرمتشان پاک می‌شود
+        # Missing/odd filenames: map ONLY from an allowlisted MIME — never invent from "image/*"
+        if not file_ext:
+            file_ext = mime_to_ext.get(content_type, "")
+
         if file_ext not in allowed_extensions:
-            file_ext = mime_to_ext.get(content_type)
-            if not file_ext:
-                if "image" in content_type:
-                    file_ext = ".jpg"
-                elif "audio" in content_type:
-                    file_ext = ".mp3"
-                elif "pdf" in content_type:
-                    file_ext = ".pdf"
-                else:
-                    raise HTTPException(status_code=400, detail="پسوند فایل قابل تشخیص نیست.")
+            raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
+
+        # If client sent a MIME, it must match the allowlist (do not trust alone)
+        if content_type and content_type not in allowed_mimes:
+            raise HTTPException(status_code=400, detail="فرمت فایل غیرمجاز است.")
 
         # ۴. ساخت نام یکتا و مسیر فایل
         unique_filename = f"{uuid.uuid4().hex}{file_ext}"
@@ -1320,9 +1471,8 @@ async def upload_file(
     except HTTPException:
         raise
     except Exception as e:
-        # 🌟 چاپ دقیق خطا در کنسولِ سرور به جای ارور گنگ ۵۰۰
-        print(f"❌ Upload Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"خطا در پردازش فایل: {str(e)}")
+        logger.error(f"Upload Error: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="خطا در پردازش فایل. لطفاً دوباره تلاش کنید.")
 
 CACHE_TTL_CONTEST_DETAIL = 3600  # safety net; primary freshness via invalidation
 CACHE_TTL_ANALYTICS = 600
@@ -1474,7 +1624,11 @@ def update_my_profile(
     normalized_date = fa_to_en_digits(payload.birth_date).replace("-", "/")
     user.birth_date = jdatetime.datetime.strptime(normalized_date, '%Y/%m/%d').togregorian().date()
 
-    db_city = db.query(models.City).filter(models.City.title == payload.city).first()
+    # Resolve by city_id only, and require a real city (must have a province parent)
+    db_city = db.query(models.City).filter(
+        models.City.id == payload.city_id,
+        models.City.parent_id.isnot(None),
+    ).first()
     if not db_city:
         raise HTTPException(status_code=400, detail="شهر انتخاب شده معتبر نیست.")
     user.city_id = db_city.id
@@ -1494,8 +1648,17 @@ def get_my_complete_profile(
                   .first()
                   
     # ۲. استخراج هوشمند نام شهر و استان از جدول رابطه‌ای
-    city_title = user_data.city.title if user_data.city else "---"
-    province_title = user_data.city.parent.title if (user_data.city and user_data.city.parent) else "---"
+    # اگر city_id اشتباهاً به یک استان (parent_id=NULL) اشاره کند، عنوان آن را به‌عنوان استان نشان بده
+    city_id_value = user_data.city.id if user_data.city else None
+    if user_data.city and user_data.city.parent:
+        city_title = user_data.city.title
+        province_title = user_data.city.parent.title
+    elif user_data.city and user_data.city.parent_id is None:
+        province_title = user_data.city.title
+        city_title = "---"
+    else:
+        city_title = "---"
+        province_title = "---"
     
     # ۳. واکشی تاریخچه مسابقات کاربر از جدول subscriptions
     history_records = []
@@ -1534,6 +1697,7 @@ def get_my_complete_profile(
         "national_id": user_data.national_id,
         "is_iranian": getattr(user_data, 'is_iranian', True),
         "birth_date": jdatetime.date.fromgregorian(date=user_data.birth_date).strftime('%Y/%m/%d') if user_data.birth_date else "---",
+        "city_id": city_id_value,
         "city_title": city_title,
         "province_title": province_title,
         "history": history_records
@@ -1914,7 +2078,13 @@ def admin_login(login_data: schemas.UserLogin, db: Session = Depends(database.ge
         
     # ۳. صدور توکن مدیریت
     token = auth.create_access_token(data={"sub": user.phone_number, "is_admin": True})
-    return {"access_token": token, "token_type": "bearer", "is_admin": True}
+    refresh = auth.create_refresh_token(data={"sub": user.phone_number})
+    return {
+        "access_token": token,
+        "refresh_token": refresh,
+        "token_type": "bearer",
+        "is_admin": True,
+    }
 
 @app.delete("/admin/contests/{contest_id}")
 @app.delete("/admin/contest/{contest_id}")
@@ -2888,7 +3058,6 @@ def update_contest(
 
     db.commit()
     db.refresh(db_contest)
-    
     _invalidate_contest_caches(contest_id)
 
     return {
@@ -2917,7 +3086,11 @@ def get_admin_questions_list(
     return questions
 
 @app.get("/admin/contests/{contest_id}/analytics")
-def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db)):
+def get_contest_analytics(
+    contest_id: int,
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin),
+):
     cors_headers = {
         "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
         "Access-Control-Allow-Credentials": "true",
@@ -3087,27 +3260,39 @@ def get_contest_analytics(contest_id: int, db: Session = Depends(database.get_db
     return JSONResponse(status_code=200, content=payload, headers=cors_headers)
 
 @app.post("/auth/refresh")
-def refresh_access_token(payload: dict):
+def refresh_access_token(payload: dict, db: Session = Depends(database.get_db)):
     refresh_token = payload.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=400, detail="ریفرش توکن ارسال نشده است")
         
     try:
         decoded_data = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True, "verify_exp": True})
+        if decoded_data.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="توکن نامعتبر است")
+
         username: str = decoded_data.get("sub")
-        is_admin: bool = decoded_data.get("is_admin", False)
         
         if username is None:
             raise HTTPException(status_code=401, detail="توکن نامعتبر است")
+
+        user = db.query(models.User).filter(models.User.phone_number == username).first()
+        if not user or not getattr(user, "is_active", 1):
+            raise HTTPException(status_code=401, detail="کاربر یافت نشد یا غیرفعال است")
+
+        # Recompute privilege from admins table — never trust JWT claim after demotion
+        is_admin = bool(user.admin and user.admin.is_active == 1)
             
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         new_access_token = create_jwt_token(
-            data={"sub": username, "is_admin": is_admin}, 
+            data={"sub": username, "is_admin": is_admin, "type": "access"}, 
             expires_delta=access_token_expires
         )
+        # Rotate refresh token so long sessions (exams) stay alive
+        new_refresh_token = auth.create_refresh_token(data={"sub": username})
         
         return {
             "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
             "token_type": "bearer"
         }
         
@@ -3254,6 +3439,8 @@ def submit_exam_results(
         )
 
     db.commit()
+
+    invalidate_leaderboard_cache(contest_id)
 
     sms_text = contest.sms_message.strip() if contest and contest.sms_message else ""
     user_phone = current_user.phone_number

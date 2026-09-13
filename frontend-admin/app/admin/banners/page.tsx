@@ -1,5 +1,7 @@
-// frontend-admin/app/admin/banners/page.tsx
 'use client';
+// frontend-admin/app/admin/banners/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';
@@ -92,9 +94,9 @@ export default function AdminBannersPage() {
       const validUrl = getCleanImageUrl(rawUrl);
       
       setFormData((prev) => ({ ...prev, image_url: validUrl }));
-      alert("تصویر بنر با موفقیت آپلود شد.");
+      toast.success("تصویر بنر با موفقیت آپلود شد.");
     } catch (error) {
-      alert("خطا در آپلود تصویر بنر");
+      toast.error("خطا در آپلود تصویر بنر");
     } finally {
       setUploading(false);
     }
@@ -103,17 +105,17 @@ export default function AdminBannersPage() {
   // ثبت بنر جدید
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.image_url) return alert("لطفاً ابتدا تصویر بنر را بارگذاری کنید");
+    if (!formData.image_url) return toast.error("لطفاً ابتدا تصویر بنر را بارگذاری کنید");
 
     setSubmitting(true);
     try {
       await api.post('/admin/banners', formData);
-      alert("بنر جدید با موفقیت ثبت و فعال شد! 🎉");
+      toast.success("بنر جدید با موفقیت ثبت و فعال شد! 🎉");
       setFormData({ title: '', link_url: '', image_url: '', status: 'active' });
       setShowAddForm(false);
       fetchBanners();
     } catch (error: any) {
-      alert("خطا در ثبت بنر.");
+      toast.error("خطا در ثبت بنر.");
     } finally {
       setSubmitting(false);
     }
@@ -125,7 +127,7 @@ export default function AdminBannersPage() {
       await api.patch(`/admin/banners/${bannerId}/toggle`);
       fetchBanners();
     } catch (error) {
-      alert("خطا در تغییر وضعیت بنر");
+      toast.error("خطا در تغییر وضعیت بنر");
     }
   };
 
@@ -136,7 +138,7 @@ export default function AdminBannersPage() {
       await api.delete(`/admin/banners/${bannerId}`);
       fetchBanners();
     } catch (error) {
-      alert("خطا در حذف بنر");
+      toast.error("خطا در حذف بنر");
     }
   };
 

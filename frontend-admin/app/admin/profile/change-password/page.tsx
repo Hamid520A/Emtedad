@@ -1,5 +1,7 @@
-// frontend-admin/app/admin/profile/change-password/page.tsx
 'use client';
+// frontend-admin/app/admin/profile/change-password/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api'; // 🌟 اصلاح شد: هماهنگی کامل مسیر ایمپورت با پنل مدیریت
@@ -19,12 +21,12 @@ export default function ChangePasswordPage() {
     e.preventDefault();
 
     if (formData.new_password.length < 6) {
-      alert("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد."); // 🌟 اصلاح شد: رفع تایپوی کلمه کاراکتر
+      toast.error("⚠️ رمز عبور باید حداقل ۶ کاراکتر باشد."); // 🌟 اصلاح شد: رفع تایپوی کلمه کاراکتر
       return; 
     }
     
     if (formData.new_password !== formData.confirm_password) {
-      alert('❌ تکرار رمز عبور جدید با خود رمز عبور همخوانی ندارد!');
+      toast.error('❌ تکرار رمز عبور جدید با خود رمز عبور همخوانی ندارد!');
       return;
     }
 
@@ -35,11 +37,11 @@ export default function ChangePasswordPage() {
         new_password: formData.new_password
       });
       
-      alert('رمز عبور شما با موفقیت تغییر یافت! 🎉');
+      toast.success('رمز عبور شما با موفقیت تغییر یافت! 🎉');
       router.push('/admin/dashboard'); // 🌟 اصلاح شد: هدایت ادمین به دشبورد اختصاصی خود پس از موفقیت
     } catch (error: any) {
       const msg = error.response?.data?.detail || 'خطا در تغییر رمز عبور. لطفاً مجدداً تلاش کنید.';
-      alert(`❌ ${msg}`);
+      toast.error(`❌ ${msg}`);
     } finally {
       setSaving(false);
     }

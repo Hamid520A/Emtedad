@@ -1,5 +1,7 @@
-// frontend-admin/app/admin/(auth)/login/page.tsx
 'use client';
+// frontend-admin/app/admin/(auth)/login/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -16,7 +18,7 @@ export default function AdminLoginPage() {
     e.preventDefault();
 
     if (password.length < 8) {
-      alert("رمز عبور باید حداقل ۸ کاراکتر باشد");
+      toast.error("رمز عبور باید حداقل ۸ کاراکتر باشد");
       return;
     }
 
@@ -31,15 +33,18 @@ export default function AdminLoginPage() {
 
       // ذخیره توکن و پرچم ادمین در حافظه مرورگر
       localStorage.setItem('accessToken', res.data.access_token);
+      if (res.data.refresh_token) {
+        localStorage.setItem('refreshToken', res.data.refresh_token);
+      }
       localStorage.setItem('isAdmin', 'true');
 
-      alert("ورود با موفقیت انجام شد. به پنل مدیریت خوش آمدید! 👑");
+      toast.success("ورود با موفقیت انجام شد. به پنل مدیریت خوش آمدید! 👑");
 
       // هدایت مستقیم به داشبورد ادمین
       router.push('/admin/dashboard');
     } catch (error: any) {
       const errorMsg = error.response?.data?.detail || "خطا در برقراری ارتباط با سرور مدیریت.";
-      alert(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

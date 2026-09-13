@@ -1,5 +1,7 @@
-// frontend-user/app/profile/page.tsx
 'use client';
+// frontend-user/app/profile/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../lib/api';
@@ -142,7 +144,7 @@ export default function ProfilePage() {
       });
     } catch (error) {
       console.error("Error fetching answer sheet:", error);
-      alert("خطا در دریافت جزئیات پاسخنامه.");
+      toast.error("خطا در دریافت جزئیات پاسخنامه.");
       setAnswerModalOpen(false);
     } finally {
       setAnswerLoading(false);
@@ -152,7 +154,7 @@ export default function ProfilePage() {
   // 🌟 تابع جدید جایگزین دانلود: ساخت لینک و کپی در کلیپ‌بورد
   const handleCopyCertificateLink = (contestId: number | string) => {
     const token = localStorage.getItem("accessToken") || "";
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://10.10.20.51:8000/api";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
     const downloadUrl = `${baseUrl}/users/me/contests/${contestId}/certificate/download?token=${token}`;
     const downloadLinkCopiedMessage = "لینک مستقیم دانلود فایل با موفقیت کپی شد.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.";
 
@@ -166,17 +168,17 @@ export default function ProfilePage() {
       textArea.select();
       try {
         document.execCommand('copy');
-        alert(downloadLinkCopiedMessage);
+        toast.error(downloadLinkCopiedMessage);
       } catch (err) {
         console.error('Fallback copy failed', err);
-        alert("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
+        toast.error("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
       }
       document.body.removeChild(textArea);
     };
 
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(downloadUrl)
-        .then(() => alert(downloadLinkCopiedMessage))
+        .then(() => toast.error(downloadLinkCopiedMessage))
         .catch(() => fallbackCopy(downloadUrl));
     } else {
       fallbackCopy(downloadUrl);
@@ -210,7 +212,7 @@ export default function ProfilePage() {
         {/* Header */}
         <header className="p-6 flex items-center justify-between border-b border-gray-50 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
+            <button onClick={() => router.push('/')} className="p-2 bg-gray-50 dark:bg-[#0b0f19] rounded-full hover:bg-gray-100 dark:hover:bg-[#233044] transition-colors text-[#1a2e44] dark:text-slate-100">
               <ArrowRight size={20} />
             </button>
             <span className="font-black text-xl text-[#1a2e44] dark:text-slate-100">حساب کاربری</span>
@@ -255,7 +257,13 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase">استان</p>
-                <p className="font-black text-xs text-[#1a2e44] dark:text-slate-200 mt-1">{profile.province_title || profile.province || "---"}</p>
+                <p className="font-black text-xs text-[#1a2e44] dark:text-slate-200 mt-1">
+                  {profile.province_title
+                    || profile.province
+                    || profile.city?.parent?.title
+                    || profile.city?.parent?.name
+                    || "---"}
+                </p>
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase">شهرستان</p>

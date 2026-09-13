@@ -1,5 +1,7 @@
-// frontend-admin/app/admin/create-contest/page.tsx
 'use client';
+// frontend-admin/app/admin/create-contest/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';
@@ -95,14 +97,14 @@ export default function CreateContestPage() {
     try {
       await api.post('/contests', finalData);
       if (finalStatus === 'draft') {
-        alert("مسابقه با موفقیت به عنوان پیش‌نویس ذخیره شد.");
+        toast.success("مسابقه با موفقیت به عنوان پیش‌نویس ذخیره شد.");
       } else {
-        alert("مسابقه با موفقیت ساخته و منتشر شد!");
+        toast.success("مسابقه با موفقیت ساخته و منتشر شد!");
       }
       router.push('/admin/dashboard'); 
     } catch (error: any) {
       const serverError = error.response?.data?.detail?.[0]?.msg || error.response?.data?.detail || "مشکل فنی در سرور";
-      alert("خطا: " + serverError);
+      toast.error("خطا: " + serverError);
     }
   };
 
@@ -144,9 +146,9 @@ export default function CreateContestPage() {
       });
       const cleanUrl = getCleanImageUrl(response.data.url);
       setFormData((prev: any) => ({ ...prev, [fieldName]: cleanUrl }));
-      alert("فایل با موفقیت آپلود شد");
+      toast.success("فایل با موفقیت آپلود شد");
     } catch (error) {
-      alert("خطا در آپلود فایل");
+      toast.error("خطا در آپلود فایل");
     }
   };
 

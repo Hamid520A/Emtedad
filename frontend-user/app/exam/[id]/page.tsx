@@ -1,13 +1,75 @@
-// frontend-user/app/exam/[id]/page.tsx
 'use client';
+// frontend-user/app/exam/[id]/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import api from '../../../lib/api'; 
+import api, { refreshAccessToken } from '../../../lib/api'; 
 import { getCleanImageUrl } from '../../../lib/utils/url';
 import { Clock, ChevronRight, ChevronLeft, Award, AlertCircle, Loader2, Home, Eye, LogOut } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { openExternalLink } from '../../../lib/utils/url';
 
+const LEGACY_EXAM_DRAFT_KEY = (contestId: string | number) => `exam_draft_${contestId}`;
+
+const getDraftUserId = (): string => {
+  if (typeof window === 'undefined') return 'anonymous';
+  return (
+    localStorage.getItem('userId') ||
+    localStorage.getItem('user_id') ||
+    'anonymous'
+  );
+};
+
+const examDraftKey = (contestId: string | number, userId?: string) =>
+  `exam_draft_${contestId}_${userId || getDraftUserId()}`;
+
+const persistExamDraft = (
+  contestId: string | number,
+  payload: { answers: Record<string | number, number | null>; timeLeft: number; totalTime: number }
+) => {
+  try {
+    localStorage.setItem(
+      examDraftKey(contestId),
+      JSON.stringify({ ...payload, savedAt: Date.now() })
+    );
+  } catch (e) {
+    console.warn('Failed to persist exam draft', e);
+  }
+};
+
+const loadExamDraft = (contestId: string | number) => {
+  try {
+    const primaryKey = examDraftKey(contestId);
+    let raw = localStorage.getItem(primaryKey);
+
+    // Migrate legacy contest-only drafts (pre user-scoped keys)
+    if (!raw) {
+      const legacyKey = LEGACY_EXAM_DRAFT_KEY(contestId);
+      raw = localStorage.getItem(legacyKey);
+      if (raw) {
+        localStorage.setItem(primaryKey, raw);
+        localStorage.removeItem(legacyKey);
+      }
+    }
+
+    if (!raw) return null;
+    return JSON.parse(raw) as {
+      answers: Record<string | number, number | null>;
+      timeLeft?: number;
+      totalTime?: number;
+      savedAt?: number;
+    };
+  } catch {
+    return null;
+  }
+};
+
+const clearExamDraft = (contestId: string | number) => {
+  try {
+    localStorage.removeItem(examDraftKey(contestId));
+    localStorage.removeItem(LEGACY_EXAM_DRAFT_KEY(contestId));
+  } catch {}
+};
 
 const getAnalysis = (
   score: number,
@@ -150,6 +212,35 @@ export default function ExamPage() {
           setTimeLeft(limitInSeconds);
           setQuestions(questionsRes.data || []);
           setCertificateType(contestRes.data.certificate_type || 'none');
+
+          // Ensure user-scoped draft key is available before rehydrate
+          try {
+            const profileRes = await api.get(`/users/me/profile?t=${Date.now()}`);
+            if (profileRes.data?.id) {
+              localStorage.setItem('userId', String(profileRes.data.id));
+            }
+          } catch {
+            // Draft falls back to anonymous key if profile is unavailable
+          }
+
+          // Restore answers if a previous session was interrupted by auth expiry
+          const draft = loadExamDraft(cleanId);
+          if (draft?.answers && typeof draft.answers === 'object') {
+            const restored: { [key: number]: number } = {};
+            Object.entries(draft.answers).forEach(([qId, optId]) => {
+              if (optId !== null && optId !== undefined) {
+                restored[Number(qId)] = Number(optId);
+              }
+            });
+            if (Object.keys(restored).length > 0) {
+              setAnswers(restored);
+              if (typeof draft.timeLeft === 'number' && draft.timeLeft > 0 && draft.timeLeft <= limitInSeconds) {
+                setTimeLeft(draft.timeLeft);
+              }
+              toast.success('پاسخ‌های ذخیره‌شده قبلی بازیابی شد.');
+            }
+          }
+
           examLoadedRef.current = true;
           setNetworkError(null);
         }
@@ -167,7 +258,7 @@ export default function ExamPage() {
             setNetworkError('ارتباط موقتاً قطع شد. روی صفحه آزمون بمانید و دوباره تلاش کنید.');
             return;
           }
-          alert(error.response.data?.detail || "شما قبلاً در این آزمون شرکت کرده‌اید و مجاز به ورود مجدد نیستید.");
+          toast.error(error.response.data?.detail || "شما قبلاً در این آزمون شرکت کرده‌اید و مجاز به ورود مجدد نیستید.");
           router.replace(`/contests/${contestId}`); 
         } else {
           console.error("خطا در دریافت اطلاعات آزمون", error);
@@ -206,13 +297,24 @@ export default function ExamPage() {
     if (isSubmitted && result && result.score >= 50) {
       const duration = 3 * 1000;
       const end = Date.now() + duration;
+      let cancelled = false;
 
-      const frame = () => {
-        confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
-        confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
-        if (Date.now() < end) requestAnimationFrame(frame);
+      (async () => {
+        const { default: confetti } = await import('canvas-confetti');
+        if (cancelled) return;
+
+        const frame = () => {
+          if (cancelled) return;
+          confetti({ particleCount: 4, angle: 60, startVelocity: 55, origin: { x: 0 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
+          confetti({ particleCount: 4, angle: 120, startVelocity: 55, origin: { x: 1 }, colors: ['#1a2e44', '#c5a059', '#ffffff'] });
+          if (Date.now() < end) requestAnimationFrame(frame);
+        };
+        frame();
+      })();
+
+      return () => {
+        cancelled = true;
       };
-      frame();
     }
   }, [isSubmitted, result]);
 
@@ -296,7 +398,38 @@ export default function ExamPage() {
 
   const handleSelectOption = (questionId: number, optionId: number) => {
     if (showReview) return;
-    setAnswers({ ...answers, [questionId]: optionId });
+    setAnswers((prev) => {
+      const next = { ...prev, [questionId]: optionId };
+      persistExamDraft(contestId, { answers: next, timeLeft, totalTime });
+      return next;
+    });
+  };
+
+  const buildSubmissionPayload = () => {
+    const timeTaken = totalTime - timeLeft;
+    const answers_map = Object.fromEntries(
+      questions.map((q) => [q.id, answers[q.id] ?? null])
+    );
+    return {
+      contest_id: parseInt(String(contestId), 10),
+      time_taken: timeTaken,
+      answers_map,
+    };
+  };
+
+  const applySuccessfulSubmission = (responseData: any, timeTaken: number) => {
+    const serverScore = responseData.score ?? 0;
+    const serverCorrectCount = responseData.correct_count ?? 0;
+
+    setResult({
+      score: Math.round(serverScore),
+      correctCount: serverCorrectCount,
+      timeTaken,
+      analysis: getAnalysis(serverScore, questions.length, certificateType, contest)
+    });
+    setIsSubmitted(true);
+    setNetworkError(null);
+    clearExamDraft(contestId);
   };
 
   const handleSubmitExam = async () => {
@@ -307,32 +440,42 @@ export default function ExamPage() {
     }
     setSubmitting(true);
     setNetworkError(null);
-    
-    const timeTaken = totalTime - timeLeft;
+
+    const payload = buildSubmissionPayload();
+    // Always snapshot answers before network calls (covers auth redirect race)
+    persistExamDraft(contestId, { answers, timeLeft, totalTime });
 
     try {
-      const answers_map = Object.fromEntries(
-        questions.map((q) => [q.id, answers[q.id] ?? null])
-      );
+      const response = await api.post('/submissions', payload);
+      applySuccessfulSubmission(response.data, payload.time_taken);
+    } catch (error: any) {
+      // Explicit 401 path: refresh then silent retry (interceptor also retries; this is a safety net)
+      if (error?.response?.status === 401) {
+        persistExamDraft(contestId, { answers, timeLeft, totalTime });
+        try {
+          await refreshAccessToken();
+          const retryResponse = await api.post('/submissions', payload);
+          applySuccessfulSubmission(retryResponse.data, payload.time_taken);
+          return;
+        } catch (retryError: any) {
+          persistExamDraft(contestId, { answers, timeLeft, totalTime });
+          if (retryError?.response?.status === 401 || (retryError instanceof Error && retryError.message === 'NO_REFRESH_TOKEN')) {
+            setNetworkError('نشست شما منقضی شد. پاسخ‌ها ذخیره شدند — پس از ورود مجدد به آزمون بازگردید.');
+            // Brief delay so draft is flushed before interceptor/login redirect
+            setTimeout(() => {
+              if (!localStorage.getItem('accessToken')) {
+                window.location.href = `/login?next=${encodeURIComponent(`/exam/${contestId}`)}`;
+              }
+            }, 300);
+          } else if (isNetworkFailure(retryError)) {
+            setNetworkError('خطای شبکه در ثبت نمره. روی صفحه بمانید و دوباره «تایید و ثبت نتایج» را بزنید.');
+          } else {
+            setNetworkError('ثبت نمره ناموفق بود. لطفاً دوباره تلاش کنید — از آزمون خارج نشوید.');
+          }
+          return;
+        }
+      }
 
-      const response = await api.post('/submissions', {
-        contest_id: parseInt(contestId),
-        time_taken: timeTaken,
-        answers_map
-      });
-
-      const serverScore = response.data.score ?? 0;
-      const serverCorrectCount = response.data.correct_count ?? 0;
-
-      setResult({
-        score: Math.round(serverScore),
-        correctCount: serverCorrectCount,
-        timeTaken: timeTaken,
-        analysis: getAnalysis(serverScore, questions.length, certificateType, contest)
-      });
-      setIsSubmitted(true);
-      setNetworkError(null);
-    } catch (error) {
       if (isNetworkFailure(error)) {
         setNetworkError('خطای شبکه در ثبت نمره. روی صفحه بمانید و دوباره «تایید و ثبت نتایج» را بزنید.');
       } else {

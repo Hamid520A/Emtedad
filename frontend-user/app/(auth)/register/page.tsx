@@ -1,5 +1,7 @@
-// frontend-user/app/(auth)/register/page.tsx
 'use client';
+// frontend-user/app/(auth)/register/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -223,7 +225,7 @@ export default function RegisterPage() {
       setStep(2);
       setTimer(120); 
     } catch (error: any) {
-      alert("خطا در ارسال پیامک: " + (error.response?.data?.detail || "لطفاً دوباره تلاش کنید."));
+      toast.error("خطا در ارسال پیامک: " + (error.response?.data?.detail || "لطفاً دوباره تلاش کنید."));
     } finally {
       setLoading(false);
     }
@@ -231,7 +233,7 @@ export default function RegisterPage() {
 
   const handleVerifyAndRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpCode || otpCode.length < 4) return alert("لطفاً کد تایید را به درستی وارد کنید.");
+    if (!otpCode || otpCode.length < 4) return toast.error("لطفاً کد تایید را به درستی وارد کنید.");
 
     setShowErrors(true);
     const errors = getRegistrationFieldErrors();
@@ -264,7 +266,7 @@ export default function RegisterPage() {
         password: formData.password
       });
 
-      alert("🎉 ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.");
+      toast.success("🎉 ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.");
       window.location.replace('/login');
       
     } catch (error: any) {
@@ -279,7 +281,7 @@ export default function RegisterPage() {
         else if (detail === "کد ملی قبلاً ثبت شده" || String(detail).includes("national_id")) errorMsg = "این کد ملی/شناسه اتباع قبلاً در سیستم ثبت شده است.";
         else errorMsg = String(detail);
       }
-      alert("خطا: " + errorMsg);
+      toast.error("خطا: " + errorMsg);
     } finally {
       setLoading(false);
     }

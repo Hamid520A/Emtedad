@@ -1,18 +1,26 @@
-// frontend-admin/app/admin/contests/[id]/page.tsx
 'use client';
+// frontend-admin/app/admin/contests/[id]/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import api from '../../../lib/api';
 import {
   ArrowRight, Download, Gift, FileText, Clock,
   PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, BarChart3, HelpCircle, X, ExternalLink, MapPin
+  Crown, Trash2, Award, HelpCircle, X, ExternalLink, MapPin
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
-import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell
-} from 'recharts';
+const ContestAnalyticsCharts = dynamic(
+  () => import('./ContestAnalyticsCharts'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[280px] animate-pulse rounded-2xl bg-gray-100 dark:bg-slate-800" />
+    ),
+  }
+);
 
 const getCleanImageUrl = (url: string) => {
   if (!url) return '';
@@ -43,6 +51,8 @@ export default function ContestLandingPage() {
   const [provinceModalOpen, setProvinceModalOpen] = useState(false);
 
   const [totalSecondsLeft, setTotalSecondsLeft] = useState<number | null>(null);
+  const [endSecondsLeft, setEndSecondsLeft] = useState<number | null>(null);
+  const [endTimeLeft, setEndTimeLeft] = useState<any>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -67,6 +77,10 @@ export default function ContestLandingPage() {
           const diffMs = +new Date(contestRes.data.start_time) - +new Date(contestRes.data.server_now);
           const diffSec = Math.floor(diffMs / 1000);
           setTotalSecondsLeft(diffSec > 0 ? diffSec : 0);
+        } else if (contestRes.data.status === 'active' && contestRes.data.end_time) {
+          const endDiffMs = +new Date(contestRes.data.end_time) - +new Date(contestRes.data.server_now);
+          const endDiffSec = Math.floor(endDiffMs / 1000);
+          setEndSecondsLeft(endDiffSec > 0 ? endDiffSec : 0);
         }
 
         try {
@@ -102,7 +116,13 @@ export default function ContestLandingPage() {
   useEffect(() => {
     if (!mounted || contest?.status !== 'upcoming' || totalSecondsLeft === null || totalSecondsLeft <= 0) {
       if (totalSecondsLeft === 0 && contest?.status === 'upcoming') {
-        setContest((prev: any) => ({ ...prev, status: 'active' }));
+        setContest((prev: any) => {
+          if (prev?.end_time) {
+            const remaining = Math.floor((+new Date(prev.end_time) - Date.now()) / 1000);
+            setEndSecondsLeft(remaining > 0 ? remaining : 0);
+          }
+          return { ...prev, status: 'active' };
+        });
       }
       return;
     }
@@ -127,6 +147,43 @@ export default function ContestLandingPage() {
     });
   }, [totalSecondsLeft]);
 
+  useEffect(() => {
+    if (!mounted || contest?.status !== 'active' || endSecondsLeft === null) return;
+
+    if (endSecondsLeft <= 0) {
+      setContest((prev: any) => ({ ...prev, status: 'finished' }));
+      setEndTimeLeft(null);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setEndSecondsLeft((prev) => {
+        if (prev !== null && prev <= 1) {
+          clearInterval(timer);
+          setContest((prevContest: any) => ({ ...prevContest, status: 'finished' }));
+          return 0;
+        }
+        return prev && prev > 0 ? prev - 1 : 0;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [contest?.status, mounted, endSecondsLeft]);
+
+  useEffect(() => {
+    if (endSecondsLeft === null || endSecondsLeft <= 0) {
+      setEndTimeLeft(null);
+      return;
+    }
+    const secs = endSecondsLeft;
+    setEndTimeLeft({
+      days: Math.floor(secs / (3600 * 24)),
+      hours: Math.floor((secs % (3600 * 24)) / 3600),
+      minutes: Math.floor((secs % 3600) / 60),
+      seconds: Math.floor(secs % 60),
+    });
+  }, [endSecondsLeft]);
+
   const changeContestStatus = async (e: React.MouseEvent, newStatus: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -138,7 +195,7 @@ export default function ContestLandingPage() {
         const targetLimit = parseInt(contest.question_limit || 0, 10);
 
         if (actualQuestionsCount === 0) {
-          alert("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید سوال طرح کنید.");
+          toast.error("❌ خطا: این مسابقه هیچ سوالی ندارد! ابتدا باید سوال طرح کنید.");
           return;
         }
 
@@ -146,7 +203,7 @@ export default function ContestLandingPage() {
           if (!window.confirm(`⚠️ هشدار: تعداد سوالات کمتر از حد مجاز است. آیا شروع شود؟`)) return;
         }
       } catch (error) {
-        alert("خطا در اعتبارسنجی سوالات");
+        toast.error("خطا در اعتبارسنجی سوالات");
         return;
       }
     }
@@ -163,12 +220,20 @@ export default function ContestLandingPage() {
       setContest({
         ...contest,
         status: response.data.status,
-        start_time: response.data.start_time
+        start_time: response.data.start_time,
+        end_time: response.data.end_time ?? contest.end_time,
       });
-      if (response.data.status === 'active') setTimeLeft(null);
-      alert("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
+      if (response.data.status === 'active') {
+        setTimeLeft(null);
+        const end = response.data.end_time ?? contest.end_time;
+        if (end) {
+          const remaining = Math.floor((+new Date(end) - Date.now()) / 1000);
+          setEndSecondsLeft(remaining > 0 ? remaining : 0);
+        }
+      }
+      toast.success("وضعیت مسابقه با موفقیت به روزرسانی شد. 🎉");
     } catch (error) {
-      alert("خطا در اعمال تغییرات وضعیت در بک‌ند.");
+      toast.error("خطا در اعمال تغییرات وضعیت در بک‌ند.");
     }
   };
 
@@ -177,7 +242,7 @@ export default function ContestLandingPage() {
     e.stopPropagation();
 
     if (!contest || !contest.id) {
-      alert("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
+      toast.error("خطا: اطلاعات مسابقه هنوز کامل بارگذاری نشده است.");
       return;
     }
 
@@ -185,12 +250,12 @@ export default function ContestLandingPage() {
     
     try {
       await api.delete(`/admin/contests/${contest.id}`);
-      alert("مسابقه با موفقیت از سیستم حذف شد.");
+      toast.success("مسابقه با موفقیت از سیستم حذف شد.");
       router.push('/admin/contests');
       router.refresh(); 
     } catch (error: any) {
       console.error(error);
-      alert(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'دوباره تلاش کنید.'}`);
+      toast.error(`خطا در حذف مسابقه: ${error.response?.data?.detail || 'دوباره تلاش کنید.'}`);
     }
   };
 
@@ -309,149 +374,17 @@ export default function ContestLandingPage() {
           )}
 
           {isAdminUser && analyticsData && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-
-              <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 dark:border-slate-800 pb-3">
-                  <Clock size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">آنالیز توزیع زمانی حضور شرکت‌کنندگان</h3>
-                </div>
-                <div className="w-full h-64 text-xs font-bold font-sans">
-                  <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={analyticsData.time_distribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorTimeTheme" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#c5a059" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#c5a059" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="name" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right', fontSize: '11px', fontFamily: 'sans-serif' }} />
-                      <Area type="monotone" dataKey="users" name="تعداد شرکت‌کننده" stroke="#1a2e44" strokeWidth={3} fillOpacity={1} fill="url(#colorTimeTheme)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 dark:border-slate-800 pb-3">
-                  <BarChart3 size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">پاسخ‌های صحیح و اشتباه به تفکیک سوالات</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart
-                      data={analyticsData.questions_stats}
-                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Legend verticalAlign="top" height={36} iconType="circle" />
-
-                      <Bar
-                        dataKey="correct"
-                        name="پاسخ صحیح"
-                        fill="#0f766e"
-                        radius={[4, 4, 0, 0]}
-                        barSize={9}
-                        onClick={(item) => {
-                          if (item && item.payload) {
-                            setSelectedQuestion(item.payload);
-                            setQuestionModalOpen(true);
-                          }
-                        }}
-                      />
-                      <Bar
-                        dataKey="incorrect"
-                        name="پاسخ اشتباه"
-                        fill="#be123c"
-                        radius={[4, 4, 0, 0]}
-                        barSize={9}
-                        onClick={(item) => {
-                          if (item && item.payload) {
-                            setSelectedQuestion(item.payload);
-                            setQuestionModalOpen(true);
-                          }
-                        }}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 dark:border-slate-800 pb-3">
-                  <MapPin size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">پراکندگی جغرافیایی شرکت‌کنندگان (استان‌ها)</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart
-                      data={analyticsData.province_stats || []}
-                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="province" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Bar
-                        dataKey="count"
-                        name="تعداد شرکت‌کننده"
-                        fill="#3b82f6"
-                        radius={[4, 4, 0, 0]}
-                        barSize={12}
-                        onClick={(item) => {
-                          if (item && item.payload) {
-                            setSelectedProvince(item.payload);
-                            setProvinceModalOpen(true);
-                          }
-                        }}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 dark:border-slate-800 pb-3">
-                  <Users size={18} className="text-[#c5a059]" />
-                  <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">تفکیک جنسیت شرکت‌کنندگان</h3>
-                </div>
-                <div className="w-full h-72 text-xs font-bold font-sans">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart
-                      data={analyticsData.gender_stats || []}
-                      margin={{ top: 10, right: 5, left: -25, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-                      <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
-                      <YAxis stroke="#9ca3af" tickLine={false} />
-                      <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{ backgroundColor: '#1a2e44', color: '#fff', borderRadius: '16px', border: 'none', textAlign: 'right' }} />
-                      <Bar
-                        dataKey="count"
-                        name="تعداد شرکت‌کننده"
-                        radius={[4, 4, 0, 0]}
-                        barSize={40}
-                      >
-                        {
-                          (analyticsData.gender_stats || [])
-                          .filter((entry: any) => entry.gender === "مرد" || entry.gender === "زن")
-                          .map((entry: any, index: number) => {
-                            const color = entry.gender === "مرد" ? "#3b82f6" : "#ec4899"; 
-                            return <Cell key={`cell-${index}`} fill={color} />;
-                          })
-                        }
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-            </div>
+            <ContestAnalyticsCharts
+              analyticsData={analyticsData}
+              onQuestionClick={(payload) => {
+                setSelectedQuestion(payload);
+                setQuestionModalOpen(true);
+              }}
+              onProvinceClick={(payload) => {
+                setSelectedProvince(payload);
+                setProvinceModalOpen(true);
+              }}
+            />
           )}
 
           <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4 pt-6 sm:pt-8">
@@ -517,7 +450,7 @@ export default function ContestLandingPage() {
                   <p className="text-green-700 text-[10px] font-black mb-4 opacity-80">پاسخنامه شما با موفقیت ثبت شده است</p>
 
                   <button
-                    onClick={() => alert("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
+                    onClick={() => toast("نمایش پاسخنامه برای ادمین از بخش لیست شرکت‌کنندگان در دسترس است.")}
                     className="w-full mt-4 bg-white dark:bg-[#182234] dark:bg-[#182234] hover:bg-gray-50 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-green-200 shadow-sm"
                   >
                     <FileText size={15} className="text-[#c5a059]" />
@@ -556,6 +489,47 @@ export default function ContestLandingPage() {
                   <div className="bg-white dark:bg-[#182234] dark:bg-[#182234]/5 rounded-xl p-1.5 sm:p-2 border border-white/5"><span className="block text-base sm:text-xl font-black text-[#c5a059]">{toPersianDigits(timeLeft.seconds)}</span><span className="text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold">ثانیه</span></div>
                  </div>
                ) : <span className="text-xs font-bold text-gray-300">در انتظار شروع مسابقه توسط مدیر...</span>}
+            </div>
+          )}
+
+          {contest.status === 'active' && contest.end_time && (
+            <div className={`p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] text-white shadow-md relative overflow-hidden border ${
+              endSecondsLeft !== null && endSecondsLeft <= 900
+                ? 'bg-red-700 border-red-500/40'
+                : endSecondsLeft !== null && endSecondsLeft <= 3600
+                  ? 'bg-amber-700 border-amber-500/40'
+                  : 'bg-[#1a2e44] border-[#2a405a]'
+            }`}>
+              <Clock className="absolute -left-6 -top-6 opacity-5" size={100} />
+              <h3 className={`text-xs font-black mb-4 flex items-center gap-1.5 ${
+                endSecondsLeft !== null && endSecondsLeft <= 900 ? 'text-red-100' : 'text-[#c5a059]'
+              }`}>
+                <Clock size={16} /> شمارش معکوس تا پایان مسابقه
+              </h3>
+              {endTimeLeft ? (
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center" dir="ltr">
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.days)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">روز</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.hours)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">ساعت</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className="block text-base sm:text-xl font-black">{toPersianDigits(endTimeLeft.minutes)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">دقیقه</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-1.5 sm:p-2 border border-white/10">
+                    <span className={`block text-base sm:text-xl font-black ${
+                      endSecondsLeft !== null && endSecondsLeft <= 900 ? 'text-white' : 'text-[#c5a059]'
+                    }`}>{toPersianDigits(endTimeLeft.seconds)}</span>
+                    <span className="text-[9px] text-white/70 font-bold">ثانیه</span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-xs font-bold text-white/80">مسابقه در حال اتمام است...</span>
+              )}
             </div>
           )}
 

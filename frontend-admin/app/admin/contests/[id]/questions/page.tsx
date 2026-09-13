@@ -1,5 +1,7 @@
-// frontend-admin/app/admin/contests/[id]/questions/page.tsx
 'use client';
+// frontend-admin/app/admin/contests/[id]/questions/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation'; // 🌟 اصلاح شد: اضافه شدن useParams برای دریافت پایدار آی‌دی
 import api from '@/app/lib/api';
@@ -50,12 +52,12 @@ export default function AdminContestQuestionsPage() {
         correct_option: parseInt(editingQuestion.correct_option, 10)
       });
 
-      alert("سوال با موفقیت ویرایش شد! 🎉");
+      toast.success("سوال با موفقیت ویرایش شد! 🎉");
       setEditingQuestion(null);
       fetchQuestions(); // به‌روزرسانی لیست سوالات در صفحه
     } catch (error: any) {
       const msg = error.response?.data?.detail || "خطا در ویرایش سوال. وضعیت مسابقه را بررسی کنید.";
-      alert(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -67,12 +69,12 @@ export default function AdminContestQuestionsPage() {
     
     try {
       await api.delete(`/admin/questions/${questionId}`);
-      alert("سوال با موفقیت حذف شد! 🗑️");
+      toast.success("سوال با موفقیت حذف شد! 🗑️");
       fetchQuestions(); // بروزرسانی آنی صفحه
     } catch (error: any) {
       console.error("Error deleting question:", error);
       const errorMsg = error.response?.data?.detail || "خطا در حذف سوال. مجدداً تلاش کنید.";
-      alert(errorMsg);
+      toast.error(errorMsg);
     }
   };
 

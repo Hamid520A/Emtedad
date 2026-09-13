@@ -1,5 +1,7 @@
-// frontend-admin/app/admin/contests/[id]/participants/page.tsx
 'use client';
+// frontend-admin/app/admin/contests/[id]/participants/page.tsx
+
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import api from '@/app/lib/api';
@@ -129,7 +131,7 @@ export default function ParticipantsPage() {
 
   const exportToCSV = () => {
     if (filteredParticipants.length === 0) {
-      alert("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
+      toast.error("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
       return;
     }
 
@@ -192,7 +194,7 @@ export default function ParticipantsPage() {
         birth_date: response.data.birth_date || ''
       });
     } catch (error) {
-      alert("خطا در دریافت پرونده کامل کاربر");
+      toast.error("خطا در دریافت پرونده کامل کاربر");
       setModalOpen(false);
     } finally {
       setModalLoading(false);
@@ -211,7 +213,7 @@ export default function ParticipantsPage() {
       });
     } catch (error) {
       console.error(error);
-      alert("خطا در بارگذاری لیست پاسخ‌های کاربر از سرور.");
+      toast.error("خطا در بارگذاری لیست پاسخ‌های کاربر از سرور.");
       setAnswerModalOpen(false);
     } finally {
       setAnswerLoading(false);
@@ -223,7 +225,7 @@ export default function ParticipantsPage() {
     setSaveLoading(true);
     try {
       await api.put(`/admin/users/${selectedUser.id}/update`, editFormData);
-      alert("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
+      toast.success("تغییرات با موفقیت روی پرونده کاربر اعمال شد.");
       setIsEditing(false);
       
       setSelectedUser({
@@ -246,7 +248,7 @@ export default function ParticipantsPage() {
       setParticipants(participantsRes.data || []);
       
     } catch (error) {
-      alert("خطا در ذخیره‌سازی تغییرات پرونده");
+      toast.error("خطا در ذخیره‌سازی تغییرات پرونده");
     } finally {
       setSaveLoading(false);
     }
@@ -694,8 +696,24 @@ export default function ParticipantsPage() {
                               </span>
 
                               <div className="flex items-center gap-1 shrink-0 font-black text-[9px]">
-                                {isKeyOption && <span className="text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded flex items-center gap-0.5"><CheckCircle2 size={10} />پاسخ صحیح</span>}
-                                {isUserSelected && <span className={`text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 ${isCorrect ? 'text-emerald-700 bg-emerald-200/50' : 'text-rose-600 bg-rose-100'} px-2 py-0.5 rounded flex items-center gap-0.5`}>{!isCorrect && <XCircle size={10} />}انتخاب کاربر</span>}
+                                {isKeyOption && (
+                                  <span className="text-emerald-900 bg-emerald-200 px-2 py-0.5 rounded flex items-center gap-0.5">
+                                    <CheckCircle2 size={10} className="text-emerald-900" />
+                                    پاسخ صحیح
+                                  </span>
+                                )}
+                                {isUserSelected && (
+                                  <span
+                                    className={`px-2 py-0.5 rounded flex items-center gap-0.5 ${
+                                      isCorrect
+                                        ? 'text-emerald-900 bg-emerald-200'
+                                        : 'text-rose-900 bg-rose-200'
+                                    }`}
+                                  >
+                                    {!isCorrect && <XCircle size={10} className="text-rose-900" />}
+                                    انتخاب کاربر
+                                  </span>
+                                )}
                               </div>
                             </div>
                           );

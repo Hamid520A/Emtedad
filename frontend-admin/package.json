@@ -18,8 +18,10 @@
     "persian-datepicker-react": "^1.0.50",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-hot-toast": "^2.6.0",
     "react-multi-date-picker": "^4.5.2",
     "recharts": "^3.9.2",
+    "tailwindcss-animate": "^1.0.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
