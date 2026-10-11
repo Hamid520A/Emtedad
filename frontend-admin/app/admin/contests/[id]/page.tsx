@@ -7,8 +7,8 @@ import { useRouter, useParams } from 'next/navigation';
 import api from '../../../lib/api';
 import {
   ArrowRight, Download, Gift, FileText, Clock,
-  PlayCircle, Trophy, Users, Loader2, Medal, CheckCircle, Settings, Power,
-  Crown, Trash2, Award, HelpCircle, X, ExternalLink, MapPin
+  PlayCircle, Trophy, Users, Loader2, CheckCircle, Settings, Power,
+  Trash2, Award, HelpCircle, X, ExternalLink, MapPin
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -286,8 +286,6 @@ export default function ContestLandingPage() {
 
   const myResult = leaderboardMatch || historyMatch;
   const hasParticipated = !!myResult;
-  const topThree = leaderboard.slice(0, 3);
-  const showLeaderboard = contest.status === 'active' || contest.status === 'finished';
 
   const getLiveRank = () => {
     if (leaderboardMatch?.rank) return leaderboardMatch.rank;
@@ -373,20 +371,7 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          {isAdminUser && analyticsData && (
-            <ContestAnalyticsCharts
-              analyticsData={analyticsData}
-              onQuestionClick={(payload) => {
-                setSelectedQuestion(payload);
-                setQuestionModalOpen(true);
-              }}
-              onProvinceClick={(payload) => {
-                setSelectedProvince(payload);
-                setProvinceModalOpen(true);
-              }}
-            />
-          )}
-
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
           <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4 pt-6 sm:pt-8">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -440,6 +425,38 @@ export default function ContestLandingPage() {
               </div>
             )}
           </div>
+
+          {isAdminUser && analyticsData && (
+            <ContestAnalyticsCharts
+              analyticsData={analyticsData}
+              section="questions"
+              onQuestionClick={(payload) => {
+                setSelectedQuestion(payload);
+                setQuestionModalOpen(true);
+              }}
+            />
+          )}
+
+          {isAdminUser && analyticsData && (
+            <div className="self-start w-full">
+              <ContestAnalyticsCharts analyticsData={analyticsData} section="gender" />
+            </div>
+          )}
+          </div>
+
+          {isAdminUser && analyticsData && (
+            <div className="space-y-6">
+              <ContestAnalyticsCharts analyticsData={analyticsData} section="time" />
+              <ContestAnalyticsCharts
+                analyticsData={analyticsData}
+                section="province"
+                onProvinceClick={(payload) => {
+                  setSelectedProvince(payload);
+                  setProvinceModalOpen(true);
+                }}
+              />
+            </div>
+          )}
 
           {contest.status === 'active' && (
             <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800">
@@ -594,36 +611,6 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          {showLeaderboard && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between bg-white dark:bg-[#182234] dark:bg-[#182234] p-4 rounded-xl border border-gray-100 dark:border-slate-800 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center gap-1.5 text-gray-500 dark:text-slate-400 dark:text-slate-400 font-bold text-xs"><Users size={16} className="text-[#c5a059]" /> کل شرکت‌کنندگان:</div>
-                <span className="font-black text-base text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">{toPersianDigits(leaderboard.length)} نفر</span>
-              </div>
-              <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800">
-                <h3 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 mb-4 text-center flex justify-center items-center gap-1.5"><Trophy size={16} className="text-[#c5a059]" /> {contest.status === 'active' ? 'رتبه بندی زنده' : 'سکوی افتخار و برندگان برتر'}</h3>
-                <div className="space-y-2">
-                  {topThree.length === 0 ? <p className="text-center text-xs text-gray-400 dark:text-slate-400 dark:text-slate-400 italic">آمار لیدربرد هنوز ثبت نشده است.</p> : topThree.map((user: any) => {
-                    const shortIdForTop = user.last_four_id ? `(${toPersianDigits(user.last_four_id)})` : '';
-                    return (
-                      <div key={user.user_id || user.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${user.rank === 1 ? 'bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-[#c5a059] shadow-sm' : 'border-gray-50 dark:border-slate-800 dark:border-slate-800'}`}>
-                        <div className="flex items-center gap-2">
-                          {user.rank === 1 ? <Crown size={18} className="text-yellow-500 shrink-0" /> : <Medal size={16} className="text-gray-400 dark:text-slate-400 dark:text-slate-400 shrink-0" />}
-                          <div className="flex flex-col text-right">
-                            <span className="font-bold text-xs text-[#1a2e44] dark:text-slate-100 dark:text-slate-100">{user.name} {shortIdForTop}</span>
-                            <span className="text-[9px] text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold mt-0.5">
-                              نمره: {toPersianDigits(user.score?.toString().replace('%', ''))}% | زمان: {toPersianDigits(user.time_taken || user.time || 0)}ثانیه
-                            </span>
-                          </div>
-                        </div>
-                        {user.rank === 1 && <Trophy size={14} className="text-[#c5a059] opacity-40 shrink-0" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </main>
 

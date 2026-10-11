@@ -16,6 +16,8 @@ import {
   Cell,
 } from 'recharts';
 
+type AnalyticsSection = 'questions' | 'gender' | 'time' | 'province';
+
 type ContestAnalyticsChartsProps = {
   analyticsData: {
     time_distribution?: any[];
@@ -23,17 +25,33 @@ type ContestAnalyticsChartsProps = {
     province_stats?: any[];
     gender_stats?: any[];
   };
+  section: AnalyticsSection;
   onQuestionClick?: (payload: any) => void;
   onProvinceClick?: (payload: any) => void;
 };
 
+const tooltipStyle = {
+  backgroundColor: '#1a2e44',
+  color: '#fff',
+  borderRadius: '16px',
+  border: 'none',
+  textAlign: 'right' as const,
+  fontSize: '11px',
+  fontFamily: 'sans-serif',
+};
+
 export default function ContestAnalyticsCharts({
   analyticsData,
+  section,
   onQuestionClick,
   onProvinceClick,
 }: ContestAnalyticsChartsProps) {
-  return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+  const genderStats = (analyticsData.gender_stats || []).filter(
+    (entry: any) => entry.gender === 'مرد' || entry.gender === 'زن'
+  );
+
+  if (section === 'time') {
+    return (
       <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
         <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
           <Clock size={18} className="text-[#c5a059]" />
@@ -51,17 +69,7 @@ export default function ContestAnalyticsCharts({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
               <XAxis dataKey="name" stroke="#9ca3af" tickLine={false} />
               <YAxis stroke="#9ca3af" tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1a2e44',
-                  color: '#fff',
-                  borderRadius: '16px',
-                  border: 'none',
-                  textAlign: 'right',
-                  fontSize: '11px',
-                  fontFamily: 'sans-serif',
-                }}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Area
                 type="monotone"
                 dataKey="users"
@@ -75,7 +83,11 @@ export default function ContestAnalyticsCharts({
           </ResponsiveContainer>
         </div>
       </div>
+    );
+  }
 
+  if (section === 'questions') {
+    return (
       <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
         <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
           <BarChart3 size={18} className="text-[#c5a059]" />
@@ -87,15 +99,7 @@ export default function ContestAnalyticsCharts({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
               <XAxis dataKey="question_index" stroke="#9ca3af" tickLine={false} />
               <YAxis stroke="#9ca3af" tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1a2e44',
-                  color: '#fff',
-                  borderRadius: '16px',
-                  border: 'none',
-                  textAlign: 'right',
-                }}
-              />
+              <Tooltip contentStyle={tooltipStyle} />
               <Legend verticalAlign="top" height={36} iconType="circle" />
               <Bar
                 dataKey="correct"
@@ -121,7 +125,11 @@ export default function ContestAnalyticsCharts({
           </ResponsiveContainer>
         </div>
       </div>
+    );
+  }
 
+  if (section === 'province') {
+    return (
       <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
         <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
           <MapPin size={18} className="text-[#c5a059]" />
@@ -135,13 +143,7 @@ export default function ContestAnalyticsCharts({
               <YAxis stroke="#9ca3af" tickLine={false} />
               <Tooltip
                 cursor={{ fill: '#f3f4f6' }}
-                contentStyle={{
-                  backgroundColor: '#1a2e44',
-                  color: '#fff',
-                  borderRadius: '16px',
-                  border: 'none',
-                  textAlign: 'right',
-                }}
+                contentStyle={tooltipStyle}
               />
               <Bar
                 dataKey="count"
@@ -157,41 +159,35 @@ export default function ContestAnalyticsCharts({
           </ResponsiveContainer>
         </div>
       </div>
+    );
+  }
 
-      <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
-        <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
-          <Users size={18} className="text-[#c5a059]" />
-          <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">تفکیک جنسیت شرکت‌کنندگان</h3>
-        </div>
-        <div className="w-full h-72 text-xs font-bold font-sans">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={analyticsData.gender_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-              <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
-              <YAxis stroke="#9ca3af" tickLine={false} />
-              <Tooltip
-                cursor={{ fill: '#f3f4f6' }}
-                contentStyle={{
-                  backgroundColor: '#1a2e44',
-                  color: '#fff',
-                  borderRadius: '16px',
-                  border: 'none',
-                  textAlign: 'right',
-                }}
-              />
-              <Bar dataKey="count" name="تعداد شرکت‌کننده" radius={[4, 4, 0, 0]} barSize={40}>
-                {(analyticsData.gender_stats || [])
-                  .filter((entry: any) => entry.gender === 'مرد' || entry.gender === 'زن')
-                  .map((entry: any, index: number) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.gender === 'مرد' ? '#3b82f6' : '#ec4899'}
-                    />
-                  ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+  return (
+    <div className="bg-white dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-4">
+      <div className="flex items-center gap-2 border-b border-gray-50 dark:border-slate-800 pb-3">
+        <Users size={18} className="text-[#c5a059]" />
+        <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">تفکیک جنسیت شرکت‌کنندگان</h3>
+      </div>
+      <div className="w-full h-72 text-xs font-bold font-sans">
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={genderStats} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
+            <XAxis dataKey="gender" stroke="#9ca3af" tickLine={false} />
+            <YAxis stroke="#9ca3af" tickLine={false} />
+            <Tooltip
+              cursor={{ fill: '#f3f4f6' }}
+              contentStyle={tooltipStyle}
+            />
+            <Bar dataKey="count" name="تعداد شرکت‌کننده" radius={[4, 4, 0, 0]} barSize={40}>
+              {genderStats.map((entry: any, index: number) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.gender === 'مرد' ? '#3b82f6' : '#ec4899'}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

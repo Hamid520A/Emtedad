@@ -1502,6 +1502,7 @@ def _invalidate_contest_caches(contest_id: int) -> None:
     keys = [
         f"cache:contest:{contest_id}:detail",
         f"cache:contest:{contest_id}:analytics",
+        f"cache:contest:{contest_id}:analytics:v2",
         f"cache:leaderboard:{contest_id}",
         "cache:contests:all:all",
         "cache:contests:all:active",
@@ -3098,7 +3099,7 @@ def get_contest_analytics(
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
     }
     
-    cache_key = f"cache:contest:{contest_id}:analytics"
+    cache_key = f"cache:contest:{contest_id}:analytics:v2"
     cached = _cache_get_json(cache_key)
     if cached is not None:
         return JSONResponse(status_code=200, content=cached, headers=cors_headers)
@@ -3118,13 +3119,16 @@ def get_contest_analytics(
     
     # متغیرهای تجمیع داده‌ها
     time_dist = {
-        "زیر ۱ دقیقه": 0, "۱ تا ۳ دقیقه": 0,
-        "۳ تا ۵ دقیقه": 0, "بالای ۵ دقیقه": 0
+        "کمتر از ۵ دقیقه": 0,
+        "۵ تا ۱۰ دقیقه": 0,
+        "۱۰ تا ۱۵ دقیقه": 0,
+        "۱۵ تا ۲۰ دقیقه": 0,
+        "۲۰ تا ۲۵ دقیقه": 0,
+        "بیش از ۲۵ دقیقه": 0,
     }
     province_map = {}
     
-    # 🌟 متغیر جدید برای شمارش جنسیت
-    gender_map = {"مرد": 0, "زن": 0, "نامشخص": 0}
+    gender_map = {"مرد": 0, "زن": 0}
 
     for sub in subscriptions:
         # --- منطق توزیع زمانی ---
@@ -3139,10 +3143,18 @@ def get_contest_analytics(
                 logger.warning(f"Error calculating time taken: {e}")
                 time_taken = 0
             
-        if time_taken < 60: time_dist["زیر ۱ دقیقه"] += 1
-        elif time_taken < 180: time_dist["۱ تا ۳ دقیقه"] += 1
-        elif time_taken < 300: time_dist["۳ تا ۵ دقیقه"] += 1
-        else: time_dist["بالای ۵ دقیقه"] += 1
+        if time_taken < 300:
+            time_dist["کمتر از ۵ دقیقه"] += 1
+        elif time_taken < 600:
+            time_dist["۵ تا ۱۰ دقیقه"] += 1
+        elif time_taken < 900:
+            time_dist["۱۰ تا ۱۵ دقیقه"] += 1
+        elif time_taken < 1200:
+            time_dist["۱۵ تا ۲۰ دقیقه"] += 1
+        elif time_taken < 1500:
+            time_dist["۲۰ تا ۲۵ دقیقه"] += 1
+        else:
+            time_dist["بیش از ۲۵ دقیقه"] += 1
 
         # --- منطق توزیع جغرافیایی و جنسیت ---
         u = sub.user
@@ -3168,13 +3180,10 @@ def get_contest_analytics(
                 province_map[prov_name]["cities"][city_name] = 0
             province_map[prov_name]["cities"][city_name] += 1
             
-            # 🌟 شمارش جنسیت
             if u.gender == "male":
                 gender_map["مرد"] += 1
             elif u.gender == "female":
                 gender_map["زن"] += 1
-            else:
-                gender_map["نامشخص"] += 1
         
     time_payload = [{"name": k, "users": v} for k, v in time_dist.items()]
     
@@ -3189,11 +3198,9 @@ def get_contest_analytics(
         })
     province_stats.sort(key=lambda x: x["count"], reverse=True)
     
-    # 🌟 پکیج‌بندی دیتای جنسیت
     gender_stats = [
         {"gender": "مرد", "count": gender_map["مرد"]},
         {"gender": "زن", "count": gender_map["زن"]},
-        {"gender": "نامشخص", "count": gender_map["نامشخص"]}
     ]
     
     # --- منطق سوالات ---
