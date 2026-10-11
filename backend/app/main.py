@@ -11,7 +11,7 @@ from sqlalchemy import func, text, desc, asc, insert
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
-import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime
+import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress
 from app.services.sms_service import sms_service
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timedelta, date, time
@@ -65,7 +65,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 models.Base.metadata.create_all(bind=database.engine)
 
-# 🌟 فعال‌سازی متریک‌های پرومتئوس به صورت مخفی و محدود شده به شبکه داخلی
+# Metrics are not in the OpenAPI schema. MetricsAccessASGIMiddleware limits /metrics
+# to a direct peer on the container network (Prometheus). Public and proxied calls are rejected.
 Instrumentator(
     should_group_status_codes=True,
     should_ignore_untemplated=False,
@@ -623,8 +624,9 @@ class RateLimiterASGIMiddleware:
         method = scope.get("method", "GET")
         path = scope.get("path", "") or "/"
 
-        # Pass OPTIONS + static through natively (no response buffering)
-        if method == "OPTIONS" or path.startswith("/static"):
+        # Pass OPTIONS + static through natively (no response buffering).
+        # /metrics is already gated to direct internal peers; do not 429 scrapes.
+        if method == "OPTIONS" or path.startswith("/static") or path.rstrip("/") == "/metrics":
             await self.app(scope, receive, send)
             return
 
@@ -752,6 +754,117 @@ class InProgressRequestsASGIMiddleware:
 
 app.add_middleware(InProgressRequestsASGIMiddleware)
 app.add_middleware(RequestTracingASGIMiddleware)
+
+
+def _le_hex_ipv4(value: str) -> ipaddress.IPv4Address:
+    return ipaddress.IPv4Address(int.from_bytes(bytes.fromhex(value), "little"))
+
+
+def _docker_metrics_allowlist():
+    """On-link private networks and default gateways from the container routing table.
+
+    Docker published-port traffic is NATed to the bridge gateway, so the gateway
+    is not a scrape peer. Prometheus on emtedad_network connects as its own address.
+    """
+    networks = []
+    gateways = set()
+    try:
+        with open("/proc/net/route", encoding="ascii") as route_file:
+            next(route_file, None)
+            for line in route_file:
+                fields = line.split()
+                if len(fields) < 8:
+                    continue
+                dest_hex, gateway_hex, mask_hex = fields[1], fields[2], fields[7]
+                if dest_hex == "00000000" and gateway_hex not in ("", "00000000"):
+                    gateways.add(str(_le_hex_ipv4(gateway_hex)))
+                    continue
+                if gateway_hex != "00000000" or mask_hex in ("", "00000000"):
+                    continue
+                dest_ip = _le_hex_ipv4(dest_hex)
+                mask_ip = _le_hex_ipv4(mask_hex)
+                network = ipaddress.IPv4Network(f"{dest_ip}/{mask_ip}", strict=False)
+                if network.is_private and not network.is_loopback and network.prefixlen >= 8:
+                    networks.append(network)
+    except OSError as exc:
+        logger.warning(f"Could not read container routes for /metrics allowlist: {exc}")
+    return networks, gateways
+
+
+_METRICS_PROXY_HEADERS = (
+    "x-forwarded-for",
+    "x-forwarded-host",
+    "forwarded",
+    "origin",
+)
+
+
+class MetricsAccessASGIMiddleware:
+    """Serve /metrics only to a direct peer on the Docker network.
+
+    The TCP client address is used. X-Forwarded-For is ignored because it can be
+    spoofed. Requests that carry proxy or browser Origin headers are rejected so
+    the public Next.js /api rewrite cannot reach this route.
+    """
+
+    def __init__(self, app):
+        self.app = app
+        self._networks, self._gateways = _docker_metrics_allowlist()
+
+    @staticmethod
+    def _peer_ip(scope):
+        client = scope.get("client")
+        if not client or not client[0]:
+            return None
+        raw = str(client[0]).split("%", 1)[0]
+        try:
+            ip = ipaddress.ip_address(raw)
+        except ValueError:
+            return None
+        mapped = getattr(ip, "ipv4_mapped", None)
+        return mapped or ip
+
+    def _is_direct_internal_peer(self, scope) -> bool:
+        header_map = {
+            key.decode("latin-1").lower(): value.decode("latin-1")
+            for key, value in scope.get("headers", [])
+        }
+        if any(header_map.get(name) for name in _METRICS_PROXY_HEADERS):
+            return False
+
+        ip = self._peer_ip(scope)
+        if ip is None:
+            return False
+        if ip.is_loopback:
+            return True
+        if not isinstance(ip, ipaddress.IPv4Address):
+            return False
+        if str(ip) in self._gateways:
+            return False
+        return any(ip in network for network in self._networks)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = (scope.get("path") or "/").rstrip("/") or "/"
+        if path != "/metrics":
+            await self.app(scope, receive, send)
+            return
+
+        if self._is_direct_internal_peer(scope):
+            await self.app(scope, receive, send)
+            return
+
+        ip = self._peer_ip(scope)
+        if ip is not None and (ip.is_loopback or ip.is_private):
+            logger.info(f"Rejected /metrics scrape from {ip}")
+        response = Response(status_code=403, content=b"Forbidden", media_type="text/plain")
+        await response(scope, receive, send)
+
+
+app.add_middleware(MetricsAccessASGIMiddleware)
 
 # =====================================================================
 # بخش دوم فایل main.py: روت‌های احراز هویت، مسابقات، سوالات و کارنامه
