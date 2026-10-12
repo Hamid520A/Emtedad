@@ -69,7 +69,11 @@ export default function ContestAnalyticsCharts({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
               <XAxis dataKey="name" stroke="#9ca3af" tickLine={false} />
               <YAxis stroke="#9ca3af" tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                itemStyle={{ color: '#fff' }}
+                formatter={(value) => [value, 'تعداد']}
+              />
               <Area
                 type="monotone"
                 dataKey="users"
@@ -135,11 +139,19 @@ export default function ContestAnalyticsCharts({
           <MapPin size={18} className="text-[#c5a059]" />
           <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">پراکندگی جغرافیایی شرکت‌کنندگان (استان‌ها)</h3>
         </div>
-        <div className="w-full h-72 text-xs font-bold font-sans cursor-pointer">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={analyticsData.province_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 5 }}>
+        <div className="w-full h-96 text-xs font-bold font-sans cursor-pointer">
+          <ResponsiveContainer width="100%" height={360}>
+            <BarChart data={analyticsData.province_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
-              <XAxis dataKey="province" stroke="#9ca3af" tickLine={false} />
+              <XAxis
+                dataKey="province"
+                stroke="#9ca3af"
+                tickLine={false}
+                interval={0}
+                angle={-45}
+                textAnchor="end"
+                height={70}
+              />
               <YAxis stroke="#9ca3af" tickLine={false} />
               <Tooltip
                 cursor={{ fill: '#f3f4f6' }}
