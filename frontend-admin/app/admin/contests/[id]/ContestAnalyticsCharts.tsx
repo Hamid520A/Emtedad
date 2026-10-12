@@ -139,18 +139,19 @@ export default function ContestAnalyticsCharts({
           <MapPin size={18} className="text-[#c5a059]" />
           <h3 className="font-black text-sm text-[#1a2e44] dark:text-slate-100">پراکندگی جغرافیایی شرکت‌کنندگان (استان‌ها)</h3>
         </div>
-        <div className="w-full h-96 text-xs font-bold font-sans cursor-pointer">
-          <ResponsiveContainer width="100%" height={360}>
-            <BarChart data={analyticsData.province_stats || []} margin={{ top: 10, right: 5, left: -25, bottom: 60 }}>
+        <div className="w-full h-[28rem] text-[10px] font-bold font-sans cursor-pointer">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={analyticsData.province_stats || []} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
               <XAxis
                 dataKey="province"
                 stroke="#9ca3af"
                 tickLine={false}
                 interval={0}
-                angle={-45}
+                angle={-90}
                 textAnchor="end"
-                height={70}
+                height={128}
+                tick={{ fontSize: 10, fill: '#9ca3af' }}
               />
               <YAxis stroke="#9ca3af" tickLine={false} />
               <Tooltip
