@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, date, time
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from jose import JWTError, jwt
-from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from prometheus_client import Gauge
 from contextlib import asynccontextmanager
 from uuid import UUID
@@ -67,12 +67,43 @@ models.Base.metadata.create_all(bind=database.engine)
 
 # Metrics are not in the OpenAPI schema. MetricsAccessASGIMiddleware limits /metrics
 # to a direct peer on the container network (Prometheus). Public and proxied calls are rejected.
+# Custom instrumentations replace metrics.default(), whose duration histogram has no status label.
+_LATENCY_HIGHR_BUCKETS = (
+    0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75,
+    1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 7.5, 10, 30, 60,
+)
 Instrumentator(
     should_group_status_codes=True,
     should_ignore_untemplated=False,
     should_group_untemplated=True,  # /contests/123 → grouped, not per-ID series
     should_respect_env_var=False,
     excluded_handlers=["/metrics", "/health", "/ready"],
+).add(
+    metrics.latency(
+        should_include_handler=True,
+        should_include_method=True,
+        should_include_status=True,
+        buckets=(0.1, 0.5, 1),
+    ),
+    metrics.latency(
+        metric_name="http_request_duration_highr_seconds",
+        metric_doc="Latency with many buckets but no API specific labels. Made for more accurate percentile calculations.",
+        should_include_handler=False,
+        should_include_method=False,
+        should_include_status=False,
+        buckets=_LATENCY_HIGHR_BUCKETS,
+    ),
+    metrics.requests(),
+    metrics.request_size(
+        should_include_handler=True,
+        should_include_method=False,
+        should_include_status=False,
+    ),
+    metrics.response_size(
+        should_include_handler=True,
+        should_include_method=False,
+        should_include_status=False,
+    ),
 ).instrument(app).expose(app, include_in_schema=False)
 
 # In-flight requests currently held by Uvicorn workers (detect pool exhaustion)
