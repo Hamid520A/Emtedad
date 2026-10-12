@@ -147,16 +147,9 @@ export const openExternalLink = (rawUrl: string, e?: React.SyntheticEvent | Even
 
   if (typeof window === 'undefined') return;
 
-  // 1. بررسی آیا فایل یک داکیومنت است
-  const isDocument = fullUrl.match(/\.(pdf|doc|docx|ppt|pptx)$/i);
-  
-  // 2. استفاده از گوگل داکس برای دور زدن محدودیت‌های دانلود وب‌ویو
-  const finalUrl = isDocument ? "https://docs.google.com/viewer?url=" + encodeURIComponent(fullUrl) : fullUrl;
+  const finalUrl = fullUrl;
 
-  if (isDocument) {
-  }
-
-  // 3. اجرای قطعی با target="_top" برای خروج از وب‌ویو
+  // اجرای قطعی با target="_top" برای خروج از وب‌ویو
   try {
     const a = document.createElement('a');
     a.href = finalUrl;

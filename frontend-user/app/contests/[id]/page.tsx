@@ -842,18 +842,14 @@ export default function ContestLandingPage() {
                     کپی لینک دانلود
                   </button>
                   
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cb = Date.now();
-                      const freshUrl = fullUrl.includes('?') ? `${fullUrl}&cb=${cb}` : `${fullUrl}?cb=${cb}`;
-                      const finalUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(freshUrl)}&embedded=true`;
-                      window.open(finalUrl, '_blank');
-                    }}
+                  <a
+                    href={fullUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="bg-[#1a2e44] dark:bg-[#c5a059] text-white p-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition active:scale-95"
                   >
                     <ExternalLink size={16} /> مشاهده جزوه
-                  </button>
+                  </a>
                 </div>
               </div>
 
