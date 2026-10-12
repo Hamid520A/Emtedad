@@ -331,10 +331,8 @@ export default function ContestLandingPage() {
 
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-4 sm:px-8 relative z-30 -mt-8 sm:-mt-12">
 
-        <div className="lg:col-span-2 space-y-6">
-
           {isAdminUser && (
-            <div className="bg-white dark:bg-[#182234] dark:bg-[#182234]/95 backdrop-blur-md border border-red-100 p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] flex flex-col gap-4 shadow-md relative overflow-hidden">
+            <div className="lg:col-span-3 bg-white dark:bg-[#182234] dark:bg-[#182234]/95 backdrop-blur-md border border-red-100 p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] flex flex-col gap-4 shadow-md relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 pb-3">
@@ -371,7 +369,7 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4 pt-6 sm:pt-8">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -426,38 +424,6 @@ export default function ContestLandingPage() {
             )}
           </div>
 
-          {isAdminUser && analyticsData && (
-            <ContestAnalyticsCharts
-              analyticsData={analyticsData}
-              section="questions"
-              onQuestionClick={(payload) => {
-                setSelectedQuestion(payload);
-                setQuestionModalOpen(true);
-              }}
-            />
-          )}
-
-          {isAdminUser && analyticsData && (
-            <div className="self-start w-full">
-              <ContestAnalyticsCharts analyticsData={analyticsData} section="gender" />
-            </div>
-          )}
-          </div>
-
-          {isAdminUser && analyticsData && (
-            <div className="space-y-6">
-              <ContestAnalyticsCharts analyticsData={analyticsData} section="time" />
-              <ContestAnalyticsCharts
-                analyticsData={analyticsData}
-                section="province"
-                onProvinceClick={(payload) => {
-                  setSelectedProvince(payload);
-                  setProvinceModalOpen(true);
-                }}
-              />
-            </div>
-          )}
-
           {contest.status === 'active' && (
             <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800">
               {hasParticipated ? (
@@ -488,6 +454,43 @@ export default function ContestLandingPage() {
                   <PlayCircle size={20} className="text-[#c5a059]" /> تست آزمون در سامانه کاربران
                 </button>
               )}
+            </div>
+          )}
+
+          {contest.status === 'finished' && hasParticipated && (
+            <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-3">
+              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-3 gap-1">
+                <div className="text-center border-l border-white/10 flex flex-col justify-center">
+                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">رتبه نهایی</span>
+                  <span className="font-black text-sm sm:text-lg text-white">#{toPersianDigits(getLiveRank())}</span>
+                </div>
+                <div className="text-center border-l border-white/10 flex flex-col justify-center">
+                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">نمره شما</span>
+                  <span className="font-black text-sm sm:text-lg text-white">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
+                </div>
+                <div className="text-center flex flex-col justify-center">
+                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">زمان مصرفی</span>
+                  <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}ثانیه</span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const token = localStorage.getItem('accessToken') || '';
+                  const refreshToken = localStorage.getItem('refreshToken') || '';
+                  const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || 'https://emtedad.ir-ma.ir';
+                  const userAppUrl = `${userAppBaseUrl}/review-final/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
+                  window.open(userAppUrl, '_blank');
+                }}
+                className="w-full bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 hover:bg-gray-100 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100 dark:border-slate-800 dark:border-slate-800"
+              >
+                <FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات
+              </button>
+            </div>
+          )}
+
+          {isAdminUser && analyticsData && (
+            <div className="self-start w-full max-w-md">
+              <ContestAnalyticsCharts analyticsData={analyticsData} section="gender" />
             </div>
           )}
 
@@ -550,37 +553,6 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          {contest.status === 'finished' && hasParticipated && (
-            <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-3">
-              <div className="bg-gradient-to-br from-[#1a2e44] to-[#2a405a] p-3.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm grid grid-cols-3 gap-1">
-                <div className="text-center border-l border-white/10 flex flex-col justify-center">
-                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">رتبه نهایی</span>
-                  <span className="font-black text-sm sm:text-lg text-white">#{toPersianDigits(getLiveRank())}</span>
-                </div>
-                <div className="text-center border-l border-white/10 flex flex-col justify-center">
-                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">نمره شما</span>
-                  <span className="font-black text-sm sm:text-lg text-white">{toPersianDigits(myResult.score?.toString().replace('%', ''))}%</span>
-                </div>
-                <div className="text-center flex flex-col justify-center">
-                  <span className="text-[8px] sm:text-[9px] text-[#c5a059] font-black block mb-0.5">زمان مصرفی</span>
-                  <span className="font-black text-xs sm:text-lg text-white truncate block">{toPersianDigits(myResult.time || myResult.time_taken || 0)}ثانیه</span>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  const token = localStorage.getItem('accessToken') || '';
-                  const refreshToken = localStorage.getItem('refreshToken') || '';
-                  const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || 'https://emtedad.ir-ma.ir';
-                  const userAppUrl = `${userAppBaseUrl}/review-final/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
-                  window.open(userAppUrl, '_blank');
-                }}
-                className="w-full bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 hover:bg-gray-100 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100 dark:border-slate-800 dark:border-slate-800"
-              >
-                <FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات
-              </button>
-            </div>
-          )}
-
           {contest.awards && Array.isArray(contest.awards) && contest.awards.length > 0 && (
             <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-2.5 text-right animate-in fade-in duration-300">
               <h4 className="font-black text-xs text-amber-800 flex items-center gap-1.5 mb-2">
@@ -612,6 +584,28 @@ export default function ContestLandingPage() {
           )}
 
         </div>
+
+        {isAdminUser && analyticsData && (
+          <div className="lg:col-span-3 space-y-6">
+            <ContestAnalyticsCharts
+              analyticsData={analyticsData}
+              section="questions"
+              onQuestionClick={(payload) => {
+                setSelectedQuestion(payload);
+                setQuestionModalOpen(true);
+              }}
+            />
+            <ContestAnalyticsCharts analyticsData={analyticsData} section="time" />
+            <ContestAnalyticsCharts
+              analyticsData={analyticsData}
+              section="province"
+              onProvinceClick={(payload) => {
+                setSelectedProvince(payload);
+                setProvinceModalOpen(true);
+              }}
+            />
+          </div>
+        )}
       </main>
 
       {/* مدال تحلیل سوالات */}
