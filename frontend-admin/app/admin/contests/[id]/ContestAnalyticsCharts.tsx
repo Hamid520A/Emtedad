@@ -141,7 +141,7 @@ export default function ContestAnalyticsCharts({
         </div>
         <div className="w-full h-[28rem] text-[10px] font-bold font-sans cursor-pointer">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={analyticsData.province_stats || []} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+            <BarChart data={analyticsData.province_stats || []} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#faf9f6" />
               <XAxis
                 dataKey="province"
@@ -149,8 +149,8 @@ export default function ContestAnalyticsCharts({
                 tickLine={false}
                 interval={0}
                 angle={-90}
-                textAnchor="end"
-                height={128}
+                textAnchor="start"
+                height={132}
                 tick={{ fontSize: 10, fill: '#9ca3af' }}
               />
               <YAxis stroke="#9ca3af" tickLine={false} />

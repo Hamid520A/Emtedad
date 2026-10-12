@@ -5,6 +5,7 @@ volumes:
   postgres_data: null
   redis_data: null
   grafana_data: null
+  metabase-data: null
 services:
   frontend-user:
     build:
@@ -191,3 +192,26 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
+
+  metabase:
+    image: metabase/metabase:latest
+    ports:
+    - ${METABASE_HOST_PORT:-63002}:3000
+    volumes:
+    - metabase-data:/metabase-data
+    environment:
+    - MB_DB_FILE=/metabase-data/metabase.db
+    restart: unless-stopped
+    networks:
+    - emtedad_network
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
