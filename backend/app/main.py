@@ -1396,9 +1396,9 @@ def get_questions_list(
             for ans in q.answers 
             if ans.deleted_at is None
         ]
-        
-        # برهم زدن چیدمان گزینه‌ها برای هر کاربر
-        random.shuffle(options)
+        # Temporary: keep insertion order. "Options A and B are correct" assumes this order.
+        # random.shuffle(options)
+        options.sort(key=lambda option: option["id"])
         
         processed_questions.append({
             "id": q.id,
