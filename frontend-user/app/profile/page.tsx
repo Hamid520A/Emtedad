@@ -286,6 +286,7 @@ export default function ProfilePage() {
                 <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
 
+              {false && (
               <button onClick={openCertificateModal} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-amber-50 dark:bg-amber-950/30 text-[#c5a059] rounded-2xl group-hover:scale-105 transition-transform"><Award size={22} /></div>
@@ -293,6 +294,7 @@ export default function ProfilePage() {
                 </div>
                 <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
+              )}
 
               <button onClick={() => router.push('/profile/change-password')} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
@@ -356,7 +358,7 @@ export default function ProfilePage() {
       </div>
 
       {/* 🌟 مُدال نمایش و کپی لینک گواهی‌ها */}
-      {certModalOpen && (
+      {false && certModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-sm shadow-2xl border border-gray-100 dark:border-slate-800 p-6 flex flex-col text-right">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4 mb-4">

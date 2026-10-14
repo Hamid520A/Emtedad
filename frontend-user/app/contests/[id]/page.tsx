@@ -597,7 +597,7 @@ export default function ContestLandingPage() {
             </div>
           )}
 
-          {contest.certificate_type && contest.certificate_type !== 'none' && (
+          {false && contest.certificate_type && contest.certificate_type !== 'none' && (
             <div className="p-4 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl sm:rounded-[2rem] border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-3 shadow-sm">
               <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-md shrink-0"><Award size={20} /></div>
               <div className="flex flex-col text-right min-w-0">
