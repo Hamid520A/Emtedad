@@ -14,7 +14,7 @@ from . import schemas, models, auth, database
 import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress
 from app.services.sms_service import sms_service
 from pydantic import BaseModel, Field, field_validator
-from datetime import datetime, timedelta, date, time
+from datetime import datetime, timedelta, date, time, timezone
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from jose import JWTError, jwt
@@ -355,6 +355,19 @@ def create_jwt_token(data: dict, expires_delta: timedelta):
     expire = datetime.utcnow() + expires_delta
     safe_data.update({"exp": expire})
     return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
+
+# Contest start_time/end_time are naive DateTime columns holding UTC wall-clock time.
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+def to_utc_naive(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None or value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+def iso_utc(value: Optional[datetime]) -> Optional[str]:
+    value = to_utc_naive(value)
+    return value.isoformat() + "Z" if value else None
 
 def invalidate_contest_list_cache() -> None:
     """Drop public GET /contests cache keys after contest mutations."""
@@ -1135,7 +1148,7 @@ def login_for_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Sess
 @app.get("/contests", response_model=List[schemas.ContestListItem])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     """دریافت لیست مسابقات - فیلتر کامل و قطعی مسابقات حذف شده (Soft Deleted)"""
-    now = datetime.now()
+    now = utc_now()
     
     # 🌟 فیکس: آپدیت بالک وضعیت مسابقات در سطح دیتابیس (جلوگیری از OOM)
     # ۱. فعال‌سازی خودکار مسابقاتی که زمان شروع آن‌ها رسیده
@@ -1194,13 +1207,13 @@ def get_contest_detail(
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
     }
     
-    cache_key = f"cache:contest:{contest_id}:detail"
+    cache_key = f"cache:contest:{contest_id}:detail:v2"
     cached_payload = _cache_get_json(cache_key)
 
     if cached_payload is not None:
         content = dict(cached_payload)
         # Never serve a stale clock from Redis
-        content["server_now"] = datetime.now().isoformat()
+        content["server_now"] = iso_utc(utc_now())
         # certificate_details is admin-only — never stored in the shared cache
         content["certificate_details"] = None
         content.pop("sms_message", None)
@@ -1279,8 +1292,8 @@ def get_contest_detail(
         "video_url": contest.video_url,
         "audio_url": contest.audio_url,
         "status": contest.status,
-        "start_time": contest.start_time.isoformat() if contest.start_time else None,
-        "end_time": contest.end_time.isoformat() if contest.end_time else None,
+        "start_time": iso_utc(contest.start_time),
+        "end_time": iso_utc(contest.end_time),
         "question_limit": contest.question_limit,
         "time_limit": time_limit_minutes,
         "file_url": file_url,
@@ -1294,7 +1307,7 @@ def get_contest_detail(
     _cache_set_json(cache_key, public_payload, CACHE_TTL_CONTEST_DETAIL)
 
     response_content = dict(public_payload)
-    response_content["server_now"] = datetime.now().isoformat()
+    response_content["server_now"] = iso_utc(utc_now())
     response_content["certificate_details"] = cert_payload
     if current_user and current_user.admin and current_user.admin.is_active == 1:
         response_content["sms_message"] = contest.sms_message
@@ -1422,8 +1435,8 @@ def create_new_contest(contest: schemas.ContestCreate, db: Session = Depends(dat
         video_url=contest.video_url,
         audio_url=contest.audio_url,
         max_time=max_time_obj,
-        start_time=contest.start_time,
-        end_time=contest.end_time,
+        start_time=to_utc_naive(contest.start_time),
+        end_time=to_utc_naive(contest.end_time),
         status=contest.status,
         question_limit=contest.question_limit,
         success_message=contest.success_message,
@@ -1645,6 +1658,7 @@ def _invalidate_contest_caches(contest_id: int) -> None:
     """Drop contest-scoped landing caches after writes."""
     keys = [
         f"cache:contest:{contest_id}:detail",
+        f"cache:contest:{contest_id}:detail:v2",
         f"cache:contest:{contest_id}:analytics",
         f"cache:contest:{contest_id}:analytics:v2",
         f"cache:leaderboard:{contest_id}",
@@ -3080,7 +3094,7 @@ def update_contest(
     if not db_contest:
         raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
     
-    now = datetime.now()
+    now = utc_now()
 
     for key, value in contest_data.items():
         if value is None:
@@ -3091,30 +3105,18 @@ def update_contest(
             db_contest.max_time = time(hour=minutes // 60, minute=minutes % 60)
             
         elif key == "start_time" and isinstance(value, str):
-            try: db_contest.start_time = datetime.fromisoformat(value.replace('Z', ''))
+            try: db_contest.start_time = to_utc_naive(datetime.fromisoformat(value.replace('Z', '+00:00')))
             except ValueError: pass
                 
         elif key == "end_time" and isinstance(value, str):
-            try: db_contest.end_time = datetime.fromisoformat(value.replace('Z', ''))
+            try: db_contest.end_time = to_utc_naive(datetime.fromisoformat(value.replace('Z', '+00:00')))
             except ValueError: pass
             
         elif key == "status":
-            if value == "active":
+            # max_time is the per-user exam duration; the scheduled end_time stays as set.
+            if value in ("active", "resume"):
                 db_contest.status = "active"
                 db_contest.start_time = now
-                if db_contest.max_time:
-                    duration_minutes = db_contest.max_time.hour * 60 + db_contest.max_time.minute
-                    db_contest.end_time = now + timedelta(minutes=duration_minutes)
-                else:
-                    db_contest.end_time = now + timedelta(minutes=10)
-            elif value == "resume":
-                if db_contest.start_time and db_contest.start_time <= now:
-                    db_contest.status = "active"
-                    if db_contest.max_time:
-                        duration_minutes = db_contest.max_time.hour * 60 + db_contest.max_time.minute
-                        db_contest.end_time = now + timedelta(minutes=duration_minutes)
-                else:
-                    db_contest.status = "upcoming"
             elif value == "ended":
                 db_contest.status = "ended"
                 db_contest.end_time = now
@@ -3208,8 +3210,8 @@ def update_contest(
     return {
         "message": "مسابقه و گواهی متصل به آن با موفقیت ویرایش شدند",
         "status": db_contest.status,
-        "start_time": db_contest.start_time.isoformat() if db_contest.start_time else None,
-        "end_time": db_contest.end_time.isoformat() if db_contest.end_time else None
+        "start_time": iso_utc(db_contest.start_time),
+        "end_time": iso_utc(db_contest.end_time)
     }
 
 @app.get("/admin/contests/{contest_id}/questions", response_model=List[schemas.Question])

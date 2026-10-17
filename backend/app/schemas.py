@@ -1,9 +1,9 @@
 # backend/app/schemas.py
 import re
 
-from pydantic import BaseModel, field_validator, Field, model_validator
+from pydantic import BaseModel, field_validator, field_serializer, Field, model_validator
 from typing import List, Optional
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timezone
 import jdatetime
 from uuid import UUID
 
@@ -256,6 +256,15 @@ class ContestBase(BaseModel):
     question_limit: Optional[int] = None
     success_message: Optional[str] = None
     failure_message: Optional[str] = None
+
+    # DB stores naive UTC; without "Z" browsers parse it as local time.
+    @field_serializer("start_time", "end_time", when_used="json")
+    def serialize_utc(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.isoformat() + "Z"
 
 class ContestCreate(ContestBase):
     title: str
