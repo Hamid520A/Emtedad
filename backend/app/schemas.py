@@ -137,6 +137,7 @@ class UserProfileUpdate(BaseModel):
 class User(UserBase):
     id: UUID
     is_active: int
+    wallet_code: Optional[int] = None
     class Config:
         from_attributes = True
 

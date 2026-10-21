@@ -24,6 +24,7 @@ class User(Base):
     first_name = Column(String(255), nullable=False)
     last_name = Column(String(255), nullable=True)
     phone_number = Column(String(20), unique=True, index=True)
+    wallet_code = Column(Integer, unique=True, index=True, nullable=True)
     password = Column(String(255), nullable=False)
     national_id = Column(String(20), unique=True, index=True)
     is_iranian = Column(Boolean, default=True)

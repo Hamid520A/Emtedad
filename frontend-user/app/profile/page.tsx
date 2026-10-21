@@ -10,7 +10,7 @@ import {
   User, Trophy, History, ArrowRight, 
   LogOut, Loader2, Star, Settings, ShieldCheck, 
   HelpCircle, ChevronLeft, Crown, Award, Download,
-  X, CheckCircle2, XCircle, FileText
+  X, CheckCircle2, XCircle, FileText, Copy
 } from 'lucide-react';
 
 import ThemeToggle from '../components/ThemeToggle';
@@ -151,14 +151,9 @@ export default function ProfilePage() {
     }
   };
 
-  // 🌟 تابع جدید جایگزین دانلود: ساخت لینک و کپی در کلیپ‌بورد
-  const handleCopyCertificateLink = (contestId: number | string) => {
-    const token = localStorage.getItem("accessToken") || "";
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
-    const downloadUrl = `${baseUrl}/users/me/contests/${contestId}/certificate/download?token=${token}`;
-    const downloadLinkCopiedMessage = "لینک مستقیم دانلود فایل با موفقیت کپی شد.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.";
-
-    const fallbackCopy = (text: string) => {
+  // Eitaa WebView is served over plain HTTP, so navigator.clipboard is usually unavailable.
+  const copyText = (text: string, onSuccess: () => void) => {
+    const fallbackCopy = () => {
       const textArea = document.createElement("textarea");
       textArea.value = text;
       textArea.style.position = "fixed";
@@ -168,7 +163,7 @@ export default function ProfilePage() {
       textArea.select();
       try {
         document.execCommand('copy');
-        toast.error(downloadLinkCopiedMessage);
+        onSuccess();
       } catch (err) {
         console.error('Fallback copy failed', err);
         toast.error("❌ مرورگر اجازه کپی خودکار را نمی‌دهد.");
@@ -177,12 +172,27 @@ export default function ProfilePage() {
     };
 
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(downloadUrl)
-        .then(() => toast.error(downloadLinkCopiedMessage))
-        .catch(() => fallbackCopy(downloadUrl));
+      navigator.clipboard.writeText(text)
+        .then(onSuccess)
+        .catch(fallbackCopy);
     } else {
-      fallbackCopy(downloadUrl);
+      fallbackCopy();
     }
+  };
+
+  // 🌟 تابع جدید جایگزین دانلود: ساخت لینک و کپی در کلیپ‌بورد
+  const handleCopyCertificateLink = (contestId: number | string) => {
+    const token = localStorage.getItem("accessToken") || "";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
+    const downloadUrl = `${baseUrl}/users/me/contests/${contestId}/certificate/download?token=${token}`;
+    const downloadLinkCopiedMessage = "لینک مستقیم دانلود فایل با موفقیت کپی شد.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.";
+
+    copyText(downloadUrl, () => toast.error(downloadLinkCopiedMessage));
+  };
+
+  const handleCopyWalletCode = () => {
+    if (!profile?.wallet_code) return;
+    copyText(String(profile.wallet_code), () => toast.success('شناسه کاربری کپی شد'));
   };
 
   const handleLogout = () => {
@@ -243,6 +253,15 @@ export default function ProfilePage() {
             <div>
               <h2 className="text-2xl font-black text-[#1a2e44] dark:text-slate-100">{profile.first_name} {profile.last_name}</h2>
               <p className="text-gray-400 dark:text-slate-400 font-medium" dir="ltr">{profile.phone_number || profile.phone}</p>
+              {profile.wallet_code && (
+                <div className="mt-2 inline-flex items-center gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 px-3 py-1.5 rounded-xl">
+                  <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400">شناسه کاربری:</span>
+                  <span className="font-black text-sm text-[#1a2e44] dark:text-slate-100 tracking-widest" dir="ltr">{profile.wallet_code}</span>
+                  <button type="button" onClick={handleCopyWalletCode} aria-label="کپی شناسه کاربری" className="p-1.5 rounded-lg text-[#c5a059] hover:bg-amber-100 dark:hover:bg-amber-900/40 active:scale-95 transition">
+                    <Copy size={14} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* اطلاعات تکمیلی */}

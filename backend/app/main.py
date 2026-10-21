@@ -13,6 +13,7 @@ from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
 import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress
 from app.services.sms_service import sms_service
+from app.services.wallet_code import generate_unique_wallet_code
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timedelta, date, time, timezone
 from PIL import Image, ImageDraw, ImageFont
@@ -1080,21 +1081,31 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         
     # هش کردن رمز عبور و ساخت کاربر بر اساس فیلدهای جدید (حذف جنسیت و استان متنی)
     hashed_pwd = auth.get_password_hash(user.password)
-    db_model_user = models.User(
-        first_name=user.first_name,
-        last_name=user.last_name,
-        phone_number=user.phone_number,
-        password=hashed_pwd,
-        national_id=user.national_id,
-        is_iranian=user.is_iranian,
-        city_id=user.city_id,
-        birth_date=user.birth_date,
-        gender=user.gender
-    )
-    db.add(db_model_user)
-    db.commit()
-    db.refresh(db_model_user)
-    return db_model_user
+    max_wallet_attempts = 3
+    for attempt in range(max_wallet_attempts):
+        db_model_user = models.User(
+            first_name=user.first_name,
+            last_name=user.last_name,
+            phone_number=user.phone_number,
+            wallet_code=generate_unique_wallet_code(db),
+            password=hashed_pwd,
+            national_id=user.national_id,
+            is_iranian=user.is_iranian,
+            city_id=user.city_id,
+            birth_date=user.birth_date,
+            gender=user.gender
+        )
+        db.add(db_model_user)
+        try:
+            db.commit()
+        except IntegrityError as e:
+            db.rollback()
+            # The unique index is the real guarantee when two registrations draw the same code.
+            if "wallet_code" in str(e.orig) and attempt < max_wallet_attempts - 1:
+                continue
+            raise
+        db.refresh(db_model_user)
+        return db_model_user
 
 @app.post("/login")
 def login(login_data: schemas.UserLogin, db: Session = Depends(database.get_db)):
@@ -1805,6 +1816,14 @@ def get_my_complete_profile(
                   .filter(models.User.id == current_user.id)\
                   .options(joinedload(models.User.city).joinedload(models.City.parent))\
                   .first()
+
+    if user_data.wallet_code is None:
+        user_data.wallet_code = generate_unique_wallet_code(db)
+        try:
+            db.commit()
+        except IntegrityError:
+            # Lost a race for this code; the next profile load assigns another one.
+            db.rollback()
                   
     # ۲. استخراج هوشمند نام شهر و استان از جدول رابطه‌ای
     # اگر city_id اشتباهاً به یک استان (parent_id=NULL) اشاره کند، عنوان آن را به‌عنوان استان نشان بده
@@ -1853,6 +1872,7 @@ def get_my_complete_profile(
         "first_name": user_data.first_name,
         "last_name": user_data.last_name,
         "phone_number": user_data.phone_number,
+        "wallet_code": user_data.wallet_code,
         "national_id": user_data.national_id,
         "is_iranian": getattr(user_data, 'is_iranian', True),
         "birth_date": jdatetime.date.fromgregorian(date=user_data.birth_date).strftime('%Y/%m/%d') if user_data.birth_date else "---",
