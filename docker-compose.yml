@@ -76,6 +76,8 @@ services:
     - ./backend/static/uploads:/app/static/uploads
     env_file:
     - ./backend/.env
+    environment:
+    - WEB_CONCURRENCY=${BACKEND_WORKERS:-4}
     restart: unless-stopped
     depends_on:
       db:
@@ -87,12 +89,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          memory: 2G
         reservations:
           cpus: '0.5'
           memory: 256M
-    mem_limit: 1G
+    mem_limit: 2G
     healthcheck:
       test:
       - CMD

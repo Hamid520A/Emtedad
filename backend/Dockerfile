@@ -8,6 +8,9 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+# تعداد پروسس‌های Uvicorn
+ENV WEB_CONCURRENCY=4
+
 # ۴. نصب ابزارهای مورد نیاز سیستم برای کامپایل پکیج‌ها (مثل psycopg2)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -31,5 +34,5 @@ USER appuser
 # ۹. باز کردن پورت ۸۰۰۰
 EXPOSE 8000
 
-# ۱۰. دستور اجرای سرور با uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# ۱۰. ساخت جداول (فقط یک‌بار) و سپس اجرای سرور با uvicorn (چند پروسسی)
+CMD ["sh", "-c", "python prestart.py && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers \"$WEB_CONCURRENCY\""]

@@ -2,26 +2,50 @@
 // frontend-admin/app/admin/users/page.tsx
 
 import toast from 'react-hot-toast';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';
 import { 
   Users, ArrowRight, Search, Trophy, X, MapPin, Calendar, CheckCircle2, XCircle,
-  Smartphone, FileText, Edit2, Save, Download, ArrowUpDown, ShieldCheck, UserCheck
+  Smartphone, FileText, Edit2, Save, Download, ShieldCheck, UserCheck, ChevronRight, ChevronLeft
 } from 'lucide-react'; 
+
+const PAGE_SIZE = 50;
+const EXPORT_BATCH_SIZE = 1000;
+const SEARCH_DEBOUNCE_MS = 400;
+
+const buildFilterParams = (search: string, contestId: string, sort: string) => {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (sort === 'not_participated') {
+    params.set('participation_status', 'not_participated');
+  } else {
+    if (contestId) params.set('contest_id', contestId);
+    if (sort) params.set('sort_by', sort);
+  }
+  return params;
+};
+
+const formatScore = (score: number | null | undefined) =>
+  score === null || score === undefined ? '---' : `${score}%`;
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const [usersList, setUsersList] = useState<any[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<any[]>([]); 
+  const [users, setUsers] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [contests, setContests] = useState<any[]>([]); 
   const [selectedContestId, setSelectedContestId] = useState<string>('');
   const [sortFilter, setSortFilter] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState(''); 
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const latestRequestRef = useRef(0);
 
-  const [sortField, setSortField] = useState<string>('name'); 
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); 
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const pageStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(page * PAGE_SIZE, totalCount);
 
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -35,30 +59,25 @@ export default function AdminUsersPage() {
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [answerLoading, setAnswerLoading] = useState(false);
 
-  const toEnglishDigits = (str: string) => {
-    return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1776))
-              .replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1632));
-  };
-
   const toPersianDigits = (str: string | number) => {
     const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
 
-  const fetchUsers = async (contestId = selectedContestId, sort = sortFilter) => {
+  const fetchUsers = useCallback(async () => {
+    const requestId = ++latestRequestRef.current;
+    setLoading(true);
     try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (contestId) params.set('contest_id', contestId);
-      if (sort === 'not_participated') {
-        params.set('participation_status', 'not_participated');
-      } else if (sort) {
-        params.set('sort_by', sort);
-      }
-      const usersRes = await api.get(`/admin/users?${params.toString()}&t=${Date.now()}`);
-      setUsersList(usersRes.data || []);
-      setFilteredUsers(usersRes.data || []);
+      const params = buildFilterParams(searchTerm, selectedContestId, sortFilter);
+      params.set('skip', String((page - 1) * PAGE_SIZE));
+      params.set('limit', String(PAGE_SIZE));
+      params.set('t', String(Date.now()));
+      const usersRes = await api.get(`/admin/users?${params.toString()}`);
+      if (requestId !== latestRequestRef.current) return;
+      setUsers(usersRes.data?.items || []);
+      setTotalCount(usersRes.data?.total_count || 0);
     } catch (error: any) {
+      if (requestId !== latestRequestRef.current) return;
       console.error("Error fetching users:", error);
       if (error.response?.status === 403 || error.response?.status === 401) {
         toast.error("⚠️ خطای امنیتی: شما ادمین سیستم نیستید!");
@@ -66,9 +85,9 @@ export default function AdminUsersPage() {
         window.location.href = '/admin/login';
       }
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) setLoading(false);
     }
-  };
+  }, [page, searchTerm, selectedContestId, sortFilter]);
 
   const fetchInitialData = async () => {
     try {
@@ -86,102 +105,88 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetchInitialData();
-    fetchUsers('', '');
   }, []);
 
   useEffect(() => {
-    fetchUsers(selectedContestId, sortFilter);
-  }, [selectedContestId, sortFilter]);
+    fetchUsers();
+  }, [fetchUsers]);
 
   useEffect(() => {
-    const normalizedQuery = toEnglishDigits(searchQuery.trim().toLowerCase());
-    
-    let result = usersList.filter((user: any) => {
-      if (!normalizedQuery) return true;
+    const handle = setTimeout(() => {
+      const next = searchInput.trim();
+      if (next !== searchTerm) {
+        setSearchTerm(next);
+        setPage(1);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchInput, searchTerm]);
 
-      const name = user.name?.toLowerCase() || '';
-      const phone = toEnglishDigits(user.phone || '');
-      const nationalId = toEnglishDigits(user.national_id || '');
-      const province = user.province?.toLowerCase() || '';
-
-      const matchesSearch = (
-        name.includes(normalizedQuery) ||
-        phone.includes(normalizedQuery) ||
-        nationalId.includes(normalizedQuery) ||
-        province.includes(normalizedQuery)
-      );
-
-      return matchesSearch;
-    });
-
-    if (sortField) {
-      result.sort((a: any, b: any) => {
-        let valA = a[sortField];
-        let valB = b[sortField];
-
-        if (valA === undefined || valA === null) valA = '';
-        if (valB === undefined || valB === null) valB = '';
-
-        if (typeof valA === 'string' && typeof valB === 'string') {
-          return sortOrder === 'asc' 
-            ? valA.localeCompare(valB, 'fa') 
-            : valB.localeCompare(valA, 'fa');
-        }
-
-        return sortOrder === 'asc' ? valA - valB : valB - valA;
-      });
-    }
-
-    setFilteredUsers(result);
-  }, [searchQuery, usersList, sortField, sortOrder]);
-
-  const handleSortRequest = (field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
+  const goToPage = (target: number) => {
+    const next = Math.min(Math.max(1, target), totalPages);
+    if (next === page) return;
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const exportToCSV = () => {
-    if (filteredUsers.length === 0) {
+  const exportToCSV = async () => {
+    if (totalCount === 0) {
       toast.error("هیچ داده‌ای برای خروجی گرفتن در جدول فعلی وجود ندارد.");
       return;
     }
 
-    const headers = ["نام و نام خانوادگی", "شماره تماس", "کد ملی", "استان", "شهرستان", "جنسیت", "نقش", "آخرین رقابت", "میانگین نمره"];
-    
-    const rows = filteredUsers.map((user: any) => [
-      user.name || '',
-      user.phone || '',
-      user.national_id || '',
-      user.province || '',
-      user.city || '---',
-      user.gender === 'male' ? 'مرد' : user.gender === 'female' ? 'زن' : 'نامشخص',
-      user.is_admin ? 'مدیر سیستم' : 'کاربر عادی',
-      user.last_contest || 'شرکت نکرده',
-      user.average_score || '---'
-    ]);
+    setExporting(true);
+    try {
+      const allUsers: any[] = [];
+      const params = buildFilterParams(searchTerm, selectedContestId, sortFilter);
+      params.set('limit', String(EXPORT_BATCH_SIZE));
+      for (let skip = 0; ; skip += EXPORT_BATCH_SIZE) {
+        params.set('skip', String(skip));
+        const res = await api.get(`/admin/users?${params.toString()}`);
+        const items = res.data?.items || [];
+        allUsers.push(...items);
+        if (items.length < EXPORT_BATCH_SIZE || allUsers.length >= (res.data?.total_count ?? 0)) break;
+      }
 
-    let csvContent = "\uFEFF";
-    csvContent += headers.join(",") + "\n";
-    rows.forEach((row) => {
-      const cleanRow = row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",");
-      csvContent += cleanRow + "\n";
-    });
+      const headers = ["نام و نام خانوادگی", "شماره تماس", "کد ملی", "استان", "شهرستان", "جنسیت", "نقش", "آخرین رقابت", "میانگین نمره"];
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `گزارش_شرکت_کنندگان_امتداد_امام.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const rows = allUsers.map((user: any) => [
+        user.name || '',
+        user.phone || '',
+        user.national_id || '',
+        user.province || '',
+        user.city || '---',
+        user.gender === 'male' ? 'مرد' : user.gender === 'female' ? 'زن' : 'نامشخص',
+        user.is_admin ? 'مدیر سیستم' : 'کاربر عادی',
+        user.last_contest || 'شرکت نکرده',
+        formatScore(user.average_score)
+      ]);
+
+      let csvContent = "\uFEFF";
+      csvContent += headers.join(",") + "\n";
+      rows.forEach((row) => {
+        const cleanRow = row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",");
+        csvContent += cleanRow + "\n";
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `گزارش_شرکت_کنندگان_امتداد_امام.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error exporting users:", error);
+      toast.error("خطا در تهیه خروجی کاربران");
+    } finally {
+      setExporting(false);
+    }
   };
 
-  const handleUserClick = async (userId: number) => {
+  const handleUserClick = async (userId: string) => {
     setModalLoading(true);
     setModalOpen(true);
     setIsEditing(false); 
@@ -250,7 +255,7 @@ export default function AdminUsersPage() {
         is_admin: editFormData.is_admin
       });
       
-      fetchUsers(selectedContestId, sortFilter);
+      fetchUsers();
     } catch (error) {
       toast.error("خطا در ذخیره‌سازی تغییرات پرونده");
     } finally {
@@ -279,9 +284,10 @@ export default function AdminUsersPage() {
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
           <button 
             onClick={exportToCSV}
-            className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-700/10 hover:bg-emerald-700 transition-all active:scale-95 shrink-0"
+            disabled={exporting}
+            className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-3.5 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-700/10 hover:bg-emerald-700 transition-all active:scale-95 shrink-0 disabled:opacity-60 disabled:cursor-wait"
           >
-            <Download size={16} /> خروجی Excel / CSV
+            <Download size={16} /> {exporting ? 'در حال تهیه خروجی...' : 'خروجی Excel / CSV'}
           </button>
 
           <div className="relative w-full sm:w-48">
@@ -289,7 +295,7 @@ export default function AdminUsersPage() {
               value={sortFilter}
               onChange={(e) => {
                 setSortFilter(e.target.value);
-                setSortField('');
+                setPage(1);
               }}
               className="w-full bg-white dark:bg-[#182234] border border-gray-200 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all appearance-none cursor-pointer text-center"
             >
@@ -309,7 +315,7 @@ export default function AdminUsersPage() {
               value={selectedContestId}
               onChange={(e) => {
                 setSelectedContestId(e.target.value);
-                setSortField('');
+                setPage(1);
               }}
               disabled={sortFilter === 'not_participated'}
               className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 text-xs font-black rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all appearance-none cursor-pointer text-center"
@@ -325,8 +331,8 @@ export default function AdminUsersPage() {
             <input
               type="text"
               placeholder="جستجوی نام، شماره تماس، کد ملی..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] border border-gray-200 dark:border-slate-800 dark:border-slate-800 text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 placeholder-gray-400 text-xs font-bold rounded-2xl pl-4 pr-11 py-3.5 focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] shadow-sm transition-all"
             />
             <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 dark:text-slate-400" />
@@ -341,21 +347,11 @@ export default function AdminUsersPage() {
               <thead>
                 <tr className="border-b border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-400 text-xs font-black uppercase select-none">
                   <th className="pb-4 font-black">ردیف</th>
-                  <th onClick={() => handleSortRequest('name')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors items-center gap-1">
-                    نام و نام خانوادگی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
-                  </th>
-                  <th onClick={() => handleSortRequest('phone')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
-                    شماره تماس <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
-                  </th>
-                  <th onClick={() => handleSortRequest('national_id')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
-                    کد ملی <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
-                  </th>
-                  <th onClick={() => handleSortRequest('province')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
-                    استان <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
-                  </th>
-                  <th onClick={() => handleSortRequest('gender')} className="pb-4 font-black cursor-pointer hover:text-[#c5a059] transition-colors">
-                    جنسیت <ArrowUpDown size={12} className="inline-block mr-0.5 opacity-60" />
-                  </th>
+                  <th className="pb-4 font-black">نام و نام خانوادگی</th>
+                  <th className="pb-4 font-black">شماره تماس</th>
+                  <th className="pb-4 font-black">کد ملی</th>
+                  <th className="pb-4 font-black">استان</th>
+                  <th className="pb-4 font-black">جنسیت</th>
                   <th className="pb-4 font-black">نقش سیستم</th>
                   <th className="pb-4 font-black">آخرین رقابت</th>
                   <th className="pb-4 font-black text-center">میانگین نمره</th>
@@ -366,21 +362,21 @@ export default function AdminUsersPage() {
                   <tr>
                     <td colSpan={9} className="text-center py-8 text-gray-400 dark:text-slate-400 font-bold">در حال بارگذاری اطلاعات کاربران...</td>
                   </tr>
-                ) : filteredUsers.length === 0 ? (
+                ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="text-center py-8 text-gray-400 dark:text-slate-400 font-bold">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user: any, index: number) => (
+                  users.map((user: any, index: number) => (
                     <tr 
                       key={user.id} 
                       onClick={() => handleUserClick(user.id)}
                       className="hover:bg-[#faf9f6] dark:bg-[#182234] cursor-pointer transition-colors group"
                     >
-                      <td className="py-4 font-black text-gray-400 dark:text-slate-400">{toPersianDigits(index + 1)}</td>
+                      <td className="py-4 font-black text-gray-400 dark:text-slate-400">{toPersianDigits((page - 1) * PAGE_SIZE + index + 1)}</td>
                       <td className="py-4 font-bold text-[#1a2e44] dark:text-slate-100 group-hover:text-[#c5a059] transition-colors">{user.name}</td>
                       <td className="py-4 font-bold text-gray-500 dark:text-slate-400 tracking-wider font-mono">{user.phone}</td>
-                      <td className="py-4 text-gray-500 dark:text-slate-400 font-mono">{user.national_id}</td>
+                      <td className="py-4 text-gray-500 dark:text-slate-400 font-mono">{user.national_id || '---'}</td>
                       <td className="py-4 font-bold text-gray-600 dark:text-slate-300">{user.province}</td>
                       <td className="py-4">
                         <span className={`text-[10px] font-black px-2 py-1 rounded-md ${user.gender === 'male' ? 'bg-blue-50 text-blue-600' : user.gender === 'female' ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500 dark:text-slate-400'}`}>
@@ -399,8 +395,8 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="py-4 text-gray-600 dark:text-slate-300 font-bold">{user.last_contest || 'شرکت نکرده'}</td>
                       <td className="py-4 text-center">
-                        <span className={`font-black text-sm ${user.average_score !== '---' ? 'text-[#c5a059]' : 'text-gray-300'}`}>
-                          {user.average_score}
+                        <span className={`font-black text-sm ${user.average_score != null ? 'text-[#c5a059]' : 'text-gray-300'}`}>
+                          {formatScore(user.average_score)}
                         </span>
                       </td>
                     </tr>
@@ -414,13 +410,13 @@ export default function AdminUsersPage() {
         <div className="block md:hidden bg-white dark:bg-[#182234] rounded-[2rem] p-4 shadow-sm border border-gray-100 dark:border-slate-800 space-y-3">
           {loading ? (
             <p className="text-center py-10 text-gray-400 font-bold text-sm">در حال بارگذاری اطلاعات کاربران...</p>
-          ) : filteredUsers.length === 0 ? (
+          ) : users.length === 0 ? (
             <div className="text-center py-10">
               <Users size={40} className="mx-auto text-gray-200 mb-3" />
               <p className="text-gray-400 font-bold text-sm">هیچ کاربری با فیلترهای اعمال شده یافت نشد.</p>
             </div>
           ) : (
-            filteredUsers.map((user: any) => {
+            users.map((user: any) => {
               const checkIsAdmin =
                 user.is_admin === true ||
                 user.is_admin === 1 ||
@@ -445,8 +441,8 @@ export default function AdminUsersPage() {
                   </div>
                   <div className="bg-gray-50 dark:bg-[#0b0f19] px-3 py-2 rounded-xl text-center min-w-[3.5rem] shrink-0 mr-2">
                     <span className="block text-[9px] font-bold text-gray-400 mb-0.5">میانگین</span>
-                    <span className={`font-black text-sm ${user.average_score !== '---' ? 'text-[#c5a059]' : 'text-gray-300'}`}>
-                      {user.average_score}
+                    <span className={`font-black text-sm ${user.average_score != null ? 'text-[#c5a059]' : 'text-gray-300'}`}>
+                      {formatScore(user.average_score)}
                     </span>
                   </div>
                 </div>
@@ -454,6 +450,35 @@ export default function AdminUsersPage() {
             })
           )}
         </div>
+
+        {totalCount > 0 && (
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#182234] rounded-2xl px-5 py-3 shadow-sm border border-gray-100 dark:border-slate-800">
+            <span className="text-xs font-bold text-gray-500 dark:text-slate-400">
+              نمایش {toPersianDigits(pageStart)} تا {toPersianDigits(pageEnd)} از {toPersianDigits(totalCount)} کاربر
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => goToPage(page - 1)}
+                disabled={loading || page <= 1}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black border border-gray-200 dark:border-slate-700 text-[#1a2e44] dark:text-slate-100 hover:border-[#c5a059] hover:text-[#c5a059] transition-all disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <ChevronRight size={14} /> قبلی
+              </button>
+              <span className="text-xs font-black text-[#1a2e44] dark:text-slate-100 px-2">
+                صفحه {toPersianDigits(page)} از {toPersianDigits(totalPages)}
+              </span>
+              <button
+                type="button"
+                onClick={() => goToPage(page + 1)}
+                disabled={loading || page >= totalPages}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-black border border-gray-200 dark:border-slate-700 text-[#1a2e44] dark:text-slate-100 hover:border-[#c5a059] hover:text-[#c5a059] transition-all disabled:opacity-40 disabled:pointer-events-none"
+              >
+                بعدی <ChevronLeft size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {modalOpen && (

@@ -141,6 +141,22 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
+class UserAdminListOut(BaseModel):
+    id: UUID
+    name: str
+    phone: Optional[str] = None
+    national_id: Optional[str] = None
+    province: str
+    city: str
+    gender: Optional[str] = None
+    is_admin: bool
+    last_contest: Optional[str] = None
+    average_score: Optional[float] = None
+
+class PaginatedUsersResponse(BaseModel):
+    items: List[UserAdminListOut]
+    total_count: int
+
 class UserLogin(BaseModel):
     phone_number: str = Field(..., pattern=r"^09\d{9}$", strip_whitespace=True)
     password: str = Field(..., min_length=8, max_length=128)

@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.encoders import jsonable_encoder
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request, BackgroundTasks
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, text, desc, asc, insert
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request, BackgroundTasks, Query
+from sqlalchemy.orm import Session, joinedload, contains_eager, aliased
+from sqlalchemy import func, text, desc, asc, insert, case, update, extract
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
@@ -64,7 +64,6 @@ async def lifespan(app: FastAPI):
         logger.error(f"Error disposing SQLAlchemy engine: {e}")
 
 app = FastAPI(lifespan=lifespan)
-models.Base.metadata.create_all(bind=database.engine)
 
 # Metrics are not in the OpenAPI schema. MetricsAccessASGIMiddleware limits /metrics
 # to a direct peer on the container network (Prometheus). Public and proxied calls are rejected.
@@ -1156,28 +1155,48 @@ def login_for_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Sess
     
     return {"access_token": token, "token_type": "bearer"}
 
+def _sync_contest_statuses(db: Session) -> List[int]:
+    """انتقال خودکار وضعیت مسابقات بر اساس زمان؛ فقط در صورت تغییر واقعی commit می‌شود."""
+    now = utc_now()
+
+    # ۱. فعال‌سازی خودکار مسابقاتی که زمان شروع آن‌ها رسیده
+    activated = db.execute(
+        update(models.Contest)
+        .where(
+            models.Contest.status == "upcoming",
+            models.Contest.start_time.isnot(None),
+            models.Contest.start_time <= now,
+        )
+        .values(status="active")
+        .returning(models.Contest.id)
+    ).scalars().all()
+
+    # ۲. پایان خودکار مسابقاتی که زمان اتمام آن‌ها فرا رسیده است
+    finished = db.execute(
+        update(models.Contest)
+        .where(
+            models.Contest.status == "active",
+            models.Contest.end_time.isnot(None),
+            models.Contest.end_time <= now,
+        )
+        .values(status="finished")
+        .returning(models.Contest.id)
+    ).scalars().all()
+
+    changed_ids = sorted(set(activated) | set(finished))
+    if not changed_ids:
+        db.rollback()
+        return []
+
+    db.commit()
+    for contest_id in changed_ids:
+        _invalidate_contest_caches(contest_id)
+    return changed_ids
+
+
 @app.get("/contests", response_model=List[schemas.ContestListItem])
 def get_all_contests(status: Optional[str] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     """دریافت لیست مسابقات - فیلتر کامل و قطعی مسابقات حذف شده (Soft Deleted)"""
-    now = utc_now()
-    
-    # 🌟 فیکس: آپدیت بالک وضعیت مسابقات در سطح دیتابیس (جلوگیری از OOM)
-    # ۱. فعال‌سازی خودکار مسابقاتی که زمان شروع آن‌ها رسیده
-    db.query(models.Contest).filter(
-        models.Contest.status == 'upcoming',
-        models.Contest.start_time != None,
-        models.Contest.start_time <= now
-    ).update({"status": "active"}, synchronize_session=False)
-
-    # 🌟 ۲. پایان خودکار مسابقاتی که زمان اتمام آن‌ها فرا رسیده است
-    db.query(models.Contest).filter(
-        models.Contest.status == 'active',
-        models.Contest.end_time != None,
-        models.Contest.end_time <= now
-    ).update({"status": "finished"}, synchronize_session=False)
-
-    db.commit()
-
     # فیکس: واکشی امن و برگرداندن دیتای نهایی فیلتر شده (با سیستم کش ردیس)
     cache_key = f"cache:contests:all:{status or 'all'}"
     cached_data = r.get(cache_key)
@@ -1186,7 +1205,10 @@ def get_all_contests(status: Optional[str] = None, db: Session = Depends(databas
             return json.loads(cached_data)
         except Exception as e:
             logger.error(f"Silent failure intercepted: {e}")
-            
+
+    # Cache miss only (TTL 30s): status transitions are at most one cache lifetime late.
+    _sync_contest_statuses(db)
+
     query = db.query(models.Contest).filter(models.Contest.deleted_at == None)
     if status:
         query = query.filter(models.Contest.status == status)
@@ -1733,18 +1755,48 @@ def _build_contest_leaderboard(db: Session, contest_id: int) -> List[Dict[str, A
 
     # TODO: Temporary bypass for time_taken — FCFS by submit completion (updated_at)
     # results.sort(key=lambda x: (-x["score"], x["time_taken"]))
-    results.sort(key=lambda x: (-x["score"], x["_updated_at_sort"]))
+    # Ordering must stay identical to _get_user_contest_ranks so profile ranks match this list.
+    results.sort(key=lambda x: (-x["score"], x["_updated_at_sort"], x["id"]))
     for idx, item in enumerate(results):
         item["rank"] = idx + 1
         item.pop("_updated_at_sort", None)
     return results
 
 
-def _get_user_contest_rank(db: Session, contest_id: int, user_id) -> Optional[int]:
-    for entry in _build_contest_leaderboard(db, contest_id):
-        if str(entry["user_id"]).lower() == str(user_id).lower():
-            return entry["rank"]
-    return None
+def _get_user_contest_ranks(db: Session, user_id, contest_ids: List[int]) -> Dict[int, int]:
+    """رتبه کاربر در چند مسابقه با یک کوئری Window Function (بدون ساخت لیدربورد در پایتون)"""
+    if not contest_ids:
+        return {}
+
+    sub = models.Subscription
+    ranked = (
+        db.query(
+            sub.contest_id.label("contest_id"),
+            sub.user_id.label("user_id"),
+            func.row_number().over(
+                partition_by=sub.contest_id,
+                order_by=(
+                    func.coalesce(sub.score, 0).desc(),
+                    func.coalesce(sub.updated_at, sub.created_at).asc().nullsfirst(),
+                    sub.id.asc(),
+                ),
+            ).label("rank"),
+        )
+        .join(models.User, models.User.id == sub.user_id)
+        .filter(
+            sub.contest_id.in_(contest_ids),
+            sub.deleted_at.is_(None),
+            models.User.deleted_at.is_(None),
+        )
+        .subquery()
+    )
+
+    rows = (
+        db.query(ranked.c.contest_id, ranked.c.rank)
+        .filter(ranked.c.user_id == user_id)
+        .all()
+    )
+    return {row.contest_id: row.rank for row in rows}
 
 
 @app.get("/contests/{contest_id}/leaderboard")
@@ -1838,34 +1890,29 @@ def get_my_complete_profile(
         city_title = "---"
         province_title = "---"
     
-    # ۳. واکشی تاریخچه مسابقات کاربر از جدول subscriptions
+    # ۳. واکشی تاریخچه مسابقات کاربر از جدول subscriptions (مسابقه با همان JOIN بارگذاری می‌شود)
     history_records = []
-    rank_cache: Dict[int, Optional[int]] = {}
-    
-    # 🌟 اصلاح شد: اضافه شدن join و فیلتر مسابقات حذف شده (deleted_at == None) در سطح دیتابیس
+
     subs = db.query(models.Subscription)\
              .join(models.Contest, models.Subscription.contest_id == models.Contest.id)\
+             .options(contains_eager(models.Subscription.contest))\
              .filter(
                  models.Subscription.user_id == current_user.id,
                  models.Contest.deleted_at == None
              ).all()
-             
-    for s in subs:
-        if s.contest:
-            total_seconds = _subscription_time_taken_seconds(s.time_left)
 
-            contest_id = s.contest.id
-            if contest_id not in rank_cache:
-                rank_cache[contest_id] = _get_user_contest_rank(db, contest_id, current_user.id)
-                
-            history_records.append({
-                "contest_id": s.contest.id,
-                "contest_title": s.contest.title,
-                "score": f"{s.score}%",
-                "time_taken": total_seconds,
-                "status": s.contest.status,
-                "rank": rank_cache[contest_id],
-            })
+    # رتبه همه مسابقات کاربر در یک کوئری
+    ranks = _get_user_contest_ranks(db, current_user.id, list({s.contest_id for s in subs}))
+
+    for s in subs:
+        history_records.append({
+            "contest_id": s.contest.id,
+            "contest_title": s.contest.title,
+            "score": f"{s.score}%",
+            "time_taken": _subscription_time_taken_seconds(s.time_left),
+            "status": s.contest.status,
+            "rank": ranks.get(s.contest_id),
+        })
 
     return {
         "id": user_data.id,
@@ -2487,34 +2534,35 @@ def proxy_get_profile_photo(
         logger.warning(f"Eitaa Proxy General Error (soft): {str(e)}")
         return unavailable
 
-@app.get("/admin/users", response_model=List[Dict[str, Any]])
-@app.get("/admin/users-list", response_model=List[Dict[str, Any]])
+@app.get("/admin/users", response_model=schemas.PaginatedUsersResponse)
+@app.get("/admin/users-list", response_model=schemas.PaginatedUsersResponse)
 def get_admin_users_list(
     search: Optional[str] = None,
     contest_id: Optional[int] = None,
     participation_status: Optional[str] = None,
     sort_by: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=1000),
     db: Session = Depends(database.get_db),
     current_admin: models.User = Depends(require_admin),
 ):
-    """واکشی بهینه‌شده و فوق‌سریع لیست کاربران برای پنل ادمین بدون مشکل N+1 Query"""
+    """لیست صفحه‌بندی‌شده کاربران پنل ادمین؛ جستجو، مرتب‌سازی و آمار همگی در سطح دیتابیس"""
 
     active_sub = models.Subscription.deleted_at.is_(None)
 
-    query = (
-        db.query(models.User)
-        .options(
-            joinedload(models.User.city).joinedload(models.City.parent),
-            joinedload(models.User.admin),
-        )
-        .filter(models.User.deleted_at.is_(None))
-    )
+    query = db.query(models.User).filter(models.User.deleted_at.is_(None))
 
     if search and search.strip():
         term = f"%{fa_to_en_digits(search.strip())}%"
+        full_name = func.concat(
+            func.coalesce(models.User.first_name, ""),
+            " ",
+            func.coalesce(models.User.last_name, ""),
+        )
         query = query.filter(
             (models.User.first_name.ilike(term))
             | (models.User.last_name.ilike(term))
+            | (full_name.ilike(term))
             | (models.User.phone_number.ilike(term))
             | (models.User.national_id.ilike(term))
         )
@@ -2534,6 +2582,8 @@ def get_admin_users_list(
             .distinct()
         )
         query = query.filter(models.User.id.in_(contest_user_ids))
+
+    total_count = query.count()
 
     if sort_by == "recent_registration":
         query = query.order_by(models.User.created_at.desc())
@@ -2604,71 +2654,73 @@ def get_admin_users_list(
     else:
         query = query.order_by(models.User.created_at.desc())
 
-    users = query.all()
+    # Unique tie-breaker so OFFSET pages never overlap or skip rows.
+    query = query.order_by(models.User.id)
+
+    users = (
+        query.options(
+            joinedload(models.User.city).joinedload(models.City.parent),
+            joinedload(models.User.admin),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     if not users:
-        return []
+        return {"items": [], "total_count": total_count}
 
-    user_ids = [u.id for u in users]
+    page_user_ids = [u.id for u in users]
 
-    avg_rows = (
+    avg_map = dict(
         db.query(
             models.Subscription.user_id,
-            func.avg(models.Subscription.score).label("avg_score"),
+            func.avg(models.Subscription.score),
         )
-        .filter(models.Subscription.user_id.in_(user_ids), active_sub)
+        .filter(models.Subscription.user_id.in_(page_user_ids), active_sub)
         .group_by(models.Subscription.user_id)
         .all()
     )
-    avg_map = {row.user_id: row.avg_score for row in avg_rows}
 
-    all_subs = (
-        db.query(models.Subscription)
+    last_contest_map = dict(
+        db.query(models.Subscription.user_id, models.Contest.title)
         .join(models.Contest, models.Subscription.contest_id == models.Contest.id)
         .filter(
-            models.Subscription.user_id.in_(user_ids),
+            models.Subscription.user_id.in_(page_user_ids),
             active_sub,
             models.Contest.deleted_at.is_(None),
         )
-        .options(joinedload(models.Subscription.contest))
-        .order_by(models.Subscription.created_at.asc())
+        .distinct(models.Subscription.user_id)
+        .order_by(
+            models.Subscription.user_id,
+            models.Subscription.created_at.desc().nullslast(),
+            models.Subscription.id.desc(),
+        )
         .all()
     )
-    subs_by_user: Dict[Any, List[models.Subscription]] = {}
-    for sub in all_subs:
-        subs_by_user.setdefault(sub.user_id, []).append(sub)
 
-    results = []
+    items = []
     for u in users:
-        user_subs = subs_by_user.get(u.id, [])
-        avg_score = avg_map.get(u.id)
-        average_score = f"{round(float(avg_score), 1)}%" if avg_score is not None else "---"
-        participated_contests = [sub.contest.title for sub in user_subs if sub.contest]
-        last_sub = user_subs[-1] if user_subs else None
-
-        province_title = "---"
-        city_title = "---"
         if u.city:
             city_title = u.city.title
-            if u.city.parent:
-                province_title = u.city.parent.title
-            else:
-                province_title = u.city.title
+            province_title = u.city.parent.title if u.city.parent else u.city.title
+        else:
+            city_title = province_title = "---"
 
-        results.append({
+        avg_score = avg_map.get(u.id)
+        items.append({
             "id": u.id,
             "name": f"{u.first_name or ''} {u.last_name or ''}".strip() or "بدون نام",
             "phone": u.phone_number,
-            "national_id": u.national_id or "---",
+            "national_id": u.national_id,
             "province": province_title,
             "city": city_title,
-            "gender": u.gender or "---",
-            "last_contest": last_sub.contest.title if last_sub and last_sub.contest else "شرکت نکرده",
-            "all_contests": participated_contests,
-            "average_score": average_score,
-            "is_admin": True if u.admin else False
+            "gender": u.gender,
+            "is_admin": u.admin is not None,
+            "last_contest": last_contest_map.get(u.id),
+            "average_score": round(float(avg_score), 1) if avg_score is not None else None,
         })
 
-    return results
+    return {"items": items, "total_count": total_count}
 
 @app.get("/admin/provinces-report")
 def get_admin_provinces_report(db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
@@ -3252,6 +3304,180 @@ def get_admin_questions_list(
                   
     return questions
 
+_ANALYTICS_TIME_BUCKETS = (
+    (300, "کمتر از ۵ دقیقه"),
+    (600, "۵ تا ۱۰ دقیقه"),
+    (900, "۱۰ تا ۱۵ دقیقه"),
+    (1200, "۱۵ تا ۲۰ دقیقه"),
+    (1500, "۲۰ تا ۲۵ دقیقه"),
+)
+_ANALYTICS_TIME_OVERFLOW_LABEL = "بیش از ۲۵ دقیقه"
+
+
+def _analytics_time_distribution(db: Session, contest_id: int):
+    """توزیع زمانی شرکت‌کنندگان با GROUP BY؛ خروجی: (payload نمودار، تعداد کل شرکت‌کنندگان)"""
+    seconds = func.coalesce(extract("epoch", models.Subscription.time_left), 0)
+    bucket = case(
+        *[(seconds < limit, idx) for idx, (limit, _) in enumerate(_ANALYTICS_TIME_BUCKETS)],
+        else_=len(_ANALYTICS_TIME_BUCKETS),
+    ).label("bucket")
+
+    bucketed = (
+        db.query(bucket)
+        .filter(
+            models.Subscription.contest_id == contest_id,
+            models.Subscription.deleted_at.is_(None),
+        )
+        .subquery()
+    )
+    counts = dict(
+        db.query(bucketed.c.bucket, func.count())
+        .group_by(bucketed.c.bucket)
+        .all()
+    )
+
+    labels = [label for _, label in _ANALYTICS_TIME_BUCKETS] + [_ANALYTICS_TIME_OVERFLOW_LABEL]
+    payload = [{"name": label, "users": counts.get(idx, 0)} for idx, label in enumerate(labels)]
+    return payload, sum(counts.values())
+
+
+def _analytics_location_and_gender(db: Session, contest_id: int):
+    """پراکندگی استان/شهر و جنسیت با یک کوئری GROUP BY روی شرکت‌کنندگان مسابقه"""
+    UserCity = aliased(models.City)
+    ParentCity = aliased(models.City)
+
+    province_col = case(
+        (ParentCity.id.isnot(None), ParentCity.title),
+        (UserCity.id.isnot(None), UserCity.title),
+        else_="نامشخص",
+    ).label("province")
+    city_col = case(
+        (ParentCity.id.isnot(None), UserCity.title),
+        (UserCity.id.isnot(None), "مرکز استان"),
+        else_="نامشخص",
+    ).label("city")
+
+    located = (
+        db.query(province_col, city_col, models.User.gender.label("gender"))
+        .select_from(models.Subscription)
+        .join(models.User, models.User.id == models.Subscription.user_id)
+        .outerjoin(UserCity, UserCity.id == models.User.city_id)
+        .outerjoin(ParentCity, ParentCity.id == UserCity.parent_id)
+        .filter(
+            models.Subscription.contest_id == contest_id,
+            models.Subscription.deleted_at.is_(None),
+        )
+        .subquery()
+    )
+    rows = (
+        db.query(located.c.province, located.c.city, located.c.gender, func.count())
+        .group_by(located.c.province, located.c.city, located.c.gender)
+        .all()
+    )
+
+    province_map: Dict[str, Dict[str, Any]] = {}
+    gender_map = {"مرد": 0, "زن": 0}
+    for province, city, gender, count in rows:
+        entry = province_map.setdefault(province, {"count": 0, "cities": {}})
+        entry["count"] += count
+        entry["cities"][city] = entry["cities"].get(city, 0) + count
+        if gender == "male":
+            gender_map["مرد"] += count
+        elif gender == "female":
+            gender_map["زن"] += count
+
+    province_stats = []
+    for province, data in province_map.items():
+        cities_list = [{"city": c, "count": n} for c, n in data["cities"].items()]
+        cities_list.sort(key=lambda x: x["count"], reverse=True)
+        province_stats.append({"province": province, "count": data["count"], "cities": cities_list})
+    province_stats.sort(key=lambda x: x["count"], reverse=True)
+
+    gender_stats = [
+        {"gender": "مرد", "count": gender_map["مرد"]},
+        {"gender": "زن", "count": gender_map["زن"]},
+    ]
+    return province_stats, gender_stats
+
+
+def _analytics_question_stats(db: Session, contest_id: int, total_participants: int) -> List[Dict[str, Any]]:
+    """آمار درست/غلط هر سوال؛ گزینه‌ها در یک کوئری و پاسخ‌های صحیح با یک GROUP BY شمارش می‌شوند"""
+    questions = (
+        db.query(models.Question.id, models.Question.title)
+        .filter(
+            models.Question.contest_id == contest_id,
+            models.Question.deleted_at.is_(None),
+        )
+        .order_by(models.Question.id.asc())
+        .all()
+    )
+    if not questions:
+        return []
+    question_ids = [q.id for q in questions]
+
+    answers = (
+        db.query(models.Answer.question_id, models.Answer.id, models.Answer.title, models.Answer.is_correct)
+        .filter(
+            models.Answer.question_id.in_(question_ids),
+            models.Answer.deleted_at.is_(None),
+        )
+        .order_by(models.Answer.question_id.asc(), models.Answer.id.asc())
+        .all()
+    )
+    options_by_question: Dict[int, List[str]] = {}
+    correct_by_question: Dict[int, Dict[str, int]] = {}
+    for ans in answers:
+        options = options_by_question.setdefault(ans.question_id, [])
+        options.append(ans.title)
+        if ans.is_correct == 1:
+            correct_by_question[ans.question_id] = {"answer_id": ans.id, "index": len(options)}
+
+    correct_counts: Dict[tuple, int] = {}
+    correct_answer_ids = [c["answer_id"] for c in correct_by_question.values()]
+    if correct_answer_ids:
+        rows = (
+            db.query(
+                models.SubscriptionQuestions.question_id,
+                models.SubscriptionAnswer.answer_id,
+                func.count(models.SubscriptionAnswer.id),
+            )
+            .join(
+                models.SubscriptionQuestions,
+                models.SubscriptionAnswer.subscription_question_id == models.SubscriptionQuestions.id,
+            )
+            .join(
+                models.Subscription,
+                models.SubscriptionQuestions.subscription_id == models.Subscription.id,
+            )
+            .filter(
+                models.Subscription.contest_id == contest_id,
+                models.Subscription.deleted_at.is_(None),
+                models.SubscriptionQuestions.question_id.in_(question_ids),
+                models.SubscriptionQuestions.deleted_at.is_(None),
+                models.SubscriptionAnswer.is_chosen == 1,
+                models.SubscriptionAnswer.deleted_at.is_(None),
+                models.SubscriptionAnswer.answer_id.in_(correct_answer_ids),
+            )
+            .group_by(models.SubscriptionQuestions.question_id, models.SubscriptionAnswer.answer_id)
+            .all()
+        )
+        correct_counts = {(qid, aid): n for qid, aid, n in rows}
+
+    questions_payload = []
+    for idx, q in enumerate(questions):
+        correct = correct_by_question.get(q.id)
+        correct_count = correct_counts.get((q.id, correct["answer_id"]), 0) if correct else 0
+        questions_payload.append({
+            "question_index": idx + 1,
+            "title": q.title,
+            "correct": correct_count,
+            "incorrect": max(0, total_participants - correct_count),
+            "options": options_by_question.get(q.id, []),
+            "correct_answer": correct["index"] if correct else 1,
+        })
+    return questions_payload
+
+
 @app.get("/admin/contests/{contest_id}/analytics")
 def get_contest_analytics(
     contest_id: int,
@@ -3270,159 +3496,14 @@ def get_contest_analytics(
     if cached is not None:
         return JSONResponse(status_code=200, content=cached, headers=cors_headers)
 
-    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
-    if not contest:
+    contest_exists = db.query(models.Contest.id).filter(models.Contest.id == contest_id).first()
+    if not contest_exists:
         return JSONResponse(status_code=404, content={"detail": "مسابقه یافت نشد"}, headers=cors_headers)
-        
-    subscriptions = db.query(models.Subscription).options(
-        joinedload(models.Subscription.user).joinedload(models.User.city).joinedload(models.City.parent)
-    ).filter(
-        models.Subscription.contest_id == contest_id,
-        models.Subscription.deleted_at == None
-    ).all()
-    
-    total_participants = len(subscriptions)
-    
-    # متغیرهای تجمیع داده‌ها
-    time_dist = {
-        "کمتر از ۵ دقیقه": 0,
-        "۵ تا ۱۰ دقیقه": 0,
-        "۱۰ تا ۱۵ دقیقه": 0,
-        "۱۵ تا ۲۰ دقیقه": 0,
-        "۲۰ تا ۲۵ دقیقه": 0,
-        "بیش از ۲۵ دقیقه": 0,
-    }
-    province_map = {}
-    
-    gender_map = {"مرد": 0, "زن": 0}
 
-    for sub in subscriptions:
-        # --- منطق توزیع زمانی ---
-        time_taken = 0
-        if sub.time_left:
-            try:
-                if hasattr(sub.time_left, "hour"):
-                    time_taken = (sub.time_left.hour * 3600) + (sub.time_left.minute * 60) + sub.time_left.second
-                else:
-                    time_taken = int(sub.time_left)
-            except Exception as e:
-                logger.warning(f"Error calculating time taken: {e}")
-                time_taken = 0
-            
-        if time_taken < 300:
-            time_dist["کمتر از ۵ دقیقه"] += 1
-        elif time_taken < 600:
-            time_dist["۵ تا ۱۰ دقیقه"] += 1
-        elif time_taken < 900:
-            time_dist["۱۰ تا ۱۵ دقیقه"] += 1
-        elif time_taken < 1200:
-            time_dist["۱۵ تا ۲۰ دقیقه"] += 1
-        elif time_taken < 1500:
-            time_dist["۲۰ تا ۲۵ دقیقه"] += 1
-        else:
-            time_dist["بیش از ۲۵ دقیقه"] += 1
+    time_payload, total_participants = _analytics_time_distribution(db, contest_id)
+    province_stats, gender_stats = _analytics_location_and_gender(db, contest_id)
+    questions_payload = _analytics_question_stats(db, contest_id, total_participants)
 
-        # --- منطق توزیع جغرافیایی و جنسیت ---
-        u = sub.user
-        if u:
-            # پراکندگی استان
-            prov_name = "نامشخص"
-            city_name = "نامشخص"
-            
-            if u.city:
-                if u.city.parent:
-                    prov_name = u.city.parent.title
-                    city_name = u.city.title
-                else:
-                    prov_name = u.city.title
-                    city_name = "مرکز استان"
-                    
-            if prov_name not in province_map:
-                province_map[prov_name] = {"count": 0, "cities": {}}
-                
-            province_map[prov_name]["count"] += 1
-            
-            if city_name not in province_map[prov_name]["cities"]:
-                province_map[prov_name]["cities"][city_name] = 0
-            province_map[prov_name]["cities"][city_name] += 1
-            
-            if u.gender == "male":
-                gender_map["مرد"] += 1
-            elif u.gender == "female":
-                gender_map["زن"] += 1
-        
-    time_payload = [{"name": k, "users": v} for k, v in time_dist.items()]
-    
-    province_stats = []
-    for prov_name, data in province_map.items():
-        cities_list = [{"city": c, "count": count} for c, count in data["cities"].items()]
-        cities_list.sort(key=lambda x: x["count"], reverse=True)
-        province_stats.append({
-            "province": prov_name,
-            "count": data["count"],
-            "cities": cities_list
-        })
-    province_stats.sort(key=lambda x: x["count"], reverse=True)
-    
-    gender_stats = [
-        {"gender": "مرد", "count": gender_map["مرد"]},
-        {"gender": "زن", "count": gender_map["زن"]},
-    ]
-    
-    # --- منطق سوالات ---
-    questions_payload = []
-    questions = db.query(models.Question).filter(
-        models.Question.contest_id == contest_id, 
-        models.Question.deleted_at == None
-    ).order_by(models.Question.id.asc()).all()
-    
-    for idx, q in enumerate(questions):
-        answers = db.query(models.Answer).filter(
-            models.Answer.question_id == q.id,
-            models.Answer.deleted_at == None
-        ).order_by(models.Answer.id.asc()).all()
-        
-        options_list = []
-        correct_answer_id = None
-        correct_index = 1
-        
-        for a_idx, ans in enumerate(answers):
-            options_list.append(ans.title)
-            if ans.is_correct == 1:
-                correct_answer_id = ans.id
-                correct_index = a_idx + 1 
-        
-        chosen_answers = db.query(models.SubscriptionAnswer).join(
-            models.SubscriptionQuestions, 
-            models.SubscriptionAnswer.subscription_question_id == models.SubscriptionQuestions.id
-        ).join(
-            models.Subscription,
-            models.SubscriptionQuestions.subscription_id == models.Subscription.id
-        ).filter(
-            models.Subscription.contest_id == contest_id,
-            models.Subscription.deleted_at == None,
-            models.SubscriptionQuestions.question_id == q.id,
-            models.SubscriptionQuestions.deleted_at == None,
-            models.SubscriptionAnswer.is_chosen == 1,
-            models.SubscriptionAnswer.deleted_at == None
-        ).all()
-        
-        correct_count = 0
-        for ca in chosen_answers:
-            if correct_answer_id and int(ca.answer_id) == int(correct_answer_id):
-                correct_count += 1
-        
-        incorrect_count = max(0, total_participants - correct_count)
-        
-        questions_payload.append({
-            "question_index": idx + 1,
-            "title": q.title,
-            "correct": correct_count,
-            "incorrect": incorrect_count,
-            "options": options_list,          
-            "correct_answer": correct_index   
-        })
-        
     payload = {
         "time_distribution": time_payload,
         "questions_stats": questions_payload,
