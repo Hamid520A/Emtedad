@@ -11,10 +11,12 @@ from sqlalchemy import func, text, desc, asc, insert, case, update, extract
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
-import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress
+import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress, secrets
+from fastapi.concurrency import run_in_threadpool
 from app.services.sms_service import sms_service
 from app.services.wallet_code import generate_unique_wallet_code
-from pydantic import BaseModel, Field, field_validator
+from app.services import bale_receipts
+from pydantic import BaseModel, Field, field_validator, ValidationError
 from datetime import datetime, timedelta, date, time, timezone
 from PIL import Image, ImageDraw, ImageFont
 from fastapi.responses import JSONResponse, StreamingResponse, Response
@@ -670,7 +672,13 @@ class RateLimiterASGIMiddleware:
 
         # Pass OPTIONS + static through natively (no response buffering).
         # /metrics is already gated to direct internal peers; do not 429 scrapes.
-        if method == "OPTIONS" or path.startswith("/static") or path.rstrip("/") == "/metrics":
+        # Bale delivers every update from a few server IPs; the webhook is guarded by its secret instead.
+        if (
+            method == "OPTIONS"
+            or path.startswith("/static")
+            or path.startswith("/webhook/bale")
+            or path.rstrip("/") == "/metrics"
+        ):
             await self.app(scope, receive, send)
             return
 
@@ -1920,6 +1928,7 @@ def get_my_complete_profile(
         "last_name": user_data.last_name,
         "phone_number": user_data.phone_number,
         "wallet_code": user_data.wallet_code,
+        "wallet_balance": user_data.wallet_balance or 0,
         "national_id": user_data.national_id,
         "is_iranian": getattr(user_data, 'is_iranian', True),
         "birth_date": jdatetime.date.fromgregorian(date=user_data.birth_date).strftime('%Y/%m/%d') if user_data.birth_date else "---",
@@ -3930,3 +3939,51 @@ def get_admin_contest_participants(
         item["rank"] = idx + 1
         
     return results
+
+# ==========================================
+# Bale bot webhook (wallet top-up receipts)
+# ==========================================
+def _bale_secret_ok(candidate: Optional[str]) -> bool:
+    expected = os.getenv("BALE_WEBHOOK_SECRET", "")
+    if not expected or not candidate:
+        return False
+    return secrets.compare_digest(candidate.encode(), expected.encode())
+
+def _process_bale_update(raw: bytes) -> None:
+    try:
+        bale_update = schemas.BaleUpdate.model_validate_json(raw)
+    except ValidationError as e:
+        logger.warning(f"Ignoring malformed Bale update ({e.error_count()} errors)")
+        return
+
+    db = database.SessionLocal()
+    try:
+        if bale_update.callback_query:
+            bale_receipts.handle_admin_callback(db, bale_update.callback_query)
+        elif bale_update.message:
+            bale_receipts.handle_receipt_message(db, bale_update.message)
+    except Exception:
+        db.rollback()
+        logger.error(f"Bale update {bale_update.update_id} failed:\n{traceback.format_exc()}")
+    finally:
+        db.close()
+
+async def _handle_bale_webhook(request: Request, secret_candidate: Optional[str]):
+    if not _bale_secret_ok(secret_candidate):
+        forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        logger.warning(f"Rejected Bale webhook call from {forwarded or (request.client.host if request.client else '-')}")
+        return JSONResponse(status_code=403, content={"ok": False})
+
+    # Always 200 after the secret check, otherwise Bale keeps re-delivering the update.
+    raw = await request.body()
+    await run_in_threadpool(_process_bale_update, raw)
+    return {"ok": True}
+
+@app.post("/webhook/bale", include_in_schema=False)
+async def bale_webhook(request: Request):
+    return await _handle_bale_webhook(request, request.headers.get("X-Telegram-Bot-Api-Secret-Token"))
+
+# Bale's setWebhook only accepts `url` (no secret_token), so the secret travels in the path.
+@app.post("/webhook/bale/{secret}", include_in_schema=False)
+async def bale_webhook_with_path_secret(secret: str, request: Request):
+    return await _handle_bale_webhook(request, secret)

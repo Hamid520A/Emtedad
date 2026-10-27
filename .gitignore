@@ -3,6 +3,7 @@ __pycache__/
 .env
 venv/
 static/uploads/*
+private_uploads/
 .next/
 dist/
 *.zip

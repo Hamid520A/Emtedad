@@ -1,8 +1,8 @@
 # backend/app/schemas.py
 import re
 
-from pydantic import BaseModel, field_validator, field_serializer, Field, model_validator
-from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, field_validator, field_serializer, Field, model_validator
+from typing import List, Literal, Optional
 from datetime import datetime, date, time, timezone
 import jdatetime
 from uuid import UUID
@@ -138,6 +138,7 @@ class User(UserBase):
     id: UUID
     is_active: int
     wallet_code: Optional[int] = None
+    wallet_balance: int = 0
     class Config:
         from_attributes = True
 
@@ -377,4 +378,64 @@ class BannerCreate(BaseModel):
 class BannerUserBase(BaseModel):
     banner_id: int
     user_id: UUID
+
+# ==========================================
+# Wallet Transaction Schemas
+# ==========================================
+class TransactionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: UUID
+    wallet_code: int
+    amount: int
+    status: Literal["pending", "success", "rejected"]
+    receipt_image_url: Optional[str] = None
+    created_at: Optional[datetime] = None
+    processed_at: Optional[datetime] = None
+
+# ==========================================
+# Bale Bot Webhook Schemas (only the fields we use)
+# ==========================================
+class BaleUser(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: int
+
+class BaleChat(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: int
+
+class BalePhotoSize(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    file_id: str
+    file_unique_id: str
+    file_size: Optional[int] = None
+
+class BaleMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    message_id: int
+    chat: BaleChat
+    from_: Optional[BaleUser] = Field(default=None, alias="from")
+    photo: Optional[List[BalePhotoSize]] = None
+    caption: Optional[str] = None
+    text: Optional[str] = None
+
+class BaleCallbackQuery(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    id: str
+    from_: BaleUser = Field(alias="from")
+    message: Optional[BaleMessage] = None
+    data: Optional[str] = None
+
+class BaleUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    update_id: int
+    message: Optional[BaleMessage] = None
+    callback_query: Optional[BaleCallbackQuery] = None
 

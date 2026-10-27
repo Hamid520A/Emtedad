@@ -74,6 +74,7 @@ services:
     - ${BACKEND_HOST_PORT:-8000}:8000
     volumes:
     - ./backend/static/uploads:/app/static/uploads
+    - ./backend/private_uploads:/app/private_uploads
     env_file:
     - ./backend/.env
     environment:

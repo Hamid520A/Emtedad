@@ -4,3 +4,4 @@ dist
 .git
 __pycache__
 prod_backup.sql
+private_uploads

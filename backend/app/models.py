@@ -25,6 +25,7 @@ class User(Base):
     last_name = Column(String(255), nullable=True)
     phone_number = Column(String(20), unique=True, index=True)
     wallet_code = Column(Integer, unique=True, index=True, nullable=True)
+    wallet_balance = Column(Integer, nullable=False, default=0, server_default="0")
     password = Column(String(255), nullable=False)
     national_id = Column(String(20), unique=True, index=True)
     is_iranian = Column(Boolean, default=True)
@@ -43,6 +44,7 @@ class User(Base):
     certificate_users = relationship("CertificateUser", back_populates="user")
     notification_users = relationship("NotificationUsers", back_populates="user")
     banner_users = relationship("BannerUsers", back_populates="user")
+    transactions = relationship("Transaction", back_populates="user")
     
     # ریلیشن ۱ به ۱ متصل به جدول ادمین‌ها
     admin = relationship("Admin", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -342,3 +344,28 @@ class BannerUsers(Base):
 
     banner = relationship("Banner", back_populates="banner_users")
     user = relationship("User", back_populates="banner_users")
+
+class Transaction(Base):
+    """رسیدهای واریز ارسال‌شده از بات بله؛ وضعیت: pending / success / rejected"""
+    __tablename__ = "transactions"
+    __table_args__ = (
+        Index("ix_transactions_status_deleted", "status", "deleted_at"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    wallet_code = Column(Integer, nullable=False)
+    amount = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="pending", server_default="pending", index=True)
+    receipt_image_url = Column(String(500), nullable=True)
+    receipt_file_id = Column(String(255), nullable=False)
+    receipt_file_unique_id = Column(String(255), nullable=False, unique=True)
+    user_chat_id = Column(BigInteger, nullable=False)
+    admin_chat_id = Column(BigInteger, nullable=True)
+    admin_message_id = Column(BigInteger, nullable=True)
+    processed_by_bale_id = Column(BigInteger, nullable=True)
+    processed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="transactions")
