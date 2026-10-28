@@ -30,6 +30,26 @@ HELP_TEXT = (
     "مثال: 123456 500000"
 )
 
+WELCOME_TEXT = """سلام! به ربات پشتیبانی و تایید رسید «امتداد امام» خوش آمدید. 🌺
+
+برای شارژ کیف پول خود، لطفاً عکس رسید پرداختی را به همراه «شناسه کاربری» و «مبلغ پرداختی(به ریال)» برای ما ارسال کنید.
+
+📌 مراحل ارسال صحیح:
+۱. عکس رسید واریزی را انتخاب کنید.
+۲. در بخش توضیحات عکس، ابتدا «شناسه ۶ رقمی کاربری» و سپس با یک فاصله «مبلغ به ریال» را بنویسید.
+۳. عکس را ارسال کنید.
+
+✅مثال صحیح برای ارسال:
+123456 500000
+(این یعنی: شناسه کاربری ۱۲۳۴۵۶ را به مبلغ ۵۰۰ هزار ریال شارژ کن).
+
+⚠️نکات مهم:
+حتماً شناسه کاربری و مبلغ را در توضیحات تصویر بنویسید؛ پیام متنیِ جداگانه پردازش نمی‌شود.
+مبلغ را حتماً به ریال و فقط به صورت عدد (بدون حروف) وارد کنید.
+از ارسال رسیدهای تکراری خودداری کنید.
+پس از ارسال، یک پیام «در حال بررسی» دریافت می‌کنید. به محض تایید ادمین، کیف پول شما شارژ خواهد شد.
+شناسه ۶ رقمی کاربری خود را می‌توانید از بخش پروفایل کاربری مشاهده کنید."""
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -102,8 +122,9 @@ def handle_receipt_message(db: Session, msg: schemas.BaleMessage) -> None:
     if chat_id == admin_chat_id():
         return
 
+    # /start, plain text and any other photo-less message get the full instructions.
     if not msg.photo:
-        bale_bot.send_message(chat_id, HELP_TEXT)
+        bale_bot.send_message(chat_id, WELCOME_TEXT)
         return
 
     parsed = parse_caption(msg.caption)
@@ -192,7 +213,7 @@ def handle_receipt_message(db: Session, msg: schemas.BaleMessage) -> None:
         )
         db.commit()
 
-    bale_bot.send_message(chat_id, f"رسید شما ثبت شد. شماره پیگیری: {tx_id}")
+    bale_bot.send_message(chat_id, f"رسید شما ثبت شد و در حال بررسی است. ⏳\nشماره پیگیری: {tx_id}")
 
 
 def _remove_buttons(chat_id: Optional[int], message_id: Optional[int], cq: schemas.BaleCallbackQuery) -> None:
