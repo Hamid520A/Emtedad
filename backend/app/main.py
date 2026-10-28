@@ -676,7 +676,7 @@ class RateLimiterASGIMiddleware:
         if (
             method == "OPTIONS"
             or path.startswith("/static")
-            or path.startswith("/webhook/bale")
+            or path.startswith("/api/webhook/bale")
             or path.rstrip("/") == "/metrics"
         ):
             await self.app(scope, receive, send)
@@ -3979,11 +3979,12 @@ async def _handle_bale_webhook(request: Request, secret_candidate: Optional[str]
     await run_in_threadpool(_process_bale_update, raw)
     return {"ok": True}
 
-@app.post("/webhook/bale", include_in_schema=False)
+# HAProxy forwards only /api/* to the backend, unstripped.
+@app.post("/api/webhook/bale", include_in_schema=False)
 async def bale_webhook(request: Request):
     return await _handle_bale_webhook(request, request.headers.get("X-Telegram-Bot-Api-Secret-Token"))
 
 # Bale's setWebhook only accepts `url` (no secret_token), so the secret travels in the path.
-@app.post("/webhook/bale/{secret}", include_in_schema=False)
+@app.post("/api/webhook/bale/{secret}", include_in_schema=False)
 async def bale_webhook_with_path_secret(secret: str, request: Request):
     return await _handle_bale_webhook(request, secret)

@@ -45,7 +45,7 @@ def main() -> int:
         print("BACKEND_URL must be an https:// URL for Bale webhooks")
         return 1
 
-    webhook_url = f"{backend_url}/webhook/bale/{secret}"
+    webhook_url = f"{backend_url}/api/webhook/bale/{secret}"
     result = _call(token, "setWebhook", {"url": webhook_url})
     print("setWebhook:", result)
 
