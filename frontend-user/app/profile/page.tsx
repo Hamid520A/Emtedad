@@ -10,7 +10,7 @@ import {
   User, Trophy, History, ArrowRight, 
   LogOut, Loader2, Star, Settings, ShieldCheck, 
   HelpCircle, ChevronLeft, Crown, Award, Download,
-  X, CheckCircle2, XCircle, FileText, Copy
+  X, CheckCircle2, XCircle, FileText, Copy, Wallet
 } from 'lucide-react';
 
 import ThemeToggle from '../components/ThemeToggle';
@@ -301,6 +301,14 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl text-blue-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/30 transition-colors"><User size={22} /></div>
                   <span className="font-bold text-[#1a2e44] dark:text-slate-100">ویرایش اطلاعات پروفایل</span>
+                </div>
+                <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
+              </button>
+
+              <button onClick={() => router.push('/profile/payments')} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl text-emerald-500 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/30 transition-colors"><Wallet size={22} /></div>
+                  <span className="font-bold text-[#1a2e44] dark:text-slate-100">کیف پول و تاریخچه پرداخت‌ها</span>
                 </div>
                 <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>

@@ -27,6 +27,7 @@ export default function AdminDashboard() {
   const [contests, setContests] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [exportContestId, setExportContestId] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // تابع مبدل برای تیک‌های پایین نمودار (محور X)
   const formatXAxis = (tickItem: any) => {
@@ -90,35 +91,52 @@ export default function AdminDashboard() {
   };
 
   const exportToExcel = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const toastId = toast.loading('در حال تهیه گزارش اکسل...');
     try {
-      const XLSX = await import('xlsx');
-      const url = exportContestId 
-        ? `/admin/export-data?contest_id=${exportContestId}` 
-        : '/admin/export-data';
+      const params = exportContestId ? { contest_id: exportContestId } : undefined;
+      const res = await api.get('/admin/export-data', { params });
+      const data: Record<string, string | number>[] = Array.isArray(res.data) ? res.data : [];
 
-      const res = await api.get(url);
-      let data = res.data;
-
-      if (!data || data.length === 0) {
-        data = [{ "نام": "تست", "تلفن": "۰۹۱۲", "امتیاز": "۱۰۰" }];
+      if (data.length === 0) {
+        toast.error('هیچ شرکت‌کننده‌ای برای این فیلتر وجود ندارد.', { id: toastId });
+        return;
       }
 
+      const XLSX = await import('xlsx');
       const worksheet = XLSX.utils.json_to_sheet(data);
+      const headers = Object.keys(data[0]);
+      worksheet['!cols'] = headers.map((header) => ({
+        wch: Math.min(40, Math.max(header.length, ...data.map((row) => String(row[header] ?? '').length)) + 2),
+      }));
+
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "شرکت‌کنندگان");
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'شرکت‌کنندگان');
+      workbook.Workbook = { Views: [{ RTL: true }] };
 
-      if (!worksheet['!cols']) worksheet['!cols'] = [];
-      worksheet['!dir'] = 'rtl';
-
-      const selectedContestObj: any = contests.find((c: any) => String(c.id) === String(exportContestId));
-      const fileName = selectedContestObj 
-        ? `گزارش_مسابقه_${selectedContestObj.title}_${new Date().getTime()}.xlsx`
-        : `گزارش_کل_سیستم_${new Date().getTime()}.xlsx`;
+      const selectedContest: any = contests.find((c: any) => String(c.id) === String(exportContestId));
+      const safeTitle = selectedContest ? String(selectedContest.title).replace(/[\\/:*?"<>|]+/g, '-').trim() : '';
+      const fileName = safeTitle
+        ? `گزارش_مسابقه_${safeTitle}_${Date.now()}.xlsx`
+        : `گزارش_کل_سیستم_${Date.now()}.xlsx`;
 
       XLSX.writeFile(workbook, fileName);
-    } catch (error) {
-      console.error("Export error:", error);
-      toast.error("خطا در دریافت دیتا از سرور");
+      toast.success(`گزارش با ${data.length.toLocaleString('fa-IR')} ردیف آماده شد.`, { id: toastId });
+    } catch (error: any) {
+      console.error('Export error:', error);
+      const detail = error?.response?.data?.detail;
+      const status = error?.response?.status;
+      toast.error(
+        typeof detail === 'string'
+          ? detail
+          : status
+            ? `خطا در دریافت اطلاعات از سرور (کد ${status})`
+            : 'خطا در دریافت اطلاعات از سرور',
+        { id: toastId }
+      );
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -338,9 +356,10 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <QuickActionCard
                 label="گزارش اکسل شرکت‌کنندگان"
-                description="خروجی بر اساس فیلتر بالا"
+                description={exporting ? 'در حال تهیه گزارش...' : 'خروجی بر اساس فیلتر بالا'}
                 icon={<FileSpreadsheet />}
                 onClick={exportToExcel}
+                disabled={exporting}
               />
               <QuickActionCard
                 label="تنظیمات گواهی‌ها"
@@ -397,14 +416,16 @@ type QuickActionCardProps = {
   description?: string;
   icon: React.ReactElement<{ size?: number }>;
   onClick: () => void;
+  disabled?: boolean;
 };
 
-function QuickActionCard({ label, description, icon, onClick }: QuickActionCardProps) {
+function QuickActionCard({ label, description, icon, onClick, disabled = false }: QuickActionCardProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-center justify-center gap-3 p-6 text-center rounded-2xl bg-slate-800/30 border border-slate-800/50 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-slate-800/80 hover:border-[#c5a059]/60 hover:shadow-[0_0_24px_-6px_rgba(197,160,89,0.55)] active:translate-y-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c5a059]/70"
+      disabled={disabled}
+      className="group flex flex-col items-center justify-center gap-3 p-6 text-center rounded-2xl bg-slate-800/30 border border-slate-800/50 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-slate-800/80 hover:border-[#c5a059]/60 hover:shadow-[0_0_24px_-6px_rgba(197,160,89,0.55)] active:translate-y-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c5a059]/70 disabled:opacity-60 disabled:cursor-wait disabled:pointer-events-none"
     >
       <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[#c5a059]/10 text-[#c5a059] ring-1 ring-[#c5a059]/20 transition-all duration-300 group-hover:scale-110 group-hover:bg-[#c5a059]/20">
         {React.cloneElement(icon, { size: 26 })}

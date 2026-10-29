@@ -47,81 +47,98 @@ export default function ChangePasswordPage() {
     }
   };
 
+  const labelClass = 'block text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-2';
+  const iconClass = 'absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 pointer-events-none';
+  const inputClass =
+    'w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#0b0f19] border border-transparent dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest text-[#1a2e44] dark:text-slate-100 placeholder:text-gray-300 dark:placeholder:text-slate-600 transition-all';
+
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] font-sans text-[#1a2e44] dark:text-slate-100 dark:text-slate-100" dir="rtl">
+    <div className="min-h-screen bg-[#faf9f6] dark:bg-[#0b0f19] font-sans text-[#1a2e44] dark:text-slate-100" dir="rtl">
       {/* Header */}
-      <header className="p-6 flex items-center gap-3 bg-white dark:bg-[#182234] dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 dark:border-slate-800 sticky top-0 z-10">
-        {/* 🌟 اصلاح شد: هدایت قطعی دکمه فلش بازگشت به دشبورد ادمین برای جلوگیری از باگ روت استوری */}
-        <button onClick={() => router.push('/admin/dashboard')} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors">
-          <ArrowRight size={20} />
-        </button>
-        <span className="font-black text-xl">تغییر رمز عبور مدیر</span>
+      <header className="sticky top-0 z-10 bg-white/80 dark:bg-[#182234]/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800">
+        <div className="w-full max-w-md md:max-w-2xl mx-auto px-6 py-5 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.push('/admin/dashboard')}
+            aria-label="بازگشت به داشبورد"
+            className="p-2 rounded-full bg-gray-100 text-[#1a2e44] hover:bg-gray-200 dark:bg-transparent dark:text-slate-200 dark:hover:bg-slate-700/50 transition-colors"
+          >
+            <ArrowRight size={20} />
+          </button>
+          <span className="font-black text-xl">تغییر رمز عبور مدیر</span>
+        </div>
       </header>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="p-6 space-y-5 pb-12">
-        <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-6 rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 space-y-4">
-          
+      <form onSubmit={handleSubmit} className="w-full max-w-md md:max-w-2xl mx-auto px-6 py-8 md:py-12 space-y-5">
+        <div className="bg-white dark:bg-[#182234] p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 space-y-5">
           <div>
-            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">رمز عبور فعلی مدیر</label>
+            <label className={labelClass}>رمز عبور فعلی مدیر</label>
             <div className="relative">
-              <Lock className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
-              <input 
-                type="password" 
+              <Lock className={iconClass} size={18} />
+              <input
+                type="password"
                 required
+                autoComplete="current-password"
                 placeholder="••••••••"
-                value={formData.old_password} 
-                onChange={e => setFormData({...formData, old_password: e.target.value})} 
-                className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
+                value={formData.old_password}
+                onChange={e => setFormData({ ...formData, old_password: e.target.value })}
+                className={inputClass}
               />
             </div>
           </div>
 
-          <div className="border-t border-gray-50 dark:border-slate-800 dark:border-slate-800 my-2 pt-2">
-            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">رمز عبور جدید</label>
-            <div className="relative">
-              <Lock className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
-              <input 
-                type="password" 
-                required
-                placeholder="••••••••"
-                value={formData.new_password} 
-                onChange={e => setFormData({...formData, new_password: e.target.value})} 
-                className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
-              />
+          <div className="border-t border-gray-100 dark:border-slate-800 pt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className={labelClass}>رمز عبور جدید</label>
+              <div className="relative">
+                <Lock className={iconClass} size={18} />
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={formData.new_password}
+                  onChange={e => setFormData({ ...formData, new_password: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClass}>تکرار رمز عبور جدید</label>
+              <div className="relative">
+                <ShieldAlert className={iconClass} size={18} />
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={formData.confirm_password}
+                  onChange={e => setFormData({ ...formData, confirm_password: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 dark:text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2">تکرار رمز عبور جدید</label>
-            <div className="relative">
-              <ShieldAlert className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
-              <input 
-                type="password" 
-                required
-                placeholder="••••••••"
-                value={formData.confirm_password} 
-                onChange={e => setFormData({...formData, confirm_password: e.target.value})} 
-                className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] rounded-2xl outline-none focus:ring-2 focus:ring-[#c5a059] font-bold text-sm tracking-widest" 
-              />
-            </div>
-          </div>
-
         </div>
 
         {/* Action Buttons */}
-        <div className="space-y-3">
-          <button 
-            type="submit" 
-            disabled={saving} 
-            className="w-full bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-2 hover:bg-[#2a405a] active:scale-95 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70"
+        <div className="flex flex-col md:flex-row gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full md:flex-1 bg-[#1a2e44] text-white p-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-2 hover:bg-[#2a405a] active:scale-95 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70"
           >
             {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} className="text-[#c5a059]" />}
             {saving ? 'در حال ثبت...' : 'تغییر رمز عبور'}
           </button>
-          
-          {/* 🌟 اصلاح شد: هدایت دکمه انصراف به دشبورد ادمین به جای بازگشت به تاریخچه مخفی کاربری */}
-          <button type="button" onClick={() => router.push('/admin/dashboard')} className="w-full bg-white dark:bg-[#182234] dark:bg-[#182234] text-gray-500 dark:text-slate-400 dark:text-slate-400 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 hover:bg-gray-50 transition-all">
+
+          <button
+            type="button"
+            onClick={() => router.push('/admin/dashboard')}
+            className="w-full md:w-auto md:px-8 bg-white dark:bg-[#182234] text-gray-500 dark:text-slate-300 p-4 rounded-[2rem] font-bold text-sm border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-all"
+          >
             انصراف و بازگشت
           </button>
         </div>

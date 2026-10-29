@@ -1938,6 +1938,58 @@ def get_my_complete_profile(
         "history": history_records
     }
 
+TRANSACTION_STATUSES = ("pending", "success", "rejected")
+
+@app.get("/users/me/transactions", response_model=schemas.MyTransactionsResponse)
+def get_my_transactions(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=50),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """تاریخچه شارژ کیف پول کاربر جاری (فقط فیلدهای امن، بدون رسید و شناسه‌های بله)"""
+    if status_filter is not None and status_filter not in TRANSACTION_STATUSES:
+        raise HTTPException(status_code=400, detail="وضعیت تراکنش نامعتبر است")
+
+    base = db.query(models.Transaction).filter(
+        models.Transaction.user_id == current_user.id,
+        models.Transaction.deleted_at.is_(None),
+    )
+    if status_filter is not None:
+        base = base.filter(models.Transaction.status == status_filter)
+
+    total_count = base.count()
+    rows = (
+        base.with_entities(
+            models.Transaction.id,
+            models.Transaction.amount,
+            models.Transaction.status,
+            models.Transaction.created_at,
+            models.Transaction.processed_at,
+        )
+        .order_by(models.Transaction.created_at.desc().nullslast(), models.Transaction.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "wallet_balance": current_user.wallet_balance or 0,
+        "wallet_code": current_user.wallet_code,
+        "total_count": total_count,
+        "items": [
+            {
+                "id": r.id,
+                "amount": r.amount,
+                "status": r.status,
+                "created_at": r.created_at,
+                "processed_at": r.processed_at,
+            }
+            for r in rows
+        ],
+    }
+
 @app.get("/users/me/contests/{contest_id}/answers")
 def get_my_own_contest_answers(contest_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     try:
@@ -3034,59 +3086,99 @@ def update_certificate_template(contest_id: int, data: dict, db: Session = Depen
     _invalidate_contest_caches(contest_id)
     return {"status": "success", "message": "تنظیمات گواهی با موفقیت ذخیره شد"}
 
+def _export_report_row(row, participated: bool) -> Dict[str, Any]:
+    return {
+        "نام": row.first_name or "---",
+        "نام خانوادگی": row.last_name or "---",
+        "شماره تماس": row.phone_number or "---",
+        "شناسه کیف پول": row.wallet_code if row.wallet_code is not None else "---",
+        "ملیت": "اتباع غیرایرانی" if row.is_iranian is False else "ایرانی",
+        "کد ملی / شناسه اتباع": row.national_id or "---",
+        "استان": row.province or "---",
+        "شهرستان": row.city or "---",
+        "نام مسابقه": row.contest_title if participated else "شرکت نکرده",
+        "نمره": f"{row.score or 0}%" if participated else "---",
+        "زمان (ثانیه)": _subscription_time_taken_seconds(row.time_left) if participated else "---",
+        "تاریخ ثبت‌نام": row.created_at.strftime("%Y/%m/%d") if row.created_at else "---",
+    }
+
 @app.get("/admin/export-data")
 def get_export_data(contest_id: Optional[int] = None, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
-    if contest_id:
-        subscriptions = db.query(models.Subscription).filter(models.Subscription.contest_id == contest_id).all()
-        report = []
-        for sub in subscriptions:
-            u = sub.user
-            if not u: continue
-                
-            prov_title = "---"
-            if u.city and u.city.parent_id:
-                parent_city = db.query(models.City).filter(models.City.id == u.city.parent_id).first()
-                if parent_city: prov_title = parent_city.title
-                    
-            report.append({
-                "نام": u.first_name or "---",
-                "نام خانوادگی": u.last_name or "---",
-                "شماره تماس": u.phone_number,
-                "ملیت": "ایرانی" if getattr(u, 'is_iranian', True) else "اتباع غیرایرانی",
-                "کد ملی / شناسه اتباع": u.national_id or "---",
-                "استان": prov_title,
-                "نام مسابقه": sub.contest.title if sub.contest else "---",
-                "نمره": f"{sub.score}%",
-                "زمان (ثانیه)": 0,
-                "تاریخ ثبت‌نام": u.created_at.strftime("%Y/%m/%d") if u.created_at else "---"
-            })
-        return report
+    """خروجی اکسل؛ یک کوئری واحد (بدون N+1) با همان منطق استان/شهرستان لیست کاربران"""
+    user_city = aliased(models.City)
+    parent_city = aliased(models.City)
+    user_columns = (
+        models.User.first_name,
+        models.User.last_name,
+        models.User.phone_number,
+        models.User.wallet_code,
+        models.User.national_id,
+        models.User.is_iranian,
+        models.User.created_at,
+        user_city.title.label("city"),
+        case((parent_city.id.isnot(None), parent_city.title), else_=user_city.title).label("province"),
+    )
 
-    users = db.query(models.User).all()
-    report = []
-    for u in users:
-        subscription = db.query(models.Subscription).filter(models.Subscription.user_id == u.id).first()
-        contest_title = "شرکت نکرده"
-        if subscription and subscription.contest:
-            contest_title = subscription.contest.title
+    if contest_id is not None:
+        rows = (
+            db.query(
+                *user_columns,
+                models.Contest.title.label("contest_title"),
+                models.Subscription.score.label("score"),
+                models.Subscription.time_left.label("time_left"),
+            )
+            .select_from(models.Subscription)
+            .join(models.User, models.User.id == models.Subscription.user_id)
+            .join(models.Contest, models.Contest.id == models.Subscription.contest_id)
+            .outerjoin(user_city, user_city.id == models.User.city_id)
+            .outerjoin(parent_city, parent_city.id == user_city.parent_id)
+            .filter(
+                models.Subscription.contest_id == contest_id,
+                models.Subscription.deleted_at.is_(None),
+                models.User.deleted_at.is_(None),
+            )
+            .order_by(
+                func.coalesce(models.Subscription.score, 0).desc(),
+                func.coalesce(models.Subscription.updated_at, models.Subscription.created_at).asc().nullsfirst(),
+                models.Subscription.id.asc(),
+            )
+            .all()
+        )
+        return [_export_report_row(r, participated=True) for r in rows]
 
-        prov_title = "---"
-        if u.city and u.city.parent_id:
-            parent_city = db.query(models.City).filter(models.City.id == u.city.parent_id).first()
-            if parent_city: prov_title = parent_city.title
-
-        report.append({
-            "نام": u.first_name or "---",
-            "نام خانوادگی": u.last_name or "---",
-            "شماره تماس": u.phone_number,
-            "کد ملی": u.national_id or "---",
-            "استان": prov_title,
-            "نام مسابقه": contest_title,
-            "نمره": f"{subscription.score}%" if subscription else "0%",
-            "زمان (ثانیه)": 0,
-            "تاریخ ثبت‌نام": u.created_at.strftime("%Y/%m/%d") if u.created_at else "---"
-        })
-    return report
+    latest_subscription = (
+        db.query(
+            models.Subscription.user_id.label("user_id"),
+            models.Subscription.score.label("score"),
+            models.Subscription.time_left.label("time_left"),
+            models.Contest.title.label("contest_title"),
+        )
+        .join(models.Contest, models.Contest.id == models.Subscription.contest_id)
+        .filter(models.Subscription.deleted_at.is_(None), models.Contest.deleted_at.is_(None))
+        .distinct(models.Subscription.user_id)
+        .order_by(
+            models.Subscription.user_id,
+            models.Subscription.created_at.desc().nullslast(),
+            models.Subscription.id.desc(),
+        )
+        .subquery()
+    )
+    rows = (
+        db.query(
+            *user_columns,
+            latest_subscription.c.contest_title,
+            latest_subscription.c.score,
+            latest_subscription.c.time_left,
+        )
+        .select_from(models.User)
+        .outerjoin(user_city, user_city.id == models.User.city_id)
+        .outerjoin(parent_city, parent_city.id == user_city.parent_id)
+        .outerjoin(latest_subscription, latest_subscription.c.user_id == models.User.id)
+        .filter(models.User.deleted_at.is_(None))
+        .order_by(models.User.created_at.desc().nullslast(), models.User.id)
+        .all()
+    )
+    return [_export_report_row(r, participated=r.contest_title is not None) for r in rows]
     
 # =====================================================================
 # بخش پنجم و پایانی فایل main.py: صدور گواهی مدیریت، بنرها و آنالیز دیتابیس
@@ -3943,8 +4035,6 @@ def get_admin_contest_participants(
 # ==========================================
 # Admin: wallet top-up transactions (read-only; decisions are made in the Bale bot)
 # ==========================================
-TRANSACTION_STATUSES = ("pending", "success", "rejected")
-
 @app.get("/admin/transactions", response_model=schemas.PaginatedTransactionsResponse)
 def get_admin_transactions(
     status_filter: Optional[str] = Query(None, alias="status"),

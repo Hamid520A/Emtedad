@@ -425,6 +425,27 @@ class PaginatedTransactionsResponse(BaseModel):
     total_count: int
     status_counts: TransactionStatusCounts
 
+class MyTransactionOut(BaseModel):
+    id: int
+    amount: int
+    status: Literal["pending", "success", "rejected"]
+    created_at: Optional[datetime] = None
+    processed_at: Optional[datetime] = None
+
+    @field_serializer("created_at", "processed_at", when_used="json")
+    def serialize_utc(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.isoformat() + "Z"
+
+class MyTransactionsResponse(BaseModel):
+    wallet_balance: int
+    wallet_code: Optional[int] = None
+    total_count: int
+    items: List[MyTransactionOut]
+
 # ==========================================
 # Bale Bot Webhook Schemas (only the fields we use)
 # ==========================================
