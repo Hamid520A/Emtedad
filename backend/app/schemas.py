@@ -394,6 +394,37 @@ class TransactionOut(BaseModel):
     created_at: Optional[datetime] = None
     processed_at: Optional[datetime] = None
 
+class TransactionAdminOut(BaseModel):
+    id: int
+    user_id: UUID
+    user_name: str
+    phone_number: Optional[str] = None
+    wallet_code: int
+    amount: int
+    status: Literal["pending", "success", "rejected"]
+    has_receipt: bool
+    created_at: Optional[datetime] = None
+    processed_at: Optional[datetime] = None
+    processed_by_bale_id: Optional[int] = None
+
+    @field_serializer("created_at", "processed_at", when_used="json")
+    def serialize_utc(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.isoformat() + "Z"
+
+class TransactionStatusCounts(BaseModel):
+    pending: int = 0
+    success: int = 0
+    rejected: int = 0
+
+class PaginatedTransactionsResponse(BaseModel):
+    items: List[TransactionAdminOut]
+    total_count: int
+    status_counts: TransactionStatusCounts
+
 # ==========================================
 # Bale Bot Webhook Schemas (only the fields we use)
 # ==========================================

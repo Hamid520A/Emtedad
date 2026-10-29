@@ -308,7 +308,7 @@ export default function AdminDashboard() {
           </div> */}
 
           {/* ابزارهای مدیریتی سریع */}
-          <section className="lg:col-span-3 bg-[#1a2e44] rounded-[2.5rem] p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
+          <section className="lg:col-span-3 bg-[#1a2e44] dark:bg-[#182234] border border-[#1a2e44] dark:border-slate-800 rounded-[2.5rem] p-6 sm:p-8 text-white shadow-2xl dark:shadow-sm relative overflow-hidden">
             <h3 className="font-black text-xl mb-6">ابزارهای سریع</h3>
 
             {/* نوار فیلتر خروجی اکسل */}

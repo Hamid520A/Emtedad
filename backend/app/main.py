@@ -7,19 +7,19 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.encoders import jsonable_encoder
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Request, BackgroundTasks, Query
 from sqlalchemy.orm import Session, joinedload, contains_eager, aliased
-from sqlalchemy import func, text, desc, asc, insert, case, update, extract
+from sqlalchemy import func, text, desc, asc, insert, case, update, extract, or_
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
-import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress, secrets
+import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress, secrets, mimetypes
 from fastapi.concurrency import run_in_threadpool
 from app.services.sms_service import sms_service
 from app.services.wallet_code import generate_unique_wallet_code
-from app.services import bale_receipts
+from app.services import bale_bot, bale_receipts
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from datetime import datetime, timedelta, date, time, timezone
 from PIL import Image, ImageDraw, ImageFont
-from fastapi.responses import JSONResponse, StreamingResponse, Response
+from fastapi.responses import JSONResponse, StreamingResponse, Response, FileResponse
 from jose import JWTError, jwt
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from prometheus_client import Gauge
@@ -3939,6 +3939,125 @@ def get_admin_contest_participants(
         item["rank"] = idx + 1
         
     return results
+
+# ==========================================
+# Admin: wallet top-up transactions (read-only; decisions are made in the Bale bot)
+# ==========================================
+TRANSACTION_STATUSES = ("pending", "success", "rejected")
+
+@app.get("/admin/transactions", response_model=schemas.PaginatedTransactionsResponse)
+def get_admin_transactions(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    search: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin),
+):
+    if status_filter is not None and status_filter not in TRANSACTION_STATUSES:
+        raise HTTPException(status_code=400, detail="وضعیت تراکنش نامعتبر است")
+
+    base = (
+        db.query(models.Transaction)
+        .join(models.User, models.User.id == models.Transaction.user_id)
+        .filter(models.Transaction.deleted_at.is_(None))
+    )
+
+    if search and search.strip():
+        raw = fa_to_en_digits(search.strip())
+        term = f"%{raw}%"
+        full_name = func.concat(
+            func.coalesce(models.User.first_name, ""),
+            " ",
+            func.coalesce(models.User.last_name, ""),
+        )
+        conditions = [full_name.ilike(term), models.User.phone_number.ilike(term)]
+        if raw.isdigit() and len(raw) <= 9:
+            conditions += [models.Transaction.id == int(raw), models.Transaction.wallet_code == int(raw)]
+        base = base.filter(or_(*conditions))
+
+    counts = dict(
+        base.with_entities(models.Transaction.status, func.count(models.Transaction.id))
+        .group_by(models.Transaction.status)
+        .all()
+    )
+
+    query = base.filter(models.Transaction.status == status_filter) if status_filter else base
+    total_count = query.count()
+    rows = (
+        query.with_entities(
+            models.Transaction,
+            models.User.first_name,
+            models.User.last_name,
+            models.User.phone_number,
+        )
+        .order_by(models.Transaction.created_at.desc().nullslast(), models.Transaction.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    items = [
+        {
+            "id": tx.id,
+            "user_id": tx.user_id,
+            "user_name": f"{first_name or ''} {last_name or ''}".strip() or "کاربر بدون نام",
+            "phone_number": phone_number,
+            "wallet_code": tx.wallet_code,
+            "amount": tx.amount,
+            "status": tx.status,
+            "has_receipt": bool(tx.receipt_image_url or tx.receipt_file_id),
+            "created_at": tx.created_at,
+            "processed_at": tx.processed_at,
+            "processed_by_bale_id": tx.processed_by_bale_id,
+        }
+        for tx, first_name, last_name, phone_number in rows
+    ]
+
+    return {
+        "items": items,
+        "total_count": total_count,
+        "status_counts": {s: counts.get(s, 0) for s in TRANSACTION_STATUSES},
+    }
+
+def _receipt_file_path(stored_path: Optional[str]) -> Optional[str]:
+    """Resolve a stored receipt path, refusing anything outside the private receipts folder."""
+    if not stored_path:
+        return None
+    base_dir = os.path.realpath(bale_bot.RECEIPT_DIR)
+    full_path = os.path.realpath(stored_path)
+    if not full_path.startswith(base_dir + os.sep) or not os.path.isfile(full_path):
+        return None
+    return full_path
+
+@app.get("/admin/transactions/{transaction_id}/receipt")
+def get_transaction_receipt(
+    transaction_id: int,
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin),
+):
+    tx = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.id == transaction_id, models.Transaction.deleted_at.is_(None))
+        .first()
+    )
+    if not tx:
+        raise HTTPException(status_code=404, detail="تراکنش یافت نشد")
+
+    path = _receipt_file_path(tx.receipt_image_url)
+    if path is None and tx.receipt_file_id:
+        # The private copy failed to download at submit time; fetch it from Bale once and keep it.
+        downloaded = bale_bot.download_receipt(tx.receipt_file_id)
+        if downloaded:
+            tx.receipt_image_url = downloaded
+            db.commit()
+            path = _receipt_file_path(downloaded)
+
+    if path is None:
+        raise HTTPException(status_code=404, detail="تصویر رسید در دسترس نیست")
+
+    media_type = mimetypes.guess_type(path)[0] or "image/jpeg"
+    return FileResponse(path, media_type=media_type, headers={"Cache-Control": "private, no-store"})
 
 # ==========================================
 # Bale bot webhook (wallet top-up receipts)
