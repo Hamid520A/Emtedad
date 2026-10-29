@@ -3943,11 +3943,16 @@ def get_admin_contest_participants(
 # ==========================================
 # Bale bot webhook (wallet top-up receipts)
 # ==========================================
-def _bale_secret_ok(candidate: Optional[str]) -> bool:
-    expected = os.getenv("BALE_WEBHOOK_SECRET", "")
-    if not expected or not candidate:
-        return False
-    return secrets.compare_digest(candidate.encode(), expected.encode())
+def _bale_secret_problem(candidate: Optional[str]) -> Optional[str]:
+    """Return why the webhook secret is rejected, or None if it matches."""
+    expected = os.getenv("BALE_WEBHOOK_SECRET", "").strip()
+    if not expected:
+        return "BALE_WEBHOOK_SECRET is not set in the backend environment"
+    if not candidate:
+        return "request carries no secret"
+    if not secrets.compare_digest(candidate.strip().encode(), expected.encode()):
+        return f"secret mismatch (got {len(candidate)} chars, expected {len(expected)})"
+    return None
 
 def _process_bale_update(raw: bytes) -> None:
     try:
@@ -3969,9 +3974,11 @@ def _process_bale_update(raw: bytes) -> None:
         db.close()
 
 async def _handle_bale_webhook(request: Request, secret_candidate: Optional[str]):
-    if not _bale_secret_ok(secret_candidate):
+    problem = _bale_secret_problem(secret_candidate)
+    if problem:
         forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        logger.warning(f"Rejected Bale webhook call from {forwarded or (request.client.host if request.client else '-')}")
+        source = forwarded or (request.client.host if request.client else "-")
+        logger.warning(f"Rejected Bale webhook call from {source}: {problem}")
         return JSONResponse(status_code=403, content={"ok": False})
 
     # Always 200 after the secret check, otherwise Bale keeps re-delivering the update.
