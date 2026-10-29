@@ -8,9 +8,9 @@ import Image from 'next/image';
 import { ThemeToggle } from '@/app/components/ThemeToggle';
 import api from '@/app/lib/api';
 import {
-  LogOut, ArrowRight, Save, Users, Trophy, Layout, Plus, Settings,
-  BarChart3, ArrowUpRight, ChevronLeft, Award, TrendingUp, Globe,
-  ImageIcon
+  LogOut, ArrowRight, Save, Users, Trophy, Layout, Plus,
+  ArrowUpRight, Award, TrendingUp, Globe, ImageIcon,
+  FileSpreadsheet, KeyRound, Wallet, Filter
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -308,44 +308,66 @@ export default function AdminDashboard() {
           </div> */}
 
           {/* ابزارهای مدیریتی سریع */}
-          <div className="bg-[#1a2e44] rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
-            <h3 className="font-black text-xl mb-8">ابزارهای سریع</h3>
-            <div className="space-y-4">
-              
-              <div className="space-y-1.5 mb-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">فیلتر مسابقه برای خروجی اکسل</label>
-                <select
-                  value={exportContestId}
-                  onChange={(e) => setExportContestId(e.target.value)}
-                  className="w-full p-3 bg-white/5 border border-white/10 rounded-2xl text-white text-xs font-bold outline-none focus:border-[#c5a059] cursor-pointer"
-                >
-                  <option value="" className="text-[#1a2e44] bg-white font-black">📊 همه مسابقات (کل کاربران)</option>
-                  {contests.map((c: any) => (
-                    <option key={c.id} value={c.id} className="text-[#1a2e44] bg-white font-bold">
-                      #{c.id} - {c.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <section className="lg:col-span-3 bg-[#1a2e44] rounded-[2.5rem] p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
+            <h3 className="font-black text-xl mb-6">ابزارهای سریع</h3>
 
-              <QuickAction label="گزارش اکسل شرکت‌کنندگان" icon={<BarChart3 size={18} />} onClick={exportToExcel} />
-              <QuickAction 
-                label="تنظیمات گواهی‌ها" 
-                icon={<Award size={18} />} 
-                onClick={() => router.push('/admin/certificates')} 
+            {/* نوار فیلتر خروجی اکسل */}
+            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 p-4 mb-6 rounded-2xl bg-slate-900/30 border border-slate-800/50">
+              <label
+                htmlFor="export-contest-filter"
+                className="flex items-center gap-2 shrink-0 text-xs font-black text-slate-300"
+              >
+                <Filter size={16} className="text-[#c5a059]" />
+                فیلتر مسابقه برای خروجی اکسل
+              </label>
+              <select
+                id="export-contest-filter"
+                value={exportContestId}
+                onChange={(e) => setExportContestId(e.target.value)}
+                className="w-full md:max-w-md p-3 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-[#c5a059] cursor-pointer transition-colors"
+              >
+                <option value="" className="text-[#1a2e44] bg-white font-black">📊 همه مسابقات (کل کاربران)</option>
+                {contests.map((c: any) => (
+                  <option key={c.id} value={c.id} className="text-[#1a2e44] bg-white font-bold">
+                    #{c.id} - {c.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <QuickActionCard
+                label="گزارش اکسل شرکت‌کنندگان"
+                description="خروجی بر اساس فیلتر بالا"
+                icon={<FileSpreadsheet />}
+                onClick={exportToExcel}
               />
-              <QuickAction
+              <QuickActionCard
+                label="تنظیمات گواهی‌ها"
+                description="قالب و صدور گواهی‌ها"
+                icon={<Award />}
+                onClick={() => router.push('/admin/certificates')}
+              />
+              <QuickActionCard
                 label="تغییر رمز عبور مدیر"
-                icon={<Settings size={18} />}
+                description="امنیت حساب مدیریت"
+                icon={<KeyRound />}
                 onClick={() => router.push('/admin/profile/change-password')}
               />
-              <QuickAction 
-                label="مدیریت بنرها" 
-                icon={<ImageIcon size={18} />} 
-                onClick={() => router.push('/admin/banners')} 
+              <QuickActionCard
+                label="مدیریت بنرها"
+                description="بنرهای صفحه کاربران"
+                icon={<ImageIcon />}
+                onClick={() => router.push('/admin/banners')}
+              />
+              <QuickActionCard
+                label="وضعیت پرداخت‌ها"
+                description="رسیدها و شارژ کیف پول"
+                icon={<Wallet />}
+                onClick={() => router.push('/admin/payments')}
               />
             </div>
-          </div>
+          </section>
         </div>
       </main>
     </div>
@@ -370,17 +392,29 @@ function StatCard({ title, value, icon, color, onClick }: any) {
   );
 }
 
-function QuickAction({ label, icon, onClick }: any) {
+type QuickActionCardProps = {
+  label: string;
+  description?: string;
+  icon: React.ReactElement<{ size?: number }>;
+  onClick: () => void;
+};
+
+function QuickActionCard({ label, description, icon, onClick }: QuickActionCardProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all text-sm font-bold group"
+      className="group flex flex-col items-center justify-center gap-3 p-6 text-center rounded-2xl bg-slate-800/30 border border-slate-800/50 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-slate-800/80 hover:border-[#c5a059]/60 hover:shadow-[0_0_24px_-6px_rgba(197,160,89,0.55)] active:translate-y-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c5a059]/70"
     >
-      <div className="flex items-center gap-3">
-        <span className="text-[#c5a059] group-hover:scale-110 transition-transform">{icon}</span>
-        {label}
-      </div>
-      <ChevronLeft size={16} className="text-gray-500 group-hover:translate-x-[-4px] transition-transform" />
+      <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[#c5a059]/10 text-[#c5a059] ring-1 ring-[#c5a059]/20 transition-all duration-300 group-hover:scale-110 group-hover:bg-[#c5a059]/20">
+        {React.cloneElement(icon, { size: 26 })}
+      </span>
+      <span className="text-sm font-black">{label}</span>
+      {description && (
+        <span className="text-[11px] font-bold text-slate-400 group-hover:text-slate-300 transition-colors">
+          {description}
+        </span>
+      )}
     </button>
   );
 }
