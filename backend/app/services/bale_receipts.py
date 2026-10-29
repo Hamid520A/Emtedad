@@ -68,10 +68,20 @@ def admin_chat_id() -> Optional[int]:
 def admin_user_ids() -> Set[int]:
     ids = set()
     for part in (os.getenv("BALE_ADMIN_USER_IDS") or "").split(","):
-        part = part.strip()
+        part = part.strip().strip("\"'")
+        if not part:
+            continue
         if part.lstrip("-").isdigit():
             ids.add(int(part))
+        else:
+            logger.warning("Ignoring non-numeric BALE_ADMIN_USER_IDS entry (Bale needs numeric user ids, not usernames)")
     return ids
+
+
+def is_bale_admin(user_id: int) -> bool:
+    # A positive BALE_ADMIN_CHAT_ID is a private chat, whose id equals the admin's user id.
+    chat_id = admin_chat_id()
+    return user_id in admin_user_ids() or (chat_id is not None and chat_id > 0 and int(user_id) == chat_id)
 
 
 def max_amount() -> int:
@@ -96,19 +106,13 @@ def parse_caption(caption: Optional[str]):
     return wallet_code, amount
 
 
-def _mask_phone(phone: Optional[str]) -> str:
-    if not phone or len(phone) < 7:
-        return phone or "-"
-    return f"{phone[:4]}***{phone[-4:]}"
-
-
 def _admin_caption(tx_id: int, user: models.User, wallet_code: int, amount: int) -> str:
     full_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "-"
     return (
         f"🧾 رسید واریز جدید\n"
         f"شماره پیگیری: {tx_id}\n"
         f"کاربر: {full_name}\n"
-        f"موبایل: {_mask_phone(user.phone_number)}\n"
+        f"موبایل: {user.phone_number or '-'}\n"
         f"شناسه کیف پول: {wallet_code}\n"
         f"مبلغ: {amount:,} ریال"
     )
@@ -221,7 +225,8 @@ def _remove_buttons(chat_id: Optional[int], message_id: Optional[int], cq: schem
 
 
 def handle_admin_callback(db: Session, cq: schemas.BaleCallbackQuery) -> None:
-    if cq.from_.id not in admin_user_ids():
+    if not is_bale_admin(cq.from_.id):
+        logger.warning("Bale callback from non-admin user id %s", cq.from_.id)
         bale_bot.answer_callback_query(cq.id, "دسترسی ندارید")
         return
 
