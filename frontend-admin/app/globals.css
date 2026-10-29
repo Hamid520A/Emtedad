@@ -9,6 +9,7 @@
 }
 
 :root {
+  --font-noto-sans-arabic: 'Noto Sans Arabic Variable';
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 243, 244, 246;
   --background-end-rgb: 255, 255, 255;
