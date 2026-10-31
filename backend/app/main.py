@@ -1990,6 +1990,107 @@ def get_my_transactions(
         ],
     }
 
+def _my_notification_state(db: Session, user_id):
+    """وضعیت اعلان‌های کاربر به ازای هر اعلان (جدول notification_users یکتا نیست، پس تجمیع می‌شود)"""
+    link = models.NotificationUsers
+    return (
+        db.query(
+            link.notification_id.label("notification_id"),
+            func.max(func.coalesce(link.is_viewed, 0)).label("is_viewed"),
+            func.bool_or(link.deleted_at.isnot(None)).label("is_deleted"),
+        )
+        .filter(link.user_id == user_id)
+        .group_by(link.notification_id)
+        .subquery()
+    )
+
+@app.get("/users/me/notifications", response_model=List[schemas.NotificationOut])
+def get_my_notifications(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """اعلان‌های عمومی (حذف‌نشده توسط کاربر) + اعلان‌های اختصاصی کاربر، جدیدترین اول"""
+    state = _my_notification_state(db, current_user.id)
+    rows = (
+        db.query(
+            models.Notification.id,
+            models.Notification.title,
+            models.Notification.content,
+            models.Notification.created_at,
+            func.coalesce(state.c.is_viewed, 0).label("is_viewed"),
+        )
+        .outerjoin(state, state.c.notification_id == models.Notification.id)
+        .filter(
+            models.Notification.deleted_at.is_(None),
+            or_(models.Notification.is_global == 1, state.c.notification_id.isnot(None)),
+            func.coalesce(state.c.is_deleted, False).is_(False),
+        )
+        .order_by(models.Notification.created_at.desc().nullslast(), models.Notification.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "title": r.title,
+            "content": r.content,
+            "is_viewed": bool(r.is_viewed),
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]
+
+@app.patch("/users/me/notifications/{notification_id}/read", response_model=schemas.NotificationOut)
+def mark_my_notification_read(
+    notification_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    notification = (
+        db.query(models.Notification)
+        .filter(models.Notification.id == notification_id, models.Notification.deleted_at.is_(None))
+        .first()
+    )
+    if not notification:
+        raise HTTPException(status_code=404, detail="اعلان یافت نشد")
+
+    # notification_users has no unique (notification_id, user_id) constraint; serialize concurrent marks.
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"notification_read:{current_user.id}:{notification_id}"},
+    )
+    links = (
+        db.query(models.NotificationUsers)
+        .filter(
+            models.NotificationUsers.notification_id == notification_id,
+            models.NotificationUsers.user_id == current_user.id,
+        )
+        .all()
+    )
+    if any(link.deleted_at is not None for link in links):
+        raise HTTPException(status_code=404, detail="اعلان یافت نشد")
+
+    if links:
+        for link in links:
+            if link.is_viewed != 1:
+                link.is_viewed = 1
+    elif notification.is_global == 1:
+        db.add(models.NotificationUsers(notification_id=notification_id, user_id=current_user.id, is_viewed=1))
+    else:
+        raise HTTPException(status_code=404, detail="اعلان یافت نشد")
+
+    db.commit()
+    return {
+        "id": notification.id,
+        "title": notification.title,
+        "content": notification.content,
+        "is_viewed": True,
+        "created_at": notification.created_at,
+    }
+
 @app.get("/users/me/contests/{contest_id}/answers")
 def get_my_own_contest_answers(contest_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     try:
@@ -4031,6 +4132,46 @@ def get_admin_contest_participants(
         item["rank"] = idx + 1
         
     return results
+
+# ==========================================
+# Admin: notifications
+# ==========================================
+@app.post("/admin/notifications", response_model=schemas.NotificationAdminOut, status_code=status.HTTP_201_CREATED)
+def create_notification(
+    payload: schemas.NotificationCreate,
+    db: Session = Depends(database.get_db),
+    current_admin: models.User = Depends(require_admin),
+):
+    if payload.user_id is not None:
+        target = (
+            db.query(models.User.id)
+            .filter(models.User.id == payload.user_id, models.User.deleted_at.is_(None))
+            .first()
+        )
+        if not target:
+            raise HTTPException(status_code=404, detail="کاربر مورد نظر یافت نشد")
+
+    notification = models.Notification(
+        title=payload.title,
+        content=payload.content,
+        is_global=1 if payload.is_global else 0,
+    )
+    db.add(notification)
+    db.flush()
+
+    if payload.user_id is not None:
+        db.add(models.NotificationUsers(notification_id=notification.id, user_id=payload.user_id, is_viewed=0))
+
+    db.commit()
+    db.refresh(notification)
+    return {
+        "id": notification.id,
+        "title": notification.title,
+        "content": notification.content,
+        "is_global": bool(notification.is_global),
+        "user_id": payload.user_id,
+        "created_at": notification.created_at,
+    }
 
 # ==========================================
 # Admin: wallet top-up transactions (read-only; decisions are made in the Bale bot)

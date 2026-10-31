@@ -447,6 +447,62 @@ class MyTransactionsResponse(BaseModel):
     items: List[MyTransactionOut]
 
 # ==========================================
+# Notifications
+# ==========================================
+class NotificationCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    content: str = Field(..., min_length=1)
+    is_global: bool = False
+    user_id: Optional[UUID] = None
+
+    @field_validator("title", "content")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("این فیلد نمی‌تواند خالی باشد")
+        return value
+
+    @model_validator(mode="after")
+    def check_target(self):
+        if self.is_global and self.user_id is not None:
+            raise ValueError("اعلان عمومی نباید کاربر مشخصی داشته باشد")
+        if not self.is_global and self.user_id is None:
+            raise ValueError("برای اعلان اختصاصی، شناسه کاربر الزامی است")
+        return self
+
+class NotificationOut(BaseModel):
+    id: int
+    title: str
+    content: str
+    is_viewed: bool
+    created_at: Optional[datetime] = None
+
+    @field_serializer("created_at", when_used="json")
+    def serialize_utc(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.isoformat() + "Z"
+
+class NotificationAdminOut(BaseModel):
+    id: int
+    title: str
+    content: str
+    is_global: bool
+    user_id: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+
+    @field_serializer("created_at", when_used="json")
+    def serialize_utc(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.isoformat() + "Z"
+
+# ==========================================
 # Bale Bot Webhook Schemas (only the fields we use)
 # ==========================================
 class BaleUser(BaseModel):

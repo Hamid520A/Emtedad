@@ -10,7 +10,7 @@ import api from '@/app/lib/api';
 import {
   LogOut, ArrowRight, Save, Users, Trophy, Layout, Plus,
   ArrowUpRight, Award, TrendingUp, Globe, ImageIcon,
-  FileSpreadsheet, KeyRound, Wallet, Filter
+  FileSpreadsheet, KeyRound, Wallet, Filter, Bell
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -384,6 +384,12 @@ export default function AdminDashboard() {
                 description="رسیدها و شارژ کیف پول"
                 icon={<Wallet />}
                 onClick={() => router.push('/admin/payments')}
+              />
+              <QuickActionCard
+                label="ارسال اعلان"
+                description="اعلان عمومی یا اختصاصی"
+                icon={<Bell />}
+                onClick={() => router.push('/admin/notifications')}
               />
             </div>
           </section>

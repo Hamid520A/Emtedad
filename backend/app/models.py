@@ -313,6 +313,9 @@ class Notification(Base):
 
 class NotificationUsers(Base):
     __tablename__ = "notification_users"
+    __table_args__ = (
+        Index("uq_notification_users_user_notification", "user_id", "notification_id", unique=True),
+    )
     id = Column(Integer, primary_key=True, index=True)
     notification_id = Column(Integer, ForeignKey("notifications.id"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
