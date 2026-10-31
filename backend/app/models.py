@@ -285,8 +285,12 @@ class CertificateLevel(Base):
 
 class CertificateUser(Base):
     __tablename__ = "certificate_users"
+    __table_args__ = (
+        Index("uq_certificate_users_user_certificate", "user_id", "certificate_id", unique=True),
+    )
     id = Column(Integer, primary_key=True, index=True)
-    serial_number = Column(Integer, unique=True)
+    # Format: <Jalali year (4)><contest id (≥4, zero-padded)><per-contest sequence (6)>
+    serial_number = Column(BigInteger, unique=True)
     certificate_id = Column(Integer, ForeignKey("certificates.id"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     image_url = Column(String(500), nullable=True)

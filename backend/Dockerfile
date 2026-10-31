@@ -12,10 +12,15 @@ ENV PYTHONUNBUFFERED 1
 ENV WEB_CONCURRENCY=4
 
 # ۴. نصب ابزارهای مورد نیاز سیستم برای کامپایل پکیج‌ها (مثل psycopg2)
+#    و کتابخانه‌های شکل‌دهی متن راست‌به‌چپ Pillow (raqm + fribidi + harfbuzz + freetype) برای گواهی‌ها
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
+    libfreetype6 \
+    libfribidi0 \
+    libharfbuzz0b \
+    libraqm0 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,6 +30,16 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # ۶. کپی کردن کل کدهای بک‌ند به داخل کانتینر
 COPY . .
+
+# ۷. فونت وزیرمتن برای رندر گواهی از دیسک (نسخه‌ی داخل مخزن در backend/fonts؛ فقط در نبود آن دانلود می‌شود)
+#    و توقف بیلد اگر Pillow قادر به شکل‌دهی متن فارسی نباشد
+ARG VAZIRMATN_BASE_URL=https://raw.githubusercontent.com/rastikerdar/vazirmatn/v33.003/fonts/ttf
+RUN mkdir -p fonts \
+    && for weight in Bold Medium; do \
+         font="fonts/Vazirmatn-${weight}.ttf"; \
+         [ -s "$font" ] || curl -fsSL --retry 3 --connect-timeout 15 -o "$font" "${VAZIRMATN_BASE_URL}/Vazirmatn-${weight}.ttf"; \
+       done \
+    && python -c "from PIL import ImageFont, features; [ImageFont.truetype(f'fonts/Vazirmatn-{w}.ttf', 20) for w in ('Bold', 'Medium')]; assert features.check('raqm'), 'Pillow raqm (RTL shaping) is unavailable'"
 
 # ۸. اضافه کردن کاربر غیر روت برای امنیت پروداکشن
 RUN addgroup --system appgroup && adduser --system --group appuser

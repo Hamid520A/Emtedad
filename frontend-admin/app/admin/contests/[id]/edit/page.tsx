@@ -40,7 +40,7 @@ export default function EditContestPage() {
   });
 
   const [certData, setCertData] = useState<any>({
-    certificate_text_template: 'بدین‌وسیله گواهی می‌شود جناب آقای/سرکار خانم {{name}} با کد ملی {{national_id}} در مسابقه شرکت نموده و رتبه {{rank}} را کسب کرده است.',
+    certificate_text_template: 'بدین‌وسیله گواهی می‌شود جناب آقای/سرکار خانم {{name}} با کد ملی {{national_id}} در مسابقه شرکت نموده و موفق به دریافت این گواهی شده است.',
     certificate_bg_url: '', certificate_logo_url: '',
     signer_name: '', signer_title: '', signer_signature_url: '',
     signer_2_name: '', signer_2_title: '', signer_2_signature_url: '',
@@ -223,7 +223,8 @@ export default function EditContestPage() {
       .replace("{{name}}", "نریمان دانایی")
       .replace("{{national_id}}", "۳۸۷۱۲۳۴۵۶۷")
       .replace("{{birth_date}}", "۱۳۸۰/۰۳/۱۹")
-      .replace("{{rank}}", formData.certificate_type === 'excellent' ? 'عالی' : formData.certificate_type === 'very_good' ? 'خیلی خوب' : 'خوب');
+      .replace(/{{rank}}/g, "")
+      .replace(/[ \t]{2,}/g, " ");
   };
 
   if (loading) return (

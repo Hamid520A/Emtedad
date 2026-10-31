@@ -18,7 +18,11 @@ from app.services.wallet_code import generate_unique_wallet_code
 from app.services import bale_bot, bale_receipts
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from datetime import datetime, timedelta, date, time, timezone
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, features as pil_features
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+from urllib.parse import urlparse, unquote
 from fastapi.responses import JSONResponse, StreamingResponse, Response, FileResponse
 from jose import JWTError, jwt
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
@@ -321,18 +325,7 @@ def get_current_user_optional(request: Request, db: Session = Depends(database.g
     if not auth_header or not auth_header.startswith("Bearer "):
         return None
         
-    token = auth_header.split(" ")[1]
-    try:
-        # رمزگشایی توکن با کلیدهای امنیتی موجود در همین فایل و بررسی سفت و سخت
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True, "verify_exp": True})
-        phone_number: str = payload.get("sub")
-        if phone_number is None:
-            return None
-            
-        user = db.query(models.User).filter(models.User.phone_number == phone_number).first()
-        return user
-    except JWTError:
-        return None
+    return auth.user_from_access_token(db, auth_header.split(" ")[1])
 
 def require_admin(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
     """بررسی سطح دسترسی مدیر در سنگر نهایی بک‌ند بر اساس جدول جدید admins"""
@@ -390,18 +383,161 @@ def invalidate_leaderboard_cache(contest_id: int) -> None:
             f"Leaderboard cache invalidation failed for contest {contest_id}: {e}"
         )
 
+CERTIFICATE_TYPE_LABELS = {"excellent": "عالی", "very_good": "خیلی خوب", "good": "خوب"}
+CERTIFICATE_SIGNER_SLOTS = (
+    ("signer_name", "signer_title", "signer_signature_url"),
+    ("signer_2_name", "signer_2_title", "signer_2_signature_url"),
+    ("signer_3_name", "signer_3_title", "signer_3_signature_url"),
+)
+CERTIFICATE_SIGNER_KEYS = {key for slot in CERTIFICATE_SIGNER_SLOTS for key in slot}
+CERTIFICATE_TEMPLATE_KEYS = {
+    "certificate_text_template", "certificate_bg_url", "certificate_logo_url",
+} | CERTIFICATE_SIGNER_KEYS
+
+
+def _contest_certificate(contest) -> Optional[models.Certificate]:
+    """The contest's certificate row, enabled or not. Prefers an enabled row if duplicates exist."""
+    certs = [c for c in (contest.certificates or []) if c.deleted_at is None]
+    if not certs:
+        return None
+    return min(certs, key=lambda c: (c.is_active == 0, c.id))
+
+
+def _certificate_enabled(cert: Optional[models.Certificate]) -> bool:
+    return cert is not None and cert.is_active != 0
+
+
+def _certificate_signers(cert: models.Certificate) -> List[models.Signer]:
+    links = sorted(
+        (cs for cs in cert.certificate_signers if cs.deleted_at is None and cs.signer is not None),
+        key=lambda cs: cs.id,
+    )
+    return [cs.signer for cs in links[:3]]
+
+
+def _certificate_admin_payload(cert: models.Certificate) -> Dict[str, Any]:
+    return {
+        "content": cert.content or "",
+        "background_url": cert.background_url or "",
+        "logo_url": cert.logo_url or "",
+        "signers": [
+            {"name": s.name or "", "title": s.title or "", "sign_url": s.sign_url or ""}
+            for s in _certificate_signers(cert)
+        ],
+    }
+
+
+def _lock_contest_certificate(db: Session, contest_id: int) -> None:
+    """Serialize certificate writes per contest: certificates.contest_id and certificate_signers have no unique constraints."""
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"certificate:contest:{contest_id}"},
+    )
+
+
+def _clean_template_str(value) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _apply_certificate_template(db: Session, cert: models.Certificate, data: Dict[str, Any]) -> None:
+    """Blank text/background/logo values keep the stored ones; signers are replaced only when signer keys are sent."""
+    text_template = _clean_template_str(data.get("certificate_text_template"))
+    if text_template:
+        cert.content = text_template
+    bg_url = _clean_template_str(data.get("certificate_bg_url"))
+    if bg_url:
+        cert.background_url = bg_url
+    logo_url = _clean_template_str(data.get("certificate_logo_url"))
+    if logo_url:
+        cert.logo_url = logo_url
+
+    if not CERTIFICATE_SIGNER_KEYS & data.keys():
+        return
+
+    db.query(models.CertificateSigners).filter(
+        models.CertificateSigners.certificate_id == cert.id
+    ).delete(synchronize_session=False)
+    db.expire(cert, ["certificate_signers"])
+
+    for name_key, title_key, url_key in CERTIFICATE_SIGNER_SLOTS:
+        name = _clean_template_str(data.get(name_key))
+        if not name:
+            continue
+        title = _clean_template_str(data.get(title_key))
+        sign_url = _clean_template_str(data.get(url_key)) or None
+        # Signer rows are shared across certificates, so a changed signature gets a new row instead of an update.
+        signer = (
+            db.query(models.Signer)
+            .filter(
+                models.Signer.name == name,
+                models.Signer.title == title,
+                models.Signer.sign_url == sign_url,
+                models.Signer.deleted_at.is_(None),
+            )
+            .order_by(models.Signer.id)
+            .first()
+        )
+        if not signer:
+            signer = models.Signer(name=name, title=title, sign_url=sign_url)
+            db.add(signer)
+            db.flush()
+        db.add(models.CertificateSigners(certificate_id=cert.id, signer_id=signer.id))
+    db.flush()
+
+STATIC_ROOT = Path("static").resolve()
+CERTIFICATE_FONTS_DIR = Path(__file__).resolve().parent.parent / "fonts"
+
+if not pil_features.check("raqm"):
+    logger.warning("Pillow raqm is unavailable: certificate Persian text will render unshaped")
+
+
+def _local_static_path(url_str: str) -> Optional[Path]:
+    """Map a URL to a file under our own static dir (e.g. {BACKEND_URL}/static/uploads/x.png), or None."""
+    path = urlparse(url_str).path
+    marker = "/static/"
+    idx = path.find(marker)
+    if idx == -1:
+        return None
+    candidate = (STATIC_ROOT / unquote(path[idx + len(marker):])).resolve()
+    if not candidate.is_relative_to(STATIC_ROOT) or not candidate.is_file():
+        return None
+    return candidate
+
+
 def safe_load_image(url_str):
     if not url_str:
         return None
     try:
+        local_path = _local_static_path(url_str)
+        if local_path:
+            with Image.open(local_path) as local_img:
+                return local_img.convert("RGBA")
+
         if url_str.startswith("/"):
             url_str = f"{BACKEND_URL}{url_str}"
-            
         response = requests.get(url_str, timeout=5)
+        response.raise_for_status()
         return Image.open(io.BytesIO(response.content)).convert("RGBA")
     except Exception as e:
-        print(f"⚠️ خطا در بارگذاری تصویر ({url_str}): {e}")
+        logger.warning(f"Certificate image load failed ({url_str}): {e}")
         return None
+
+
+@lru_cache(maxsize=None)
+def _certificate_font_bytes(weight: str) -> Optional[bytes]:
+    try:
+        return (CERTIFICATE_FONTS_DIR / f"Vazirmatn-{weight}.ttf").read_bytes()
+    except OSError as e:
+        logger.error(f"Certificate font Vazirmatn-{weight} missing: {e}")
+        return None
+
+
+def _certificate_font(weight: str, size: int):
+    # A fresh FreeTypeFont per render: font objects are not safe to share across threadpool workers.
+    font_bytes = _certificate_font_bytes(weight)
+    if font_bytes is None:
+        return ImageFont.load_default()
+    return ImageFont.truetype(io.BytesIO(font_bytes), size)
 
 def fa_to_en_digits(text: str) -> str:
     """تبدیل تمام اعداد فارسی و عربی یک متن به اعداد انگلیسی استاندارد"""
@@ -463,12 +599,69 @@ def safe_draw_text(draw, position, text, font, fill, direction="rtl"):
             logger.error(f"Silent failure intercepted: {e2}")
 
 # 🌟 بازنویسی کامل موتور گرافیکی گواهی‌نامه‌ها منطبق بر معماری ۱ به N جداول جدید StarUML
-def draw_certificate_canvas(user, contest, subscription):
-    # ۱. واکشی اولین گواهی فعال مرتبط با این مسابقه از روی ریلیشن جدید
-    cert = contest.certificates[0] if contest.certificates else None
-    bg_url = cert.background_url if cert else None
-    
-    img = safe_load_image(bg_url)
+@dataclass(frozen=True)
+class CertificateSignerData:
+    name: str
+    title: str
+    sign_url: Optional[str]
+
+
+@dataclass(frozen=True)
+class CertificateRenderData:
+    """Everything the renderer needs, copied out of the DB so the session can close before PIL work."""
+    full_text: str
+    serial_number: int
+    issued_on: jdatetime.date
+    background_url: Optional[str]
+    logo_url: Optional[str]
+    signers: tuple
+
+
+IRAN_TZ = timezone(timedelta(hours=3, minutes=30))  # Iran has had no DST since 2022
+DEFAULT_CERTIFICATE_TEMPLATE = "بدین‌وسیله گواهی می‌شود {{name}} در مسابقه شرکت نموده است."
+
+
+def _jalali_date_from_utc(value: datetime) -> jdatetime.date:
+    return jdatetime.date.fromgregorian(date=value.replace(tzinfo=timezone.utc).astimezone(IRAN_TZ).date())
+
+
+def _build_certificate_render_data(
+    user: models.User, cert: models.Certificate, issuance: models.CertificateUser
+) -> CertificateRenderData:
+    user_full_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "شرکت‌کننده امتداد"
+
+    if user.birth_date:
+        try:
+            raw_date = jdatetime.date.fromgregorian(date=user.birth_date).strftime("%Y/%m/%d")
+        except Exception:
+            raw_date = str(user.birth_date)
+        # استفاده از کاراکتر \u200e برای تثبیت جهت اعداد در متن فارسی
+        birth_date_str = f"\u200e{to_persian_digits(raw_date)}\u200e"
+    else:
+        birth_date_str = "---"
+
+    full_text = (cert.content or DEFAULT_CERTIFICATE_TEMPLATE)\
+        .replace("{{name}}", user_full_name)\
+        .replace("{{national_id}}", to_persian_digits(user.national_id or "---"))\
+        .replace("{{birth_date}}", birth_date_str)\
+        .replace("{{rank}}", "")
+    full_text = re.sub(r"[ \t]{2,}", " ", full_text).strip()
+
+    return CertificateRenderData(
+        full_text=full_text,
+        serial_number=issuance.serial_number,
+        issued_on=_jalali_date_from_utc(issuance.created_at),
+        background_url=cert.background_url,
+        logo_url=cert.logo_url,
+        signers=tuple(
+            CertificateSignerData(name=s.name or "", title=s.title or "", sign_url=s.sign_url)
+            for s in _certificate_signers(cert)
+        ),
+    )
+
+
+def draw_certificate_canvas(data: CertificateRenderData):
+    img = safe_load_image(data.background_url)
     if img:
         img = img.resize((1200, 800), Image.Resampling.LANCZOS)
     else:
@@ -476,76 +669,21 @@ def draw_certificate_canvas(user, contest, subscription):
         
     draw = ImageDraw.Draw(img)
     
-    # بارگذاری آنلاین بایت‌های فونت وزیر
-    try:
-        url_bold = "https://raw.githubusercontent.com/rastikerdar/vazirmatn/v33.003/fonts/ttf/Vazirmatn-Bold.ttf"
-        url_medium = "https://raw.githubusercontent.com/rastikerdar/vazirmatn/v33.003/fonts/ttf/Vazirmatn-Medium.ttf"
-        res_bold = requests.get(url_bold, timeout=5)
-        res_medium = requests.get(url_medium, timeout=5)
-        font_bytes_bold = io.BytesIO(res_bold.content)
-        font_sub = ImageFont.truetype(io.BytesIO(res_medium.content), 20)
-    except Exception as e:
-        print(f"⚠️ خطای بارگذاری فونت لوح: {e}")
-        font_bytes_bold = None
-        font_sub = ImageFont.load_default()
+    font_sub = _certificate_font("Medium", 20)
 
-    score_val = subscription.score or 0
-    rank_text = "عمومی"
-    
-    if cert:
-        if "عالی" in cert.title:
-            rank_text = "عالی"
-        elif "خیلی خوب" in cert.title:
-            rank_text = "خیلی خوب"
-        elif "خوب" in cert.title:
-            rank_text = "خوب"
-    user_full_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "شرکت‌کننده امتداد"
-    
-    # 🌟 اصلاح هوشمند فیلد تاریخ تولد برای حل باگ برعکس شدن لایوت گرافیکی
-    # 🌟 ۱. تبدیل تاریخ تولد از میلادی به شمسی
-    if user.birth_date:
-        try:
-            # تبدیل آبجکت میلادی دیتابیس به شمسی با کتابخانه jdatetime
-            shamsi_bd = jdatetime.date.fromgregorian(date=user.birth_date)
-            raw_date = shamsi_bd.strftime("%Y/%m/%d")
-        except Exception:
-            raw_date = str(user.birth_date)
-        
-        # استفاده از کاراکتر \u200e برای تثبیت جهت اعداد در متن فارسی
-        birth_date_str = f"\u200e{to_persian_digits(raw_date)}\u200e"
-    else:
-        birth_date_str = "---"
+    persian_serial = to_persian_digits(str(data.serial_number))
+    persian_date = to_persian_digits(data.issued_on.strftime("%Y/%m/%d"))
 
-    # دریافت متن قالب گواهی
-    template = cert.content if cert else "بدین‌وسیله گواهی می‌شود {{name}} در مسابقه شرکت نموده است."
-    
-    # اعمال جایگزینی‌ها همراه با فارسی‌سازی کدملی
-    full_text = template.replace("{{name}}", user_full_name)\
-                        .replace("{{national_id}}", to_persian_digits(user.national_id or "---"))\
-                        .replace("{{birth_date}}", birth_date_str)\
-                        .replace("{{rank}}", rank_text)
-
-    # 🌟 ۲. تولید شماره سریال و تاریخ صدور کاملاً شمسی برای گوشه بالا
-    if hasattr(user.id, 'int'):
-        user_serial_part = str(user.id.int)[-4:]
-    else:
-        user_serial_part = str(abs(hash(str(user.id))))[-4:]
-        
-    persian_serial = to_persian_digits(f"1405{contest.id:02d}{user_serial_part}")
-    
-    # دریافت تاریخ امروز به صورت شمسی
-    persian_date = to_persian_digits(jdatetime.date.today().strftime("%Y/%m/%d"))
-    
     txt_serial = f"شماره: {persian_serial}"
     txt_date = f"تاریخ: {persian_date}"
-    
+
     try:
         w_s = draw.textbbox((0, 0), txt_serial, font=font_sub, direction="rtl")[2] - draw.textbbox((0, 0), txt_serial, font=font_sub, direction="rtl")[0]
         w_d = draw.textbbox((0, 0), txt_date, font=font_sub, direction="rtl")[2] - draw.textbbox((0, 0), txt_date, font=font_sub, direction="rtl")[0]
     except Exception as e:
         logger.warning(f"Error calculating text width: {e}")
         w_s, w_d = 160, 160
-        
+
     safe_draw_text(draw, (1120 - w_s, 70), txt_serial, font_sub, "#FFFFFF", direction="rtl")
     safe_draw_text(draw, (1120 - w_d, 105), txt_date, font_sub, "#FFFFFF", direction="rtl")
 
@@ -553,14 +691,10 @@ def draw_certificate_canvas(user, contest, subscription):
     target_font_size = 32
     lines = []
     while target_font_size > 18:
-        if font_bytes_bold:
-            font_bytes_bold.seek(0)
-            font_main = ImageFont.truetype(font_bytes_bold, target_font_size)
-        else:
-            font_main = ImageFont.load_default()
+        font_main = _certificate_font("Bold", target_font_size)
             
         max_chars = int(900 // (target_font_size * 0.55))
-        lines = wrap_persian_text(full_text, max_chars=max_chars)
+        lines = wrap_persian_text(data.full_text, max_chars=max_chars)
         if (len(lines) * (target_font_size + 16)) <= 200:
             break
         target_font_size -= 2
@@ -570,26 +704,16 @@ def draw_certificate_canvas(user, contest, subscription):
         draw_centered_rtl_text(draw, 600, y_offset, line, font_main, "#FFFFFF")
         y_offset += target_font_size + 16
 
-    # ۴. بارگذاری لوگوی اختصاصی گواهی نامه از فیلد جدید cert.logo_url
-    logo_url = cert.logo_url if cert else None
-    if logo_url:
-        logo_img = safe_load_image(logo_url)
+    # ۴. بارگذاری لوگوی اختصاصی گواهی نامه
+    if data.logo_url:
+        logo_img = safe_load_image(data.logo_url)
         if logo_img:
             logo_img = logo_img.resize((150, 150))
             img.paste(logo_img, (525, 40), logo_img)
 
     # ۵. 🌟 فوق‌العاده هوشمند: لوپ زدن روی جدول واسط و استخراج داینامیک امضاها تا سقف ۳ مدیر
-    if font_bytes_bold:
-        font_bytes_bold.seek(0)
-        font_sign = ImageFont.truetype(font_bytes_bold, 24)
-    else:
-        font_sign = ImageFont.load_default()
-
-    active_signers = []
-    if cert and cert.certificate_signers:
-        for cs in cert.certificate_signers[:3]: # برش لیست برای حداکثر ۳ امضا بر اساس لایوت
-            if cs.signer:
-                active_signers.append(cs.signer)
+    font_sign = _certificate_font("Bold", 24)
+    active_signers = data.signers
 
     num_signers = len(active_signers)
     if num_signers == 1:
@@ -1260,21 +1384,9 @@ def get_contest_detail(
         content.pop("sms_message", None)
         if current_user and current_user.admin and current_user.admin.is_active == 1:
             contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
-            if contest and contest.certificates:
-                cert = contest.certificates[0]
-                content["certificate_details"] = {
-                    "content": cert.content or "",
-                    "background_url": cert.background_url or "",
-                    "logo_url": cert.logo_url or "",
-                    "signers": [
-                        {
-                            "name": cs.signer.name if cs.signer else "",
-                            "title": cs.signer.title if cs.signer else "",
-                            "sign_url": cs.signer.sign_url if cs.signer else "",
-                        }
-                        for cs in cert.certificate_signers[:3]
-                    ],
-                }
+            cert = _contest_certificate(contest) if contest else None
+            if cert:
+                content["certificate_details"] = _certificate_admin_payload(cert)
             if contest:
                 content["sms_message"] = contest.sms_message
         return JSONResponse(status_code=200, headers=cors_headers, content=content)
@@ -1303,26 +1415,17 @@ def get_contest_detail(
     certificate_type = "none"
     cert_payload = None
     
-    if contest.certificates:
-        cert = contest.certificates[0]
-        if "عالی" in cert.title: certificate_type = "excellent"
-        elif "خیلی خوب" in cert.title: certificate_type = "very_good"
-        elif "خوب" in cert.title: certificate_type = "good"
+    cert = _contest_certificate(contest)
+    if cert:
+        if _certificate_enabled(cert):
+            if "عالی" in cert.title: certificate_type = "excellent"
+            elif "خیلی خوب" in cert.title: certificate_type = "very_good"
+            elif "خوب" in cert.title: certificate_type = "good"
         
         # 🔒 لایه امنیت: جزئیات امضاها و تصاویر گواهی فقط برای ادمین معتبر لود می‌شود
+        # A disabled certificate keeps its template so re-enabling restores it.
         if current_user and current_user.admin and current_user.admin.is_active == 1:
-            cert_payload = {
-                "content": cert.content or "",
-                "background_url": cert.background_url or "",
-                "logo_url": cert.logo_url or "",
-                "signers": [
-                    {
-                        "name": cs.signer.name if cs.signer else "",
-                        "title": cs.signer.title if cs.signer else "",
-                        "sign_url": cs.signer.sign_url if cs.signer else ""
-                    } for cs in cert.certificate_signers[:3]
-                ]
-            }
+            cert_payload = _certificate_admin_payload(cert)
         
     public_payload = {
         "id": contest.id,
@@ -2161,10 +2264,142 @@ def options_download_certificate():
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
     })
 
+CERTIFICATE_DOWNLOAD_TOKEN_TYPE = "certificate_download"
+CERTIFICATE_LINK_TTL_MINUTES = 15
+
+
+def _certificate_eligibility(db: Session, user: models.User, contest_id: int):
+    """Returns (subscription, contest, None) when the user may download, else (None, None, (status_code, detail))."""
+    subscription = db.query(models.Subscription).filter(
+        models.Subscription.user_id == user.id,
+        models.Subscription.contest_id == contest_id
+    ).first()
+    if not subscription:
+        return None, None, (403, "شما هنوز در این مسابقه شرکت نکرده‌اید.")
+
+    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+    if not contest:
+        return None, None, (404, "مسابقه مورد نظر یافت نشد.")
+
+    if not _certificate_enabled(_contest_certificate(contest)):
+        return None, None, (400, "این مسابقه فاقد امتیاز صدور گواهی نامه است.")
+
+    if (subscription.score or 0) < 50:
+        return None, None, (400, "امتیاز شما برای دریافت گواهی کافی نیست.")
+
+    return subscription, contest, None
+
+
+CERTIFICATE_SERIAL_SEQ_DIGITS = 6
+CERTIFICATE_SERIAL_SEQ_MOD = 10 ** CERTIFICATE_SERIAL_SEQ_DIGITS
+
+
+def _certificate_serial(issued_at_utc: datetime, contest_id: int, seq: int) -> int:
+    # Fixed-width year and sequence keep the variable-width contest id unambiguous.
+    year = _jalali_date_from_utc(issued_at_utc).year
+    return int(f"{year}{contest_id:04d}{seq:0{CERTIFICATE_SERIAL_SEQ_DIGITS}d}")
+
+
+def _issue_certificate(db: Session, user_id, cert: models.Certificate, contest_id: int) -> models.CertificateUser:
+    """Return the user's issuance for this certificate, creating it (with the next per-contest serial) on first request."""
+    def existing():
+        return db.query(models.CertificateUser).filter(
+            models.CertificateUser.user_id == user_id,
+            models.CertificateUser.certificate_id == cert.id,
+        ).first()
+
+    issuance = existing()
+    if issuance:
+        return issuance
+
+    # Serializes both the (user, certificate) check and serial allocation for this contest.
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"certificate:issue:{contest_id}"},
+    )
+    issuance = existing()
+    if issuance:
+        db.commit()
+        return issuance
+
+    last_seq = (
+        db.query(func.max(models.CertificateUser.serial_number % CERTIFICATE_SERIAL_SEQ_MOD))
+        .join(models.Certificate, models.Certificate.id == models.CertificateUser.certificate_id)
+        .filter(models.Certificate.contest_id == contest_id)
+        .scalar()
+    ) or 0
+    seq = last_seq + 1
+    if seq >= CERTIFICATE_SERIAL_SEQ_MOD:
+        raise RuntimeError(f"Certificate serial sequence exhausted for contest {contest_id}")
+
+    issued_at = utc_now()
+    issuance = models.CertificateUser(
+        serial_number=_certificate_serial(issued_at, contest_id, seq),
+        certificate_id=cert.id,
+        user_id=user_id,
+        created_at=issued_at,
+        is_active=1,
+        is_viewed=0,
+    )
+    db.add(issuance)
+    db.commit()
+    return issuance
+
+
+def _issue_user_certificate(db: Session, user: models.User, contest_id: int):
+    """Returns (certificate, issuance, None) for an eligible user, else (None, None, (status_code, detail))."""
+    _, contest, error = _certificate_eligibility(db, user, contest_id)
+    if error:
+        return None, None, error
+    cert = _contest_certificate(contest)
+    issuance = _issue_certificate(db, user.id, cert, contest_id)
+    if issuance.deleted_at is not None or issuance.is_active == 0:
+        return None, None, (403, "این گواهی باطل شده است.")
+    return cert, issuance, None
+
+
+def _create_certificate_download_token(user: models.User, contest_id: int) -> str:
+    # The link is shared outside the app, so the token carries no phone number and grants nothing else.
+    expire = datetime.now(timezone.utc) + timedelta(minutes=CERTIFICATE_LINK_TTL_MINUTES)
+    return jwt.encode(
+        {"sub": str(user.id), "contest_id": contest_id, "type": CERTIFICATE_DOWNLOAD_TOKEN_TYPE, "exp": expire},
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def _user_from_certificate_download_token(db: Session, token: str, contest_id: int) -> Optional[models.User]:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != CERTIFICATE_DOWNLOAD_TOKEN_TYPE or payload.get("contest_id") != contest_id:
+            return None
+        user_id = UUID(str(payload.get("sub")))
+    except (JWTError, ValueError):
+        return None
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    return user if auth.is_account_usable(user) else None
+
+
+@app.post("/users/me/contests/{contest_id}/certificate/link")
+def create_my_certificate_link(
+    contest_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    _, _, error = _issue_user_certificate(db, current_user, contest_id)
+    if error:
+        raise HTTPException(status_code=error[0], detail=error[1])
+    token = _create_certificate_download_token(current_user, contest_id)
+    return {
+        "path": f"/users/me/contests/{contest_id}/certificate/download?dl={token}",
+        "expires_in": CERTIFICATE_LINK_TTL_MINUTES * 60,
+    }
+
+
 @app.get("/users/me/contests/{contest_id}/certificate/download")
 def download_my_certificate(
     contest_id: int, 
-    request: Request, # 🌟 تغییر اصلی: به جای current_user از ریکوئست خام استفاده می‌کنیم
+    request: Request,
     db: Session = Depends(database.get_db)
 ):
     cors_headers = {
@@ -2174,64 +2409,48 @@ def download_my_certificate(
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
     }
 
-    # 🌟 شاه‌کلید فیکس مینی‌اپ: استخراج توکن از آدرس URL (اگر در هدر نبود)
-    token = request.query_params.get("token")
-    if not token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
-            
-    if not token:
+    # Browsers opening a shared link authenticate with the scoped `dl` token; access tokens are only accepted in the header.
+    download_token = request.query_params.get("dl")
+    auth_header = request.headers.get("Authorization") or ""
+    if download_token:
+        current_user = _user_from_certificate_download_token(db, download_token, contest_id)
+    elif auth_header.startswith("Bearer "):
+        current_user = auth.user_from_access_token(db, auth_header.split(" ")[1])
+    else:
         return JSONResponse(status_code=401, content={"detail": "شما وارد نشده‌اید (توکن یافت نشد)"}, headers=cors_headers)
-        
+
+    if current_user is None:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "لینک دانلود منقضی یا نامعتبر است. لطفاً از داخل برنامه لینک جدید بگیرید."},
+            headers=cors_headers,
+        )
+
+    user_id = current_user.id
+    render_error = JSONResponse(status_code=500, content={"detail": "خطا در ساخت تصویر گواهی. لطفاً بعداً دوباره تلاش کنید."}, headers=cors_headers)
     try:
-        # پردازش و رمزگشایی توکن به صورت دستی
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": True, "verify_exp": True})
-        phone_number = payload.get("sub")
-        current_user = db.query(models.User).filter(models.User.phone_number == phone_number).first()
-        if not current_user:
-            return JSONResponse(status_code=401, content={"detail": "کاربر معتبر نیست"}, headers=cors_headers)
-    except JWTError:
-        return JSONResponse(status_code=401, content={"detail": "توکن منقضی یا نامعتبر است"}, headers=cors_headers)
+        cert, issuance, error = _issue_user_certificate(db, current_user, contest_id)
+        if error:
+            return JSONResponse(status_code=error[0], content={"detail": error[1]}, headers=cors_headers)
+        render_data = _build_certificate_render_data(current_user, cert, issuance)
+    except Exception:
+        logger.exception(f"Certificate issuance failed for contest {contest_id}, user {user_id}")
+        return render_error
 
-    # ==========================================
-    # ادامه منطق استاندارد صدور گواهی
-    # ==========================================
+    # Return the pooled connection before the slow image work.
+    db.close()
+
     try:
-        subscription = db.query(models.Subscription).filter(
-            models.Subscription.user_id == current_user.id,
-            models.Subscription.contest_id == contest_id
-        ).first()
-        
-        if not subscription:
-            return JSONResponse(status_code=403, content={"detail": "شما هنوز در این مسابقه شرکت نکرده‌اید."}, headers=cors_headers)
-            
-        contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
-        if not contest:
-            return JSONResponse(status_code=404, content={"detail": "مسابقه مورد نظر یافت نشد."}, headers=cors_headers)
-            
-        cert = contest.certificates[0] if contest.certificates else None
-        if not cert or cert.is_active == 0:
-            return JSONResponse(status_code=400, content={"detail": "این مسابقه فاقد امتیاز صدور گواهی نامه است."}, headers=cors_headers)
+        canvas = draw_certificate_canvas(render_data)
+    except Exception:
+        logger.exception(f"Certificate render failed for contest {contest_id}, user {user_id}")
+        return render_error
 
-        if (subscription.score or 0) < 50:
-            return JSONResponse(status_code=400, content={"detail": "امتیاز شما برای دریافت گواهی کافی نیست."}, headers=cors_headers)
-
-        try:
-            canvas = draw_certificate_canvas(current_user, contest, subscription)
-        except Exception as canvas_err:
-            print(f"❌ خطای داخلی در موتور گرافیکی: {canvas_err}")
-            return JSONResponse(status_code=500, content={"detail": f"خطای ترسیم تصویر: {str(canvas_err)}"}, headers=cors_headers)
-
-        response_headers = {
-            **cors_headers, 
-            "Content-Disposition": f"attachment; filename=certificate_{contest_id}.png"
-        }
-        return StreamingResponse(canvas, media_type="image/png", headers=response_headers)
-
-    except Exception as global_err:
-        print(f"❌ خطای سراسری اندپوینت: {global_err}")
-        return JSONResponse(status_code=500, content={"detail": f"خطای سرور: {str(global_err)}"}, headers=cors_headers)
+    response_headers = {
+        **cors_headers, 
+        "Content-Disposition": f"attachment; filename=certificate_{contest_id}.png"
+    }
+    return StreamingResponse(canvas, media_type="image/png", headers=response_headers)
            
 @app.get("/users/me/submissions/{contest_id}")
 def get_user_submission_review(
@@ -3144,46 +3363,25 @@ def get_admin_user_answers(
     return results
 
 @app.put("/admin/contests/{contest_id}/certificate-template")
-def update_certificate_template(contest_id: int, data: dict, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
-    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
+def update_certificate_template(contest_id: int, data: schemas.CertificateTemplateUpdate, db: Session = Depends(database.get_db), current_admin: models.User = Depends(require_admin)):
+    contest = db.query(models.Contest).filter(
+        models.Contest.id == contest_id,
+        models.Contest.deleted_at.is_(None),
+    ).first()
     if not contest:
         raise HTTPException(status_code=404, detail="مسابقه مورد نظر یافت نشد")
-    
-    # 🌟 مپینگ ریلیشن‌های لوح تقدیر: بررسی وجود یا ساخت رکورد در جدول جدید Certificate
-    cert = db.query(models.Certificate).filter(models.Certificate.contest_id == contest_id).first()
-    if not cert:
-        cert = models.Certificate(contest_id=contest_id, title=f"گواهی {contest.title}")
-        db.add(cert)
-        db.commit()
-        db.refresh(cert)
 
-    cert.content = data.get("certificate_text_template", cert.content)
-    cert.background_url = data.get("certificate_bg_url", cert.background_url)
-    cert.logo_url = data.get("certificate_logo_url", cert.logo_url)
-    db.commit()
-    
-    # پاک‌سازی لینک امضاهای قبلی این گواهی برای جلوگیری از انباشتگی رکوردهای تکراری
-    db.query(models.CertificateSigners).filter(models.CertificateSigners.certificate_id == cert.id).delete()
+    _lock_contest_certificate(db, contest_id)
+    cert = _contest_certificate(contest)
+    if not _certificate_enabled(cert):
+        raise HTTPException(
+            status_code=400,
+            detail="این مسابقه بدون گواهی است. ابتدا نوع گواهی را در صفحه ویرایش مسابقه تعیین کنید.",
+        )
+
+    _apply_certificate_template(db, cert, data.model_dump(exclude_unset=True))
     db.commit()
 
-    # تابع کمکی داخلی برای چفت کردن داینامیک مشخصات امضاکنندگان در جداول مستقل Signer و CertificateSigners
-    def link_signer(name, title, sig_url):
-        if name:
-            signer = db.query(models.Signer).filter(models.Signer.name == name, models.Signer.title == title).first()
-            if not signer:
-                signer = models.Signer(name=name, title=title, sign_url=sig_url)
-                db.add(signer)
-                db.commit()
-                db.refresh(signer)
-            
-            link = models.CertificateSigners(certificate_id=cert.id, signer_id=signer.id)
-            db.add(link)
-            db.commit()
-
-    link_signer(data.get("signer_name"), data.get("signer_title"), data.get("signer_signature_url"))
-    link_signer(data.get("signer_2_name"), data.get("signer_2_title"), data.get("signer_2_signature_url"))
-    link_signer(data.get("signer_3_name"), data.get("signer_3_title"), data.get("signer_3_signature_url"))
-    
     _invalidate_contest_caches(contest_id)
     return {"status": "success", "message": "تنظیمات گواهی با موفقیت ذخیره شد"}
 
@@ -3292,22 +3490,22 @@ def generate_user_certificate_image(
     db: Session = Depends(database.get_db),
     current_admin: models.User = Depends(require_admin)
 ):
-    # ۱. واکشی اطلاعات از دیتابیس جدید با مدل Subscription
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    contest = db.query(models.Contest).filter(models.Contest.id == contest_id).first()
-    subscription = db.query(models.Subscription).filter(
-        models.Subscription.user_id == user_id, 
-        models.Subscription.contest_id == contest_id
-    ).first()
-    
-    if not user or not contest or not subscription:
-        raise HTTPException(status_code=404, detail="اطلاعات کاربر، مسابقه یا کارنامه یافت نشد")
+    if not user:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد")
 
-    # ۲. 🚀 استفاده هوشمندانه از موتور گرافیکی متمرکزی که در تکه اول توسعه دادیم
+    cert, issuance, error = _issue_user_certificate(db, user, contest_id)
+    if error:
+        raise HTTPException(status_code=error[0], detail=error[1])
+    render_data = _build_certificate_render_data(user, cert, issuance)
+
+    # Return the pooled connection before the slow image work.
+    db.close()
+
     try:
-        canvas = draw_certificate_canvas(user, contest, subscription)
-    except Exception as canvas_err:
-        print(f"❌ خطای ترسیم در پنل ادمین: {canvas_err}")
+        canvas = draw_certificate_canvas(render_data)
+    except Exception:
+        logger.exception(f"Admin certificate render failed for contest {contest_id}, user {user_id}")
         raise HTTPException(status_code=500, detail="خطا در رندر تصویر گواهی‌نامه")
 
     response_headers = {
@@ -3399,57 +3597,34 @@ def update_contest(
                 
         # 🌟 تغییر کلیدی: بروزرسانی نوع گواهی مسابقه در صورت تغییر در فرم
         elif key == "certificate_type":
-            cert = db.query(models.Certificate).filter(models.Certificate.contest_id == contest_id).first()
+            if value != "none" and value not in CERTIFICATE_TYPE_LABELS:
+                raise HTTPException(status_code=400, detail="نوع گواهی نامعتبر است")
+            _lock_contest_certificate(db, contest_id)
+            cert = _contest_certificate(db_contest)
             if value == "none":
-                if cert: db.delete(cert)
+                # Soft-disable: the template and signers stay for when the certificate is re-enabled.
+                if cert: cert.is_active = 0
             else:
-                type_labels = {"excellent": "عالی", "very_good": "خیلی خوب", "good": "خوب"}
-                label = type_labels.get(value, "عمومی")
-                title_str = f"گواهی {label} - دوره {db_contest.title}"
-                if cert: cert.title = title_str
+                title_str = f"گواهی {CERTIFICATE_TYPE_LABELS[value]} - دوره {contest_data.get('title') or db_contest.title}"
+                if cert:
+                    cert.title = title_str
+                    cert.is_active = 1
                 else:
-                    db.add(models.Certificate(contest_id=contest_id, title=title_str, content="بدین‌وسیله گواهی می‌شود...", is_active=1))
+                    db_contest.certificates.append(
+                        models.Certificate(title=title_str, content="بدین‌وسیله گواهی می‌شود...", is_active=1)
+                    )
 
         # 🌟 فیکس اصلی: فقط فیلدهای متنی و عددی مجاز را تغییر بده تا دیتابیس روی ریلیشن‌ها کرش نکند
         elif key in ["title", "description", "image_url", "poster_url", "video_url", "audio_url", "question_limit", "is_active", "success_message", "failure_message", "sms_message"]:
             setattr(db_contest, key, value)
     
     # 🌟 هوشمندسازی: اگر دیتای قالب گواهی همزمان با این فرم پست شده بود، همین‌جا ذخیره‌اش کن
-    cert_text = contest_data.get("certificate_text_template")
-    cert_bg = contest_data.get("certificate_bg_url")
-    cert_logo = contest_data.get("certificate_logo_url")
-    
-    if cert_text or cert_bg or cert_logo:
-        cert = db.query(models.Certificate).filter(models.Certificate.contest_id == contest_id).first()
-        if not cert:
-            cert = models.Certificate(contest_id=contest_id, title=f"گواهی - دوره {db_contest.title}")
-            db.add(cert)
-            db.commit()
-            db.refresh(cert)
-            
-        if cert_text: cert.content = cert_text
-        if cert_bg: cert.background_url = cert_bg
-        if cert_logo: cert.logo_url = cert_logo
-        db.commit()
-        
-        # مدیریت و نوسازی امضاکنندگان قالب گواهی
-        if "signer_name" in contest_data:
-            db.query(models.CertificateSigners).filter(models.CertificateSigners.certificate_id == cert.id).delete()
-            db.commit()
-            
-            def link_signer(name, title, sig_url):
-                if name:
-                    signer = db.query(models.Signer).filter(models.Signer.name == name, models.Signer.title == title).first()
-                    if not signer:
-                        signer = models.Signer(name=name, title=title, sign_url=sig_url)
-                        db.add(signer)
-                        db.commit()
-                        db.refresh(signer)
-                    db.add(models.CertificateSigners(certificate_id=cert.id, signer_id=signer.id))
-            
-            link_signer(contest_data.get("signer_name"), contest_data.get("signer_title"), contest_data.get("signer_signature_url"))
-            link_signer(contest_data.get("signer_2_name"), contest_data.get("signer_2_title"), contest_data.get("signer_2_signature_url"))
-            link_signer(contest_data.get("signer_3_name"), contest_data.get("signer_3_title"), contest_data.get("signer_3_signature_url"))
+    if CERTIFICATE_TEMPLATE_KEYS & contest_data.keys():
+        _lock_contest_certificate(db, contest_id)
+        cert = _contest_certificate(db_contest)
+        if _certificate_enabled(cert):
+            db.flush()
+            _apply_certificate_template(db, cert, contest_data)
 
     # مدیریت تغییرات بخش جوایز
     if "award" in contest_data and contest_data["award"]:
@@ -3714,6 +3889,47 @@ def get_contest_analytics(
     }
     _cache_set_json(cache_key, payload, CACHE_TTL_ANALYTICS)
     return JSONResponse(status_code=200, content=payload, headers=cors_headers)
+
+PREVIEW_HANDOFF_TTL_SECONDS = 60
+
+
+class PreviewHandoffExchange(BaseModel):
+    code: str = Field(..., min_length=20, max_length=128)
+
+
+@app.post("/admin/preview-handoff")
+def create_preview_handoff(current_admin: models.User = Depends(require_admin)):
+    """Single-use code that lets the user app open an admin session without tokens in the URL."""
+    code = secrets.token_urlsafe(32)
+    try:
+        r.set(f"preview_handoff:{code}", str(current_admin.id), ex=PREVIEW_HANDOFF_TTL_SECONDS)
+    except redis.RedisError as e:
+        logger.error(f"Preview handoff store failed: {e}")
+        raise HTTPException(status_code=503, detail="سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.")
+    return {"code": code, "expires_in": PREVIEW_HANDOFF_TTL_SECONDS}
+
+
+@app.post("/auth/handoff")
+def exchange_preview_handoff(payload: PreviewHandoffExchange, db: Session = Depends(database.get_db)):
+    try:
+        admin_id = r.getdel(f"preview_handoff:{payload.code}")
+    except redis.RedisError as e:
+        logger.error(f"Preview handoff exchange failed: {e}")
+        raise HTTPException(status_code=503, detail="سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.")
+    if not admin_id:
+        raise HTTPException(status_code=401, detail="لینک پیش‌نمایش منقضی شده است. دوباره از پنل مدیریت اقدام کنید.")
+
+    user = db.query(models.User).filter(models.User.id == UUID(admin_id)).first()
+    if not auth.is_account_usable(user) or not user.admin or user.admin.is_active == 0:
+        raise HTTPException(status_code=401, detail="دسترسی مدیریت معتبر نیست.")
+
+    return {
+        "access_token": auth.create_access_token(data={"sub": user.phone_number, "is_admin": True}),
+        "refresh_token": auth.create_refresh_token(data={"sub": user.phone_number}),
+        "token_type": "bearer",
+        "is_admin": True,
+    }
+
 
 @app.post("/auth/refresh")
 def refresh_access_token(payload: dict, db: Session = Depends(database.get_db)):

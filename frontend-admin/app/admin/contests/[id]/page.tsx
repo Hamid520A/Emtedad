@@ -259,6 +259,23 @@ export default function ContestLandingPage() {
     }
   };
 
+  // The user app gets a single-use handoff code, never the admin's tokens.
+  const openUserAppPreview = async (path: string) => {
+    // Open synchronously so popup blockers allow it; navigate once the code arrives.
+    const previewWindow = window.open('', '_blank');
+    if (previewWindow) previewWindow.opener = null;
+    try {
+      const res = await api.post('/admin/preview-handoff');
+      const userAppBaseUrl = (process.env.NEXT_PUBLIC_USER_APP_URL || 'https://emtedad.ir-ma.ir').replace(/\/$/, '');
+      const url = `${userAppBaseUrl}${path}?handoff=${encodeURIComponent(res.data.code)}`;
+      if (previewWindow) previewWindow.location.href = url;
+      else window.location.href = url;
+    } catch (error: any) {
+      previewWindow?.close();
+      toast.error(error?.response?.data?.detail || "باز کردن پیش‌نمایش ناموفق بود.");
+    }
+  };
+
   const toPersianDigits = (str: string | number) => {
     const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
@@ -442,13 +459,7 @@ export default function ContestLandingPage() {
                 </div>
               ) : (
                 <button
-                  onClick={() => {
-                    const token = localStorage.getItem('accessToken') || '';
-                    const refreshToken = localStorage.getItem('refreshToken') || '';
-                    const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || 'https://emtedad.ir-ma.ir';
-                    const userAppUrl = `${userAppBaseUrl}/exam/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
-                    window.open(userAppUrl, '_blank');
-                  }}
+                  onClick={() => openUserAppPreview(`/exam/${contest.id}`)}
                   className="w-full bg-[#1a2e44] text-white p-4 sm:p-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-3 shadow-lg active:scale-95 transition-all hover:bg-[#2a405a]"
                 >
                   <PlayCircle size={20} className="text-[#c5a059]" /> تست آزمون در سامانه کاربران
@@ -474,13 +485,7 @@ export default function ContestLandingPage() {
                 </div>
               </div>
               <button
-                onClick={() => {
-                  const token = localStorage.getItem('accessToken') || '';
-                  const refreshToken = localStorage.getItem('refreshToken') || '';
-                  const userAppBaseUrl = process.env.NEXT_PUBLIC_USER_APP_URL || 'https://emtedad.ir-ma.ir';
-                  const userAppUrl = `${userAppBaseUrl}/review-final/${contest.id}?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(refreshToken)}&isAdmin=true`;
-                  window.open(userAppUrl, '_blank');
-                }}
+                onClick={() => openUserAppPreview(`/review-final/${contest.id}`)}
                 className="w-full bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 hover:bg-gray-100 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition active:scale-95 border border-gray-100 dark:border-slate-800 dark:border-slate-800"
               >
                 <FileText size={16} className="text-[#c5a059]" /> مشاهده پاسخنامه و تحلیل سوالات

@@ -2,13 +2,48 @@
 // frontend-admin/app/admin/certificates/page.tsx
 
 import toast from 'react-hot-toast';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/lib/api';
 import { 
   ArrowRight, Save, Image as ImageIcon, FileText, Trophy, 
-  Settings, Award, Loader2, AlertCircle, HelpCircle, User, Info
+  Settings, Award, Loader2, AlertCircle, HelpCircle, User, Info, RefreshCw
 } from 'lucide-react';
+
+const EMPTY_TEMPLATE = {
+  certificate_text_template: '',
+  certificate_bg_url: '',
+  certificate_logo_url: '',
+
+  signer_name: '',
+  signer_title: '',
+  signer_signature_url: '',
+
+  signer_2_name: '',
+  signer_2_title: '',
+  signer_2_signature_url: '',
+
+  signer_3_name: '',
+  signer_3_title: '',
+  signer_3_signature_url: '',
+};
+
+type TemplateData = typeof EMPTY_TEMPLATE;
+
+const templateFromDetails = (cd: any): TemplateData => ({
+  certificate_text_template: cd?.content || '',
+  certificate_bg_url: cd?.background_url || '',
+  certificate_logo_url: cd?.logo_url || '',
+  signer_name: cd?.signers?.[0]?.name || '',
+  signer_title: cd?.signers?.[0]?.title || '',
+  signer_signature_url: cd?.signers?.[0]?.sign_url || '',
+  signer_2_name: cd?.signers?.[1]?.name || '',
+  signer_2_title: cd?.signers?.[1]?.title || '',
+  signer_2_signature_url: cd?.signers?.[1]?.sign_url || '',
+  signer_3_name: cd?.signers?.[2]?.name || '',
+  signer_3_title: cd?.signers?.[2]?.title || '',
+  signer_3_signature_url: cd?.signers?.[2]?.sign_url || '',
+});
 
 export default function CertificateSettingsPage() {
   const router = useRouter();
@@ -16,36 +51,24 @@ export default function CertificateSettingsPage() {
   const [selectedContestId, setSelectedContestId] = useState<string>('');
   const [selectedContest, setSelectedContest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeUploadField, setActiveUploadField] = useState<string | null>(null);
+  const selectedContestIdRef = useRef('');
 
   // استیت کامل قالب گواهی، لوگو و ۳ امضاکننده به همراه تصویر امضاها
-  const [templateData, setTemplateData] = useState({
-    certificate_text_template: '',
-    certificate_bg_url: '',
-    certificate_logo_url: '',
-    
-    signer_name: '',
-    signer_title: '',
-    signer_signature_url: '',
-
-    signer_2_name: '',
-    signer_2_title: '',
-    signer_2_signature_url: '',
-
-    signer_3_name: '',
-    signer_3_title: '',
-    signer_3_signature_url: '',
-  });
+  const [templateData, setTemplateData] = useState<TemplateData>(EMPTY_TEMPLATE);
 
   // ۱. دریافت لیست تمام مسابقات در ابتدای لود صفحه
   useEffect(() => {
     const fetchContests = async () => {
       try {
-        const response = await api.get('/contests');
+        const response = await api.get(`/admin/contests?t=${Date.now()}`);
         setContests(response.data || []);
       } catch (error) {
         console.error("خطا در دریافت لیست مسابقات", error);
+        toast.error("خطا در دریافت لیست مسابقات");
       } finally {
         setLoading(false);
       }
@@ -53,51 +76,55 @@ export default function CertificateSettingsPage() {
     fetchContests();
   }, []);
 
-  // ۲. افکت رصد تغییر مسابقه و بازیابی اطلاعات کامل از دیتابیس
-  useEffect(() => {
-    if (!selectedContestId) {
-      setSelectedContest(null);
+  // ۲. بازیابی قالب ذخیره‌شده‌ی گواهی مسابقه انتخاب‌شده از دیتابیس
+  const loadContestCertificate = useCallback(async (contestId: string) => {
+    setSelectedContest(null);
+    setTemplateData(EMPTY_TEMPLATE);
+    setDetailError(false);
+    if (!contestId) {
+      setDetailLoading(false);
       return;
     }
 
-    const contestObj = contests.find((c) => String(c.id) === String(selectedContestId));
-    setSelectedContest(contestObj || null);
-
-    if (contestObj) {
-      setTemplateData({
-        certificate_text_template: contestObj.certificate_text_template || '',
-        certificate_bg_url: contestObj.certificate_bg_url || '',
-        certificate_logo_url: contestObj.certificate_logo_url || '',
-        
-        signer_name: contestObj.signer_name || '',
-        signer_title: contestObj.signer_title || '',
-        signer_signature_url: contestObj.signer_signature_url || '',
-
-        signer_2_name: contestObj.signer_2_name || '',
-        signer_2_title: contestObj.signer_2_title || '',
-        signer_2_signature_url: contestObj.signer_2_signature_url || '',
-
-        signer_3_name: contestObj.signer_3_name || '',
-        signer_3_title: contestObj.signer_3_title || '',
-        signer_3_signature_url: contestObj.signer_3_signature_url || '',
-      });
+    setDetailLoading(true);
+    try {
+      const response = await api.get(`/contests/${contestId}`);
+      if (selectedContestIdRef.current !== contestId) return;
+      const data = response.data;
+      setSelectedContest({ id: data.id, title: data.title, certificate_type: data.certificate_type || 'none' });
+      setTemplateData(templateFromDetails(data.certificate_details));
+    } catch (error) {
+      if (selectedContestIdRef.current !== contestId) return;
+      console.error("خطا در دریافت اطلاعات گواهی مسابقه", error);
+      setDetailError(true);
+    } finally {
+      if (selectedContestIdRef.current === contestId) setDetailLoading(false);
     }
-  }, [selectedContestId, contests]);
+  }, []);
+
+  const handleContestChange = (contestId: string) => {
+    selectedContestIdRef.current = contestId;
+    setSelectedContestId(contestId);
+    loadContestCertificate(contestId);
+  };
 
   // ۳. تابع آپلود داینامیک و چندمنظوره برای پس‌زمینه، لوگو و تصاویر امضاها
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: keyof TemplateData) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
     const uploadData = new FormData();
     uploadData.append('file', file);
+    const uploadContestId = selectedContestIdRef.current;
     
     setActiveUploadField(fieldName);
     try {
       const response = await api.post('/upload', uploadData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setTemplateData((prev: any) => ({ ...prev, [fieldName]: response.data.url }));
+      if (selectedContestIdRef.current !== uploadContestId) return;
+      setTemplateData((prev) => ({ ...prev, [fieldName]: response.data.url }));
     } catch (error) {
       toast.error("خطا در آپلود فایل انتخابی");
     } finally {
@@ -108,15 +135,16 @@ export default function CertificateSettingsPage() {
   // ۴. تابع ثبت نهایی اطلاعات گواهی در بک‌ند
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedContestId) return;
+    if (!selectedContestId || !selectedContest || detailLoading) return;
 
     setSubmitting(true);
     try {
       await api.put(`/admin/contests/${selectedContestId}/certificate-template`, templateData);
-      toast.success("تنظیمات، امضاها و قالب گواهی این مسابقه با موفقیت ذخیره و فعال شد!");
+      toast.success("تنظیمات، امضاها و قالب گواهی این مسابقه با موفقیت ذخیره شد!");
       router.push('/admin/dashboard');
-    } catch (error) {
-      toast.error("خطا در ذخیره‌سازی اطلاعات گواهی روی سرور");
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      toast.error(typeof detail === 'string' ? detail : "خطا در ذخیره‌سازی اطلاعات گواهی روی سرور");
     } finally {
       setSubmitting(false);
     }
@@ -128,19 +156,23 @@ export default function CertificateSettingsPage() {
     return String(str).replace(/[0-9]/g, (w) => farsiDigits[parseInt(w)]);
   };
 
-  const getPreviewDate = () => {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
-    return toPersianDigits(`${y}/${m}/${d}`);
+  const getPreviewJalaliParts = () => {
+    const parts = new Intl.DateTimeFormat('en-US-u-ca-persian', {
+      timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date());
+    const get = (type: string) => parts.find((p) => p.type === type)?.value || '';
+    return { year: get('year'), month: get('month'), day: get('day') };
   };
 
-  // 👈 افزایش طول شماره سریال (فرمت ۱۴ رقمی شیک و رسمی)
+  const getPreviewDate = () => {
+    const { year, month, day } = getPreviewJalaliParts();
+    return toPersianDigits(`${year}/${month}/${day}`);
+  };
+
+  // Same format as the backend serial: Jalali year + contest id (min 4 digits) + 6-digit sequence
   const getPreviewSerial = () => {
-    const cId = String(selectedContestId || '1').padStart(3, '0'); 
-    const uId = '0000321'; 
-    return toPersianDigits(`1405${cId}${uId}`); 
+    const cId = String(selectedContestId || '1').padStart(4, '0');
+    return toPersianDigits(`${getPreviewJalaliParts().year}${cId}000001`);
   };
 
   const renderLivePreview = () => {
@@ -149,7 +181,8 @@ export default function CertificateSettingsPage() {
       .replace(/{{name}}/g, "سعید قربانی")
       .replace(/{{national_id}}/g, "۰۳۷۴۷۳۸۹۰۱")
       .replace(/{{birth_date}}/g, "۱۳۷۸/۰۵/۲۴")
-      .replace(/{{rank}}/g, "عالی");
+      .replace(/{{rank}}/g, "")
+      .replace(/[ \t]{2,}/g, " ");
   };
 
   if (loading) return (
@@ -158,7 +191,7 @@ export default function CertificateSettingsPage() {
     </div>
   );
 
-  const isCertificateDisabled = selectedContest && selectedContest.certificate_type === 'none';
+  const isCertificateDisabled = selectedContest?.certificate_type === 'none';
 
   const activeSignersInPreview = [
     { name: templateData.signer_name, title: templateData.signer_title, sig: templateData.signer_signature_url },
@@ -189,16 +222,37 @@ export default function CertificateSettingsPage() {
           <select 
             className="w-full md:w-1/2 p-4 rounded-2xl bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none focus:ring-2 focus:ring-[#c5a059] font-black text-sm outline-none cursor-pointer appearance-none text-right"
             value={selectedContestId}
-            onChange={(e) => setSelectedContestId(e.target.value)}
+            onChange={(e) => handleContestChange(e.target.value)}
+            disabled={submitting || activeUploadField !== null}
           >
             <option value="">انتخاب مسابقه...</option>
             {contests.map((c: any) => (
               <option key={c.id} value={c.id}>
-                #{c.id} - {c.title} ({c.certificate_type === 'none' ? 'بدون گواهی ❌' : 'دارای گواهی ✔'})
+                #{c.id} - {c.title}
               </option>
             ))}
           </select>
         </div>
+
+        {selectedContestId && detailLoading && (
+          <div className="bg-white dark:bg-[#182234] p-12 rounded-[2.5rem] flex items-center justify-center border border-gray-100 dark:border-slate-800">
+            <Loader2 className="animate-spin text-[#1a2e44] dark:text-slate-100" size={32} />
+          </div>
+        )}
+
+        {selectedContestId && !detailLoading && detailError && (
+          <div className="bg-rose-50/60 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 p-8 rounded-[2.5rem] flex flex-col items-center justify-center text-center space-y-3">
+            <AlertCircle size={36} className="text-rose-500" />
+            <p className="text-rose-700 dark:text-rose-300 text-xs font-bold">دریافت قالب فعلی گواهی این مسابقه ناموفق بود.</p>
+            <button
+              type="button"
+              onClick={() => loadContestCertificate(selectedContestId)}
+              className="flex items-center gap-2 bg-white dark:bg-[#182234] border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs font-black px-4 py-2 rounded-xl"
+            >
+              <RefreshCw size={14} /> تلاش مجدد
+            </button>
+          </div>
+        )}
 
         {!selectedContestId && (
           <div className="bg-white dark:bg-[#182234] dark:bg-[#182234] p-12 rounded-[2.5rem] text-center border border-gray-100 dark:border-slate-800 dark:border-slate-800 text-gray-400 dark:text-slate-400 dark:text-slate-400 font-bold text-sm">
@@ -207,17 +261,17 @@ export default function CertificateSettingsPage() {
           </div>
         )}
 
-        {selectedContestId && isCertificateDisabled && (
+        {selectedContest && !detailLoading && isCertificateDisabled && (
           <div className="bg-rose-50/60 border border-rose-100 p-8 rounded-[2.5rem] flex flex-col items-center justify-center text-center space-y-3 animate-in fade-in duration-300">
             <AlertCircle size={44} className="text-rose-500" />
             <h3 className="font-black text-rose-900 text-base">دسترسی مسدود شد: این مسابقه بدون گواهی است!</h3>
             <p className="text-rose-700/80 text-xs font-bold max-w-md leading-relaxed">
-              شما در زمان ساخت مسابقه **«{selectedContest?.title}»** وضعیت گواهی دوره را روی گزینه **«بدون گواهی»** تنظیم کرده‌اید.
+              وضعیت گواهی مسابقه «{selectedContest?.title}» روی «بدون گواهی» است. برای فعال‌سازی، نوع گواهی را از صفحه ویرایش مسابقه تعیین کنید.
             </p>
           </div>
         )}
 
-        {selectedContestId && !isCertificateDisabled && (
+        {selectedContest && !detailLoading && !isCertificateDisabled && (
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-top-4 duration-300">
             
             {/* ستون راست فرم‌های ورودی ادمین */}
@@ -229,8 +283,7 @@ export default function CertificateSettingsPage() {
                   <p className="text-[10px] text-amber-700 font-bold leading-relaxed">
                     <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{name}}"}</span> نام کاربری | 
                     <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{national_id}}"}</span> کد ملی | 
-                    <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{birth_date}}"}</span> تاریخ تولد | 
-                    <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{rank}}"}</span> رتبه نمره
+                    <span className="inline-block bg-white dark:bg-[#182234] dark:bg-[#182234] px-1.5 py-0.5 rounded border border-amber-100 font-mono font-black text-gray-700">{"{{birth_date}}"}</span> تاریخ تولد
                   </p>
                 </div>
 
@@ -376,7 +429,7 @@ export default function CertificateSettingsPage() {
                   className="w-full bg-[#1a2e44] text-white p-4 rounded-[2rem] font-black flex items-center justify-center gap-3 hover:bg-[#2a405a] transition-all shadow-xl active:scale-95 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} className="text-[#c5a059]" />}
-                  ذخیره و فعال‌سازی لوح تقدیر
+                  ذخیره قالب لوح تقدیر
                 </button>
               </div>
 

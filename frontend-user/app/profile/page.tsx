@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [profileImg, setProfileImg] = useState<string | null>(null);
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [myCertificates, setMyCertificates] = useState<any[]>([]);
+  const [certLinkLoadingId, setCertLinkLoadingId] = useState<number | string | null>(null);
   
   // استیت‌های مدیریت پاسخنامه کاربر
   const [answerSheet, setAnswerSheet] = useState<any>(null);
@@ -180,14 +181,24 @@ export default function ProfilePage() {
     }
   };
 
-  // 🌟 تابع جدید جایگزین دانلود: ساخت لینک و کپی در کلیپ‌بورد
-  const handleCopyCertificateLink = (contestId: number | string) => {
-    const token = localStorage.getItem("accessToken") || "";
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "/api";
-    const downloadUrl = `${baseUrl}/users/me/contests/${contestId}/certificate/download?token=${token}`;
-    const downloadLinkCopiedMessage = "لینک مستقیم دانلود فایل با موفقیت کپی شد.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.";
+  // 🌟 تابع جدید جایگزین دانلود: ساخت لینک کوتاه‌مدت و کپی در کلیپ‌بورد
+  const handleCopyCertificateLink = async (contestId: number | string) => {
+    if (certLinkLoadingId !== null) return;
+    setCertLinkLoadingId(contestId);
+    try {
+      const res = await api.post(`/users/me/contests/${contestId}/certificate/link`);
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "/api").replace(/\/$/, "");
+      const downloadUrl = new URL(`${baseUrl}${res.data.path}`, window.location.origin).href;
+      const minutes = toPersianDigits(Math.round((res.data.expires_in || 900) / 60));
+      const downloadLinkCopiedMessage = `لینک دانلود گواهی کپی شد و تا ${minutes} دقیقه معتبر است.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.`;
 
-    copyText(downloadUrl, () => toast.error(downloadLinkCopiedMessage));
+      copyText(downloadUrl, () => toast.success(downloadLinkCopiedMessage, { duration: 8000 }));
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      toast.error(typeof detail === 'string' ? detail : "ساخت لینک دانلود گواهی ناموفق بود.");
+    } finally {
+      setCertLinkLoadingId(null);
+    }
   };
 
   const handleCopyWalletCode = () => {
@@ -411,9 +422,13 @@ export default function ProfilePage() {
                       </div>
                       <button 
                         onClick={() => handleCopyCertificateLink(cert.contest_id || cert.id)} 
-                        className="p-2.5 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all shadow-md shrink-0 justify-center active:scale-95"
+                        disabled={certLinkLoadingId !== null}
+                        className="p-2.5 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all shadow-md shrink-0 justify-center active:scale-95 disabled:opacity-60"
                       >
-                        <Download size={14} className="text-[#c5a059] dark:text-[#1a2e44]" /> کپی لینک
+                        {certLinkLoadingId === (cert.contest_id || cert.id)
+                          ? <Loader2 size={14} className="animate-spin text-[#c5a059] dark:text-[#1a2e44]" />
+                          : <Download size={14} className="text-[#c5a059] dark:text-[#1a2e44]" />}
+                        کپی لینک
                       </button>
                     </div>
                   );

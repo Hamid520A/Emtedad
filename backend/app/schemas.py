@@ -447,6 +447,23 @@ class MyTransactionsResponse(BaseModel):
     items: List[MyTransactionOut]
 
 # ==========================================
+# Certificates
+# ==========================================
+class CertificateTemplateUpdate(BaseModel):
+    certificate_text_template: Optional[str] = None
+    certificate_bg_url: Optional[str] = Field(None, max_length=500)
+    certificate_logo_url: Optional[str] = Field(None, max_length=500)
+    signer_name: Optional[str] = Field(None, max_length=255)
+    signer_title: Optional[str] = Field(None, max_length=255)
+    signer_signature_url: Optional[str] = Field(None, max_length=500)
+    signer_2_name: Optional[str] = Field(None, max_length=255)
+    signer_2_title: Optional[str] = Field(None, max_length=255)
+    signer_2_signature_url: Optional[str] = Field(None, max_length=500)
+    signer_3_name: Optional[str] = Field(None, max_length=255)
+    signer_3_title: Optional[str] = Field(None, max_length=255)
+    signer_3_signature_url: Optional[str] = Field(None, max_length=500)
+
+# ==========================================
 # Notifications
 # ==========================================
 class NotificationCreate(BaseModel):

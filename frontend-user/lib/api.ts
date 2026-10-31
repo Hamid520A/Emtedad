@@ -36,6 +36,36 @@ async function refreshAccessToken(): Promise<string> {
   return refreshPromise;
 }
 
+/**
+ * Admin "preview as user" opens this app with a single-use `?handoff=` code instead of raw tokens.
+ * The code is stripped from the URL immediately and exchanged once; every request waits for it.
+ */
+let handoffPromise: Promise<void> | null = null;
+
+function consumePreviewHandoff(): Promise<void> {
+  if (handoffPromise) return handoffPromise;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('handoff');
+  if (!code) return Promise.resolve();
+
+  urlParams.delete('handoff');
+  const newSearch = urlParams.toString();
+  window.history.replaceState(null, '', window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash);
+
+  handoffPromise = axios
+    .post('/api/auth/handoff', { code })
+    .then((response) => {
+      localStorage.setItem('accessToken', response.data.access_token);
+      localStorage.setItem('refreshToken', response.data.refresh_token);
+      localStorage.setItem('isAdmin', String(response.data.is_admin ?? false));
+    })
+    .catch((error) => {
+      console.error('Preview handoff failed', error);
+    });
+  return handoffPromise;
+}
+
 function forceLogoutToLogin() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
@@ -45,29 +75,9 @@ function forceLogoutToLogin() {
 }
 
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get('token');
-      const refreshTokenFromUrl = urlParams.get('refreshToken');
-      const isAdminFromUrl = urlParams.get('isAdmin');
-
-      if (tokenFromUrl) {
-        localStorage.setItem('accessToken', tokenFromUrl);
-        if (refreshTokenFromUrl) {
-          localStorage.setItem('refreshToken', refreshTokenFromUrl);
-        }
-        if (isAdminFromUrl) {
-          localStorage.setItem('isAdmin', isAdminFromUrl);
-        }
-
-        urlParams.delete('token');
-        urlParams.delete('refreshToken');
-        urlParams.delete('isAdmin');
-        const newSearch = urlParams.toString();
-        const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
-        window.history.replaceState(null, '', newUrl);
-      }
+      await consumePreviewHandoff();
     }
 
     const token = localStorage.getItem('accessToken');

@@ -42,23 +42,29 @@ def create_refresh_token(data: dict):
     safe_data.update({"exp": expire, "type": "refresh"})
     return jwt.encode(safe_data, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(db: Session = Depends(database.get_db), token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="کارت ورود شما معتبر نیست. لطفاً مجدداً لاگین کنید",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+def is_account_usable(user) -> bool:
+    return user is not None and user.deleted_at is None and user.is_active != 0
+
+def user_from_access_token(db: Session, token: str):
+    """The active user an access token belongs to, or None. Refresh and other scoped tokens are rejected."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub") 
-        if username is None:
-            raise credentials_exception
     except JWTError:
-        raise credentials_exception
-        
+        return None
+    username = payload.get("sub")
+    if payload.get("type") != "access" or not username:
+        return None
     user = db.query(models.User).filter(models.User.phone_number == username).first()
+    return user if is_account_usable(user) else None
+
+def get_current_user(db: Session = Depends(database.get_db), token: str = Depends(oauth2_scheme)):
+    user = user_from_access_token(db, token)
     if user is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="کارت ورود شما معتبر نیست. لطفاً مجدداً لاگین کنید",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 def require_admin(current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
