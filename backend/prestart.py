@@ -1,14 +1,11 @@
 # backend/prestart.py
-# یک‌بار قبل از بالا آمدن پروسس‌های Uvicorn اجرا می‌شود تا جداول دیتابیس ساخته شوند
 import logging
-
 from sqlalchemy import text
-
+from sqlalchemy.exc import ProgrammingError
 from app import database, models
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("emtedad_prestart")
-
 
 def upgrade_certificate_users() -> None:
     """create_all never alters existing tables; bring certificate_users up to the issuance schema."""
@@ -25,14 +22,19 @@ def upgrade_certificate_users() -> None:
             "ON certificate_users (user_id, certificate_id)"
         ))
 
-
 def main() -> None:
     logger.info("Ensuring database tables exist...")
-    models.Base.metadata.create_all(bind=database.engine)
+    try:
+        models.Base.metadata.create_all(bind=database.engine)
+    except ProgrammingError as e:
+        if "already exists" in str(e):
+            logger.warning("Ignored duplicate index creation error.")
+        else:
+            raise e
+            
     upgrade_certificate_users()
     database.engine.dispose()
     logger.info("Database tables ready.")
-
 
 if __name__ == "__main__":
     main()
