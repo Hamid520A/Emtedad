@@ -368,6 +368,17 @@ export default function ContestLandingPage() {
             <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-300 leading-relaxed bg-[#faf9f6] dark:bg-[#0b0f19] p-4 sm:p-5 rounded-2xl text-justify border border-dashed border-gray-200 dark:border-slate-800 break-words">
               {contest.description || 'توضیحاتی برای این مسابقه ثبت نشده است. برای موفقیت، جزوه را با دقت مطالعه کنید.'}
             </p>
+            {contest?.audio_url && (
+              <div className="w-full mt-4 mb-2 p-4 bg-white dark:bg-[#182234] rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm">
+                <span className="block text-xs font-bold text-gray-500 dark:text-slate-400 mb-2">فایل صوتی راهنما:</span>
+                <audio
+                  controls
+                  controlsList="nodownload"
+                  className="w-full"
+                  src={getCleanImageUrl(contest.audio_url)}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 animate-in fade-in duration-300">
               <div className="bg-[#faf9f6] dark:bg-[#0b0f19] p-3 rounded-xl border border-gray-50 dark:border-slate-800 flex items-center gap-2.5">

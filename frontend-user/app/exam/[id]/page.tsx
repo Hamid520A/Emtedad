@@ -665,15 +665,6 @@ export default function ExamPage() {
       </header>
 
       <main className="flex-1 p-6 overflow-y-auto">
-        {!showReview && contest?.audio_url && (
-          <audio
-            controls
-            controlsList="nodownload"
-            className="w-full mb-6"
-            src={getCleanImageUrl(contest.audio_url)}
-          />
-        )}
-
         <div className="mb-8 text-right">
           <h2 className="font-black text-xl text-[#1a2e44] dark:text-slate-100 leading-relaxed mb-4">{question.title}</h2>
           {question.description && (
