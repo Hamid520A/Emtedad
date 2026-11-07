@@ -79,7 +79,7 @@ class Contest(Base):
     __tablename__ = "contests"
     __table_args__ = (
         Index("ix_contests_status_deleted_at", "status", "deleted_at"),
-        Index("ix_contests_start_time", "start_time"),
+        #Index("ix_contests_start_time", "start_time"),
     )
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), index=True, nullable=False)
