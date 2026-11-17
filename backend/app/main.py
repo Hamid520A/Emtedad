@@ -2015,6 +2015,13 @@ def get_my_complete_profile(
     # رتبه همه مسابقات کاربر در یک کوئری
     ranks = _get_user_contest_ranks(db, current_user.id, list({s.contest_id for s in subs}))
 
+    purchased_contest_ids = {
+        row.contest_id
+        for row in db.query(models.CertificatePurchase.contest_id)
+        .filter(models.CertificatePurchase.user_id == current_user.id)
+        .all()
+    }
+
     for s in subs:
         history_records.append({
             "contest_id": s.contest.id,
@@ -2023,6 +2030,7 @@ def get_my_complete_profile(
             "time_taken": _subscription_time_taken_seconds(s.time_left),
             "status": s.contest.status,
             "rank": ranks.get(s.contest_id),
+            "is_purchased": s.contest.id in purchased_contest_ids,
         })
 
     return {
@@ -2266,6 +2274,7 @@ def options_download_certificate():
 
 CERTIFICATE_DOWNLOAD_TOKEN_TYPE = "certificate_download"
 CERTIFICATE_LINK_TTL_MINUTES = 15
+CERTIFICATE_PRICE_IRT = 40000
 
 
 def _certificate_eligibility(db: Session, user: models.User, contest_id: int):
@@ -2288,6 +2297,30 @@ def _certificate_eligibility(db: Session, user: models.User, contest_id: int):
         return None, None, (400, "امتیاز شما برای دریافت گواهی کافی نیست.")
 
     return subscription, contest, None
+
+
+def _get_certificate_purchase(db: Session, user_id, contest_id: int) -> Optional[models.CertificatePurchase]:
+    return db.query(models.CertificatePurchase).filter(
+        models.CertificatePurchase.user_id == user_id,
+        models.CertificatePurchase.contest_id == contest_id,
+    ).first()
+
+
+def _certificate_download_payload(user: models.User, contest_id: int) -> Dict[str, Any]:
+    token = _create_certificate_download_token(user, contest_id)
+    return {
+        "path": f"/users/me/contests/{contest_id}/certificate/download?dl={token}",
+        "expires_in": CERTIFICATE_LINK_TTL_MINUTES * 60,
+    }
+
+
+def _require_certificate_purchase(db: Session, user: models.User, contest_id: int) -> None:
+    """Block download/link until the certificate has been paid for from the wallet."""
+    if _get_certificate_purchase(db, user.id, contest_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="برای دانلود گواهی ابتدا باید هزینه آن را از کیف پول پرداخت کنید.",
+        )
 
 
 CERTIFICATE_SERIAL_SEQ_DIGITS = 6
@@ -2380,6 +2413,111 @@ def _user_from_certificate_download_token(db: Session, token: str, contest_id: i
     return user if auth.is_account_usable(user) else None
 
 
+@app.post(
+    "/certificates/{contest_id}/purchase",
+    response_model=schemas.CertificatePurchaseResponse,
+)
+def purchase_certificate(
+    contest_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Pay CERTIFICATE_PRICE_IRT from the wallet to unlock certificate download (idempotent)."""
+    _, _, error = _certificate_eligibility(db, current_user, contest_id)
+    if error:
+        code, detail = error
+        # Missing contest stays 404; all other eligibility failures are forbidden.
+        raise HTTPException(status_code=404 if code == 404 else 403, detail=detail)
+
+    existing = _get_certificate_purchase(db, current_user.id, contest_id)
+    if existing:
+        link = _certificate_download_payload(current_user, contest_id)
+        return {
+            "message": "گواهی قبلاً خریداری شده است.",
+            "already_purchased": True,
+            "contest_id": contest_id,
+            "amount_paid_irt": existing.amount_paid_irt,
+            "wallet_balance": current_user.wallet_balance or 0,
+            **link,
+        }
+
+    try:
+        # Serialize wallet mutations for this user to prevent double-spend races.
+        locked_user = (
+            db.query(models.User)
+            .filter(models.User.id == current_user.id)
+            .with_for_update()
+            .first()
+        )
+        if locked_user is None:
+            raise HTTPException(status_code=401, detail="کاربر یافت نشد.")
+
+        # Re-check under the lock in case a concurrent request already purchased.
+        existing = _get_certificate_purchase(db, locked_user.id, contest_id)
+        if existing:
+            db.rollback()
+            link = _certificate_download_payload(locked_user, contest_id)
+            return {
+                "message": "گواهی قبلاً خریداری شده است.",
+                "already_purchased": True,
+                "contest_id": contest_id,
+                "amount_paid_irt": existing.amount_paid_irt,
+                "wallet_balance": locked_user.wallet_balance or 0,
+                **link,
+            }
+
+        balance = locked_user.wallet_balance or 0
+        if balance < CERTIFICATE_PRICE_IRT:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="موجودی کیف پول کافی نیست. لطفاً کیف پول خود را شارژ کنید.",
+            )
+
+        locked_user.wallet_balance = balance - CERTIFICATE_PRICE_IRT
+        purchase = models.CertificatePurchase(
+            user_id=locked_user.id,
+            contest_id=contest_id,
+            amount_paid_irt=CERTIFICATE_PRICE_IRT,
+        )
+        db.add(purchase)
+        db.commit()
+        db.refresh(locked_user)
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError:
+        # Unique (user_id, contest_id) lost the race — treat as idempotent success.
+        db.rollback()
+        existing = _get_certificate_purchase(db, current_user.id, contest_id)
+        if existing is None:
+            raise HTTPException(status_code=500, detail="خطا در ثبت خرید گواهی.")
+        refreshed = db.query(models.User).filter(models.User.id == current_user.id).first()
+        link = _certificate_download_payload(refreshed or current_user, contest_id)
+        return {
+            "message": "گواهی قبلاً خریداری شده است.",
+            "already_purchased": True,
+            "contest_id": contest_id,
+            "amount_paid_irt": existing.amount_paid_irt,
+            "wallet_balance": (refreshed.wallet_balance if refreshed else current_user.wallet_balance) or 0,
+            **link,
+        }
+    except Exception:
+        db.rollback()
+        logger.exception(f"Certificate purchase failed for contest {contest_id}, user {current_user.id}")
+        raise HTTPException(status_code=500, detail="خطا در پرداخت گواهی. لطفاً دوباره تلاش کنید.")
+
+    link = _certificate_download_payload(locked_user, contest_id)
+    return {
+        "message": "پرداخت با موفقیت انجام شد. گواهی شما آماده دانلود است.",
+        "already_purchased": False,
+        "contest_id": contest_id,
+        "amount_paid_irt": CERTIFICATE_PRICE_IRT,
+        "wallet_balance": locked_user.wallet_balance or 0,
+        **link,
+    }
+
+
 @app.post("/users/me/contests/{contest_id}/certificate/link")
 def create_my_certificate_link(
     contest_id: int,
@@ -2389,11 +2527,8 @@ def create_my_certificate_link(
     _, _, error = _issue_user_certificate(db, current_user, contest_id)
     if error:
         raise HTTPException(status_code=error[0], detail=error[1])
-    token = _create_certificate_download_token(current_user, contest_id)
-    return {
-        "path": f"/users/me/contests/{contest_id}/certificate/download?dl={token}",
-        "expires_in": CERTIFICATE_LINK_TTL_MINUTES * 60,
-    }
+    _require_certificate_purchase(db, current_user, contest_id)
+    return _certificate_download_payload(current_user, contest_id)
 
 
 @app.get("/users/me/contests/{contest_id}/certificate/download")
@@ -2429,6 +2564,12 @@ def download_my_certificate(
     user_id = current_user.id
     render_error = JSONResponse(status_code=500, content={"detail": "خطا در ساخت تصویر گواهی. لطفاً بعداً دوباره تلاش کنید."}, headers=cors_headers)
     try:
+        if _get_certificate_purchase(db, current_user.id, contest_id) is None:
+            return JSONResponse(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                content={"detail": "برای دانلود گواهی ابتدا باید هزینه آن را از کیف پول پرداخت کنید."},
+                headers=cors_headers,
+            )
         cert, issuance, error = _issue_user_certificate(db, current_user, contest_id)
         if error:
             return JSONResponse(status_code=error[0], content={"detail": error[1]}, headers=cors_headers)

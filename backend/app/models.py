@@ -42,6 +42,7 @@ class User(Base):
     city = relationship("City", back_populates="users")
     subscriptions = relationship("Subscription", back_populates="user")
     certificate_users = relationship("CertificateUser", back_populates="user")
+    certificate_purchases = relationship("CertificatePurchase", back_populates="user")
     notification_users = relationship("NotificationUsers", back_populates="user")
     banner_users = relationship("BannerUsers", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
@@ -106,6 +107,7 @@ class Contest(Base):
     attachments = relationship("Attachment", back_populates="contest")
     award_contests = relationship("AwardContest", back_populates="contest")
     certificates = relationship("Certificate", back_populates="contest")
+    certificate_purchases = relationship("CertificatePurchase", back_populates="contest")
 
 class Attachment(Base):
     __tablename__ = "attachments"
@@ -302,6 +304,22 @@ class CertificateUser(Base):
 
     certificate = relationship("Certificate", back_populates="certificate_users")
     user = relationship("User", back_populates="certificate_users")
+
+class CertificatePurchase(Base):
+    """Tracks wallet payments that unlock certificate download for a (user, contest) pair."""
+    __tablename__ = "certificate_purchases"
+    __table_args__ = (
+        UniqueConstraint("user_id", "contest_id", name="uix_certificate_purchase_user_contest"),
+        Index("ix_certificate_purchases_user_contest", "user_id", "contest_id"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    contest_id = Column(Integer, ForeignKey("contests.id"), nullable=False, index=True)
+    amount_paid_irt = Column(Integer, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="certificate_purchases")
+    contest = relationship("Contest", back_populates="certificate_purchases")
 
 class Notification(Base):
     __tablename__ = "notifications"

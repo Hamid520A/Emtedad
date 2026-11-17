@@ -23,6 +23,10 @@ export default function ProfilePage() {
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [myCertificates, setMyCertificates] = useState<any[]>([]);
   const [certLinkLoadingId, setCertLinkLoadingId] = useState<number | string | null>(null);
+  const [certPurchaseLoadingId, setCertPurchaseLoadingId] = useState<number | string | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  const CERTIFICATE_PRICE_IRT = 40000;
   
   // استیت‌های مدیریت پاسخنامه کاربر
   const [answerSheet, setAnswerSheet] = useState<any>(null);
@@ -49,6 +53,7 @@ export default function ProfilePage() {
         const res = await api.get('/users/me/profile');
         myProfile = res.data;
         setProfile(myProfile);
+        setWalletBalance(myProfile.wallet_balance ?? 0);
         setLoading(false); 
       } catch (error) {
         console.error("Error fetching text profile:", error);
@@ -109,8 +114,36 @@ export default function ProfilePage() {
       return numericScore >= 50 && item.status !== 'active';
     });
     
-    setMyCertificates(qualified);
+    setWalletBalance(profile.wallet_balance ?? walletBalance);
+    setMyCertificates(qualified.map((item: any) => ({
+      ...item,
+      is_purchased: Boolean(item.is_purchased),
+    })));
     setCertModalOpen(true);
+  };
+
+  const markCertificatePurchased = (contestId: number | string, newBalance?: number) => {
+    setMyCertificates((prev) =>
+      prev.map((cert) =>
+        (cert.contest_id || cert.id) === contestId ? { ...cert, is_purchased: true } : cert
+      )
+    );
+    setProfile((prev: any) => {
+      if (!prev) return prev;
+      const nextBalance = typeof newBalance === 'number' ? newBalance : Math.max(0, (prev.wallet_balance ?? 0) - CERTIFICATE_PRICE_IRT);
+      return {
+        ...prev,
+        wallet_balance: nextBalance,
+        history: (prev.history || []).map((item: any) =>
+          (item.contest_id || item.id) === contestId ? { ...item, is_purchased: true } : item
+        ),
+      };
+    });
+    if (typeof newBalance === 'number') {
+      setWalletBalance(newBalance);
+    } else {
+      setWalletBalance((prev) => Math.max(0, prev - CERTIFICATE_PRICE_IRT));
+    }
   };
 
   const handleViewMyAnswers = async (contestId: number, contestTitle: string, contestStatus: string) => {
@@ -181,23 +214,63 @@ export default function ProfilePage() {
     }
   };
 
-  // 🌟 تابع جدید جایگزین دانلود: ساخت لینک کوتاه‌مدت و کپی در کلیپ‌بورد
+  const buildCertificateDownloadUrl = (path: string) => {
+    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "/api").replace(/\/$/, "");
+    return new URL(`${baseUrl}${path}`, window.location.origin).href;
+  };
+
+  const copyCertificateDownloadLink = (path: string, expiresIn?: number) => {
+    const downloadUrl = buildCertificateDownloadUrl(path);
+    const minutes = toPersianDigits(Math.round((expiresIn || 900) / 60));
+    const downloadLinkCopiedMessage = `لینک دانلود گواهی کپی شد و تا ${minutes} دقیقه معتبر است.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.`;
+    copyText(downloadUrl, () => toast.success(downloadLinkCopiedMessage, { duration: 8000 }));
+  };
+
+  // ساخت لینک کوتاه‌مدت و کپی در کلیپ‌بورد (فقط پس از خرید)
   const handleCopyCertificateLink = async (contestId: number | string) => {
-    if (certLinkLoadingId !== null) return;
+    if (certLinkLoadingId !== null || certPurchaseLoadingId !== null) return;
     setCertLinkLoadingId(contestId);
     try {
       const res = await api.post(`/users/me/contests/${contestId}/certificate/link`);
-      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "/api").replace(/\/$/, "");
-      const downloadUrl = new URL(`${baseUrl}${res.data.path}`, window.location.origin).href;
-      const minutes = toPersianDigits(Math.round((res.data.expires_in || 900) / 60));
-      const downloadLinkCopiedMessage = `لینک دانلود گواهی کپی شد و تا ${minutes} دقیقه معتبر است.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.`;
-
-      copyText(downloadUrl, () => toast.success(downloadLinkCopiedMessage, { duration: 8000 }));
+      copyCertificateDownloadLink(res.data.path, res.data.expires_in);
     } catch (error: any) {
+      const statusCode = error?.response?.status;
       const detail = error?.response?.data?.detail;
-      toast.error(typeof detail === 'string' ? detail : "ساخت لینک دانلود گواهی ناموفق بود.");
+      if (statusCode === 402) {
+        toast.error("برای دانلود گواهی ابتدا باید هزینه آن را پرداخت کنید.");
+      } else {
+        toast.error(typeof detail === 'string' ? detail : "ساخت لینک دانلود گواهی ناموفق بود.");
+      }
     } finally {
       setCertLinkLoadingId(null);
+    }
+  };
+
+  const handlePayAndDownload = async (contestId: number | string) => {
+    if (certPurchaseLoadingId !== null || certLinkLoadingId !== null) return;
+    if (walletBalance < CERTIFICATE_PRICE_IRT) {
+      toast.error("موجودی کیف پول کافی نیست، لطفاً شارژ کنید.");
+      return;
+    }
+
+    setCertPurchaseLoadingId(contestId);
+    try {
+      const res = await api.post(`/certificates/${contestId}/purchase`);
+      markCertificatePurchased(contestId, res.data.wallet_balance);
+      toast.success(res.data.message || "پرداخت با موفقیت انجام شد.");
+      if (res.data.path) {
+        copyCertificateDownloadLink(res.data.path, res.data.expires_in);
+      }
+    } catch (error: any) {
+      const statusCode = error?.response?.status;
+      const detail = error?.response?.data?.detail;
+      if (statusCode === 402) {
+        toast.error("موجودی کافی نیست، لطفاً شارژ کنید.");
+      } else {
+        toast.error(typeof detail === 'string' ? detail : "پرداخت گواهی ناموفق بود.");
+      }
+    } finally {
+      setCertPurchaseLoadingId(null);
     }
   };
 
@@ -324,7 +397,6 @@ export default function ProfilePage() {
                 <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
 
-              {false && (
               <button onClick={openCertificateModal} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-amber-50 dark:bg-amber-950/30 text-[#c5a059] rounded-2xl group-hover:scale-105 transition-transform"><Award size={22} /></div>
@@ -332,7 +404,6 @@ export default function ProfilePage() {
                 </div>
                 <ChevronLeft size={20} className="text-gray-300 dark:text-slate-500 group-hover:text-[#c5a059]" />
               </button>
-              )}
 
               <button onClick={() => router.push('/profile/change-password')} className="w-full bg-white dark:bg-[#182234] p-5 rounded-[2rem] border border-gray-100 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#c5a059] hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
@@ -395,8 +466,8 @@ export default function ProfilePage() {
         </main>
       </div>
 
-      {/* 🌟 مُدال نمایش و کپی لینک گواهی‌ها */}
-      {false && certModalOpen && (
+      {/* مُدال نمایش، پرداخت و کپی لینک گواهی‌ها */}
+      {certModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-sm shadow-2xl border border-gray-100 dark:border-slate-800 p-6 flex flex-col text-right">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4 mb-4">
@@ -406,30 +477,77 @@ export default function ProfilePage() {
               </div>
               <button onClick={() => setCertModalOpen(false)} className="p-1.5 bg-gray-50 dark:bg-[#0b0f19] hover:bg-gray-100 dark:hover:bg-[#233044] text-gray-400 dark:text-slate-400 rounded-full"><X size={16} /></button>
             </div>
+
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 px-3 py-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <Wallet size={14} className="text-[#c5a059] shrink-0" />
+                <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400">موجودی کیف پول</span>
+              </div>
+              <span className="text-xs font-black text-[#1a2e44] dark:text-slate-100 shrink-0">
+                {toPersianDigits(walletBalance.toLocaleString('en-US'))} تومان
+              </span>
+            </div>
+
             <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
               {myCertificates.length === 0 ? (
                 <p className="text-center text-xs text-gray-400 dark:text-slate-400 font-bold py-8">شما هنوز گواهی فعالی در سیستم ندارید.</p>
               ) : (
                 myCertificates.map((cert: any, idx: number) => {
+                  const contestId = cert.contest_id || cert.id;
                   const s = typeof cert.score === 'string' ? parseFloat(cert.score.replace('%', '')) : cert.score;
                   const rankLabel = s >= 85 ? 'رتبه عالی' : s >= 70 ? 'رتبه خیلی خوب' : 'رتبه خوب';
-                  
+                  const isPurchased = Boolean(cert.is_purchased);
+                  const canAfford = walletBalance >= CERTIFICATE_PRICE_IRT;
+                  const isPaying = certPurchaseLoadingId === contestId;
+                  const isCopying = certLinkLoadingId === contestId;
+                  const actionsBusy = certPurchaseLoadingId !== null || certLinkLoadingId !== null;
+
                   return (
-                    <div key={idx} className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3 shadow-inner">
-                      <div className="flex-1 min-w-0">
-                        <h5 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 leading-tight truncate">{cert.contest_title}</h5>
-                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded mt-1.5 inline-block">سطح: {rankLabel} ({toPersianDigits(s)}%)</span>
+                    <div key={idx} className="p-4 bg-[#faf9f6] dark:bg-[#0b0f19] rounded-2xl border border-gray-100 dark:border-slate-800 space-y-3 shadow-inner">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h5 className="font-black text-xs text-[#1a2e44] dark:text-slate-100 leading-tight truncate">{cert.contest_title}</h5>
+                          <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded mt-1.5 inline-block">سطح: {rankLabel} ({toPersianDigits(s)}%)</span>
+                        </div>
+                        {isPurchased ? (
+                          <span className="text-[9px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-900/40 px-2 py-0.5 rounded shrink-0">خریداری شده</span>
+                        ) : (
+                          <span className="text-[9px] font-black text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-900/40 px-2 py-0.5 rounded shrink-0">
+                            قیمت: {toPersianDigits(CERTIFICATE_PRICE_IRT.toLocaleString('en-US'))} تومان
+                          </span>
+                        )}
                       </div>
-                      <button 
-                        onClick={() => handleCopyCertificateLink(cert.contest_id || cert.id)} 
-                        disabled={certLinkLoadingId !== null}
-                        className="p-2.5 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all shadow-md shrink-0 justify-center active:scale-95 disabled:opacity-60"
-                      >
-                        {certLinkLoadingId === (cert.contest_id || cert.id)
-                          ? <Loader2 size={14} className="animate-spin text-[#c5a059] dark:text-[#1a2e44]" />
-                          : <Download size={14} className="text-[#c5a059] dark:text-[#1a2e44]" />}
-                        کپی لینک
-                      </button>
+
+                      {isPurchased ? (
+                        <button
+                          onClick={() => handleCopyCertificateLink(contestId)}
+                          disabled={actionsBusy}
+                          className="w-full p-2.5 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all shadow-md justify-center active:scale-95 disabled:opacity-60"
+                        >
+                          {isCopying
+                            ? <Loader2 size={14} className="animate-spin text-[#c5a059] dark:text-[#1a2e44]" />
+                            : <Download size={14} className="text-[#c5a059] dark:text-[#1a2e44]" />}
+                          کپی لینک دانلود
+                        </button>
+                      ) : canAfford ? (
+                        <button
+                          onClick={() => handlePayAndDownload(contestId)}
+                          disabled={actionsBusy}
+                          className="w-full p-2.5 bg-[#1a2e44] dark:bg-[#c5a059] text-white dark:text-[#1a2e44] hover:bg-[#2a405a] dark:hover:bg-[#b08e4a] rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all shadow-md justify-center active:scale-95 disabled:opacity-60"
+                        >
+                          {isPaying
+                            ? <Loader2 size={14} className="animate-spin text-[#c5a059] dark:text-[#1a2e44]" />
+                            : <Wallet size={14} className="text-[#c5a059] dark:text-[#1a2e44]" />}
+                          پرداخت و دانلود ({toPersianDigits(CERTIFICATE_PRICE_IRT.toLocaleString('en-US'))} تومان)
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => router.push('/profile/payments')}
+                          className="w-full p-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-100 dark:border-rose-900/40 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all justify-center active:scale-95"
+                        >
+                          موجودی کافی نیست — شارژ کیف پول
+                        </button>
+                      )}
                     </div>
                   );
                 })

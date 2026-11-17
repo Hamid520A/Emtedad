@@ -463,6 +463,15 @@ class CertificateTemplateUpdate(BaseModel):
     signer_3_title: Optional[str] = Field(None, max_length=255)
     signer_3_signature_url: Optional[str] = Field(None, max_length=500)
 
+class CertificatePurchaseResponse(BaseModel):
+    message: str
+    already_purchased: bool = False
+    contest_id: int
+    amount_paid_irt: int
+    wallet_balance: int
+    path: str
+    expires_in: int
+
 # ==========================================
 # Notifications
 # ==========================================
