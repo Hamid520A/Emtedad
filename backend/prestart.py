@@ -21,6 +21,8 @@ def upgrade_certificate_users() -> None:
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_certificate_users_user_certificate "
             "ON certificate_users (user_id, certificate_id)"
         ))
+        # حذف جدول قدیمی تراکنش‌های دستی
+        conn.execute(text("DROP TABLE IF EXISTS transactions CASCADE"))
 
 def main() -> None:
     logger.info("Ensuring database tables exist...")

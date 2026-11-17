@@ -11,11 +11,11 @@ from sqlalchemy import func, text, desc, asc, insert, case, update, extract, or_
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any
 from . import schemas, models, auth, database
-import shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress, secrets, mimetypes
+import asyncio, shutil, os, random, redis, json, io, requests, traceback, uuid, re, logging, contextvars, jdatetime, ipaddress, secrets, mimetypes
 from fastapi.concurrency import run_in_threadpool
 from app.services.sms_service import sms_service
 from app.services.wallet_code import generate_unique_wallet_code
-from app.services import bale_bot, bale_receipts
+from app.services import bale_direct
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from datetime import datetime, timedelta, date, time, timezone
 from PIL import Image, ImageDraw, ImageFont, features as pil_features
@@ -42,7 +42,9 @@ async def lifespan(app: FastAPI):
         decode_responses=True,
         socket_timeout=5,
     )
+    bale_task = asyncio.create_task(_bale_background_worker())
     yield
+    bale_task.cancel()
     logger.info("Initiating graceful shutdown...")
     try:
         r.close()
@@ -69,7 +71,73 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error disposing SQLAlchemy engine: {e}")
 
+async def _bale_background_worker():
+    """ورکر پس‌زمینه مجهز به Offset مشترک در Redis برای جلوگیری از تکرار پیام‌ها"""
+    worker_id = uuid.uuid4().hex
+    webhook_cleared = False
+    last_sweep = 0.0
+
+    # کمی صبر برای بالا آمدن کامل ورکرها
+    await asyncio.sleep(2)
+
+    while True:
+        try:
+            if r_async is None:
+                await asyncio.sleep(2)
+                continue
+
+            # قفل ۶۰ ثانیه‌ای در Redis تا فقط یک ورکر در کل سیستم Polling انجام دهد
+            locked = await r_async.set("bale:poller:lock", worker_id, nx=True, ex=60)
+            if not locked:
+                current_holder = await r_async.get("bale:poller:lock")
+                if current_holder != worker_id:
+                    await asyncio.sleep(5)
+                    continue
+                await r_async.expire("bale:poller:lock", 60)
+
+            # ۱. منقضی کردن فاکتورهای قدیمی هر ۳۰ ثانیه
+            now_ts = asyncio.get_running_loop().time()
+            if now_ts - last_sweep >= 30:
+                last_sweep = now_ts
+                def _sweep():
+                    with database.SessionLocal() as db:
+                        bale_direct.expire_overdue(db)
+                await run_in_threadpool(_sweep)
+
+            # ۲. دریافت آپدیت‌ها در حالت لوکال با ذخیره offset در Redis
+            if bale_direct.use_polling() and os.getenv("BALE_BOT_TOKEN"):
+                if not webhook_cleared:
+                    await run_in_threadpool(bale_direct.delete_webhook)
+                    webhook_cleared = True
+                    logger.info("Bale Poller active (Single Worker Locked)")
+
+                raw_offset = await r_async.get("bale:poller:offset")
+                offset = int(raw_offset) if raw_offset and str(raw_offset).isdigit() else 0
+
+                updates = await run_in_threadpool(bale_direct.get_updates, offset, 5)
+                for upd in updates:
+                    if isinstance(upd, dict):
+                        uid = upd.get("update_id")
+                        if isinstance(uid, int):
+                            # ابتدا offset را در ردیس آپدیت می‌کنیم تا هیچ ورکر دیگری دوباره آن را نخواند
+                            next_offset = uid + 1
+                            await r_async.set("bale:poller:offset", str(next_offset))
+                            offset = next_offset
+                        await run_in_threadpool(bale_direct.process_update_dict, upd)
+
+                if not updates:
+                    await asyncio.sleep(1)
+            else:
+                await asyncio.sleep(15)
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Bale background worker error: {e}")
+            await asyncio.sleep(3)
+
 app = FastAPI(lifespan=lifespan)
+
 
 # Metrics are not in the OpenAPI schema. MetricsAccessASGIMiddleware limits /metrics
 # to a direct peer on the container network (Prometheus). Public and proxied calls are rejected.
@@ -2059,31 +2127,20 @@ def get_my_transactions(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """تاریخچه شارژ کیف پول کاربر جاری (فقط فیلدهای امن، بدون رسید و شناسه‌های بله)"""
-    if status_filter is not None and status_filter not in TRANSACTION_STATUSES:
+    """تاریخچه شارژ کیف پول کاربر با سیستم جدید فاکتور بله"""
+    valid_statuses = ["pending", "paid", "failed", "expired", "mismatched"]
+    if status_filter and status_filter not in valid_statuses:
         raise HTTPException(status_code=400, detail="وضعیت تراکنش نامعتبر است")
 
-    base = db.query(models.Transaction).filter(
-        models.Transaction.user_id == current_user.id,
-        models.Transaction.deleted_at.is_(None),
+    base = db.query(models.BaleDirectPayment).filter(
+        models.BaleDirectPayment.user_id == current_user.id
     )
-    if status_filter is not None:
-        base = base.filter(models.Transaction.status == status_filter)
+    
+    if status_filter:
+        base = base.filter(models.BaleDirectPayment.status == status_filter)
 
     total_count = base.count()
-    rows = (
-        base.with_entities(
-            models.Transaction.id,
-            models.Transaction.amount,
-            models.Transaction.status,
-            models.Transaction.created_at,
-            models.Transaction.processed_at,
-        )
-        .order_by(models.Transaction.created_at.desc().nullslast(), models.Transaction.id.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    rows = base.order_by(models.BaleDirectPayment.created_at.desc()).offset(skip).limit(limit).all()
 
     return {
         "wallet_balance": current_user.wallet_balance or 0,
@@ -2091,11 +2148,11 @@ def get_my_transactions(
         "total_count": total_count,
         "items": [
             {
-                "id": r.id,
-                "amount": r.amount,
+                "id": str(r.id),
+                "payload_id": r.payload_id,
+                "amount_irt": r.amount_irt,
                 "status": r.status,
-                "created_at": r.created_at,
-                "processed_at": r.processed_at,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
             }
             for r in rows
         ],
@@ -2293,7 +2350,7 @@ def _certificate_eligibility(db: Session, user: models.User, contest_id: int):
     if not _certificate_enabled(_contest_certificate(contest)):
         return None, None, (400, "این مسابقه فاقد امتیاز صدور گواهی نامه است.")
 
-    if (subscription.score or 0) < 50:
+    if (subscription.score or 0) < 70:
         return None, None, (400, "امتیاز شما برای دریافت گواهی کافی نیست.")
 
     return subscription, contest, None
@@ -4531,9 +4588,11 @@ def create_notification(
     }
 
 # ==========================================
-# Admin: wallet top-up transactions (read-only; decisions are made in the Bale bot)
+# Admin: Automated Bale Payments List
 # ==========================================
-@app.get("/admin/transactions", response_model=schemas.PaginatedTransactionsResponse)
+BALE_PAYMENT_STATUSES = ("pending", "paid", "failed", "expired", "mismatched")
+
+@app.get("/admin/transactions")
 def get_admin_transactions(
     status_filter: Optional[str] = Query(None, alias="status"),
     search: Optional[str] = None,
@@ -4542,13 +4601,15 @@ def get_admin_transactions(
     db: Session = Depends(database.get_db),
     current_admin: models.User = Depends(require_admin),
 ):
-    if status_filter is not None and status_filter not in TRANSACTION_STATUSES:
+    if status_filter is not None and status_filter not in BALE_PAYMENT_STATUSES:
         raise HTTPException(status_code=400, detail="وضعیت تراکنش نامعتبر است")
 
+    # ابتدا فاکتورهای منقضی شده را بروز می‌کنیم تا ادمین وضعیت دقیق را ببیند
+    bale_direct.expire_overdue(db)
+
     base = (
-        db.query(models.Transaction)
-        .join(models.User, models.User.id == models.Transaction.user_id)
-        .filter(models.Transaction.deleted_at.is_(None))
+        db.query(models.BaleDirectPayment)
+        .join(models.User, models.User.id == models.BaleDirectPayment.user_id)
     )
 
     if search and search.strip():
@@ -4559,27 +4620,33 @@ def get_admin_transactions(
             " ",
             func.coalesce(models.User.last_name, ""),
         )
-        conditions = [full_name.ilike(term), models.User.phone_number.ilike(term)]
+        conditions = [
+            full_name.ilike(term),
+            models.User.phone_number.ilike(term),
+            models.BaleDirectPayment.payload_id.ilike(term),
+            models.BaleDirectPayment.tracking_code.ilike(term),
+        ]
         if raw.isdigit() and len(raw) <= 9:
-            conditions += [models.Transaction.id == int(raw), models.Transaction.wallet_code == int(raw)]
+            conditions.append(models.User.wallet_code == int(raw))
         base = base.filter(or_(*conditions))
 
     counts = dict(
-        base.with_entities(models.Transaction.status, func.count(models.Transaction.id))
-        .group_by(models.Transaction.status)
+        base.with_entities(models.BaleDirectPayment.status, func.count(models.BaleDirectPayment.id))
+        .group_by(models.BaleDirectPayment.status)
         .all()
     )
 
-    query = base.filter(models.Transaction.status == status_filter) if status_filter else base
+    query = base.filter(models.BaleDirectPayment.status == status_filter) if status_filter else base
     total_count = query.count()
     rows = (
         query.with_entities(
-            models.Transaction,
+            models.BaleDirectPayment,
             models.User.first_name,
             models.User.last_name,
             models.User.phone_number,
+            models.User.wallet_code,
         )
-        .order_by(models.Transaction.created_at.desc().nullslast(), models.Transaction.id.desc())
+        .order_by(models.BaleDirectPayment.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
@@ -4587,118 +4654,94 @@ def get_admin_transactions(
 
     items = [
         {
-            "id": tx.id,
-            "user_id": tx.user_id,
+            "id": str(tx.id),
+            "user_id": str(tx.user_id),
             "user_name": f"{first_name or ''} {last_name or ''}".strip() or "کاربر بدون نام",
             "phone_number": phone_number,
-            "wallet_code": tx.wallet_code,
-            "amount": tx.amount,
+            "wallet_code": wallet_code,
+            "amount_irt": tx.amount_irt,
+            "payload_id": tx.payload_id,
+            "tracking_code": tx.tracking_code,
             "status": tx.status,
-            "has_receipt": bool(tx.receipt_image_url or tx.receipt_file_id),
-            "created_at": tx.created_at,
-            "processed_at": tx.processed_at,
-            "processed_by_bale_id": tx.processed_by_bale_id,
+            "created_at": tx.created_at.isoformat() if tx.created_at else None,
         }
-        for tx, first_name, last_name, phone_number in rows
+        for tx, first_name, last_name, phone_number, wallet_code in rows
     ]
 
     return {
         "items": items,
         "total_count": total_count,
-        "status_counts": {s: counts.get(s, 0) for s in TRANSACTION_STATUSES},
+        "status_counts": {s: counts.get(s, 0) for s in BALE_PAYMENT_STATUSES},
     }
 
-def _receipt_file_path(stored_path: Optional[str]) -> Optional[str]:
-    """Resolve a stored receipt path, refusing anything outside the private receipts folder."""
-    if not stored_path:
-        return None
-    base_dir = os.path.realpath(bale_bot.RECEIPT_DIR)
-    full_path = os.path.realpath(stored_path)
-    if not full_path.startswith(base_dir + os.sep) or not os.path.isfile(full_path):
-        return None
-    return full_path
 
-@app.get("/admin/transactions/{transaction_id}/receipt")
-def get_transaction_receipt(
-    transaction_id: int,
+# ==========================================
+# Bale Direct Payment Init & Webhook
+# ==========================================
+class BaleInitRequest(BaseModel):
+    amount: int = Field(..., description="مبلغ به تومان")
+
+@app.post("/bale/init", tags=["Wallet"])
+def init_bale_payment(
+    payload: BaleInitRequest,
     db: Session = Depends(database.get_db),
-    current_admin: models.User = Depends(require_admin),
+    current_user: models.User = Depends(auth.get_current_user)
 ):
-    tx = (
-        db.query(models.Transaction)
-        .filter(models.Transaction.id == transaction_id, models.Transaction.deleted_at.is_(None))
-        .first()
-    )
-    if not tx:
-        raise HTTPException(status_code=404, detail="تراکنش یافت نشد")
+    if payload.amount < models.BALE_DIRECT_MIN_AMOUNT_IRT or payload.amount > models.BALE_DIRECT_MAX_AMOUNT_IRT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"مبلغ باید بین {models.BALE_DIRECT_MIN_AMOUNT_IRT:,} تا {models.BALE_DIRECT_MAX_AMOUNT_IRT:,} تومان باشد."
+        )
+    try:
+        payment = bale_direct.create_payment(db, current_user.id, payload.amount)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Payment init error: {e}")
+        raise HTTPException(status_code=500, detail="خطا در ایجاد فاکتور پرداخت.")
 
-    path = _receipt_file_path(tx.receipt_image_url)
-    if path is None and tx.receipt_file_id:
-        # The private copy failed to download at submit time; fetch it from Bale once and keep it.
-        downloaded = bale_bot.download_receipt(tx.receipt_file_id)
-        if downloaded:
-            tx.receipt_image_url = downloaded
-            db.commit()
-            path = _receipt_file_path(downloaded)
+    deep_link = bale_direct.generate_deep_link(payment.payload_id)
+    if not deep_link:
+        raise HTTPException(status_code=503, detail="تنظیمات ربات بله کامل نیست.")
 
-    if path is None:
-        raise HTTPException(status_code=404, detail="تصویر رسید در دسترس نیست")
+    return {
+        "payload_id": payment.payload_id,
+        "deep_link": deep_link
+    }
 
-    media_type = mimetypes.guess_type(path)[0] or "image/jpeg"
-    return FileResponse(path, media_type=media_type, headers={"Cache-Control": "private, no-store"})
-
-# ==========================================
-# Bale bot webhook (wallet top-up receipts)
-# ==========================================
 def _bale_secret_problem(candidate: Optional[str]) -> Optional[str]:
-    """Return why the webhook secret is rejected, or None if it matches."""
     expected = os.getenv("BALE_WEBHOOK_SECRET", "").strip()
     if not expected:
-        return "BALE_WEBHOOK_SECRET is not set in the backend environment"
+        return "BALE_WEBHOOK_SECRET is not set"
     if not candidate:
         return "request carries no secret"
     if not secrets.compare_digest(candidate.strip().encode(), expected.encode()):
-        return f"secret mismatch (got {len(candidate)} chars, expected {len(expected)})"
+        return "secret mismatch"
     return None
 
 def _process_bale_update(raw: bytes) -> None:
     try:
-        bale_update = schemas.BaleUpdate.model_validate_json(raw)
-    except ValidationError as e:
-        logger.warning(f"Ignoring malformed Bale update ({e.error_count()} errors)")
+        update = json.loads(raw)
+    except Exception as e:
+        logger.warning(f"Ignoring malformed Bale update: {e}")
         return
-
-    db = database.SessionLocal()
-    try:
-        if bale_update.callback_query:
-            bale_receipts.handle_admin_callback(db, bale_update.callback_query)
-        elif bale_update.message:
-            bale_receipts.handle_receipt_message(db, bale_update.message)
-    except Exception:
-        db.rollback()
-        logger.error(f"Bale update {bale_update.update_id} failed:\n{traceback.format_exc()}")
-    finally:
-        db.close()
+    if isinstance(update, dict):
+        bale_direct.process_update_dict(update)
 
 async def _handle_bale_webhook(request: Request, secret_candidate: Optional[str]):
     problem = _bale_secret_problem(secret_candidate)
     if problem:
-        forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        source = forwarded or (request.client.host if request.client else "-")
-        logger.warning(f"Rejected Bale webhook call from {source}: {problem}")
+        logger.warning(f"Rejected Bale webhook call: {problem}")
         return JSONResponse(status_code=403, content={"ok": False})
 
-    # Always 200 after the secret check, otherwise Bale keeps re-delivering the update.
     raw = await request.body()
     await run_in_threadpool(_process_bale_update, raw)
     return {"ok": True}
 
-# Public URL is /api/webhook/bale/...; HAProxy strips the /api prefix before forwarding.
 @app.post("/webhook/bale", include_in_schema=False)
 async def bale_webhook(request: Request):
     return await _handle_bale_webhook(request, request.headers.get("X-Telegram-Bot-Api-Secret-Token"))
 
-# Bale's setWebhook only accepts `url` (no secret_token), so the secret travels in the path.
 @app.post("/webhook/bale/{secret}", include_in_schema=False)
 async def bale_webhook_with_path_secret(secret: str, request: Request):
     return await _handle_bale_webhook(request, secret)

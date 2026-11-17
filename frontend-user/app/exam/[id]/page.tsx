@@ -78,12 +78,16 @@ const getAnalysis = (
   contest?: { success_message?: string | null; failure_message?: string | null } | null
 ) => {
   const s = parseFloat(score.toString());
+  // اگر مقدار 'none' نباشد، یعنی این مسابقه دارای گواهی است
   const hasCert = certificateType !== 'none' && certificateType !== '';
-  const minRequired = Math.ceil(totalQuestions * 0.5);
+  
+  // 🌟 تعیین حداقل نمره قبولی روی ۷۰
+  const minRequiredScore = 70; 
 
   let result;
 
-  if (s < 50) {
+  // اگر نمره کمتر از ۷۰ باشد:
+  if (s < minRequiredScore) {
     result = {
       msg: "تلاشت خوب بود، برای کسب نتیجه بهتر در مسابقات بعدی می‌توانید منابع آموزشی را مجدداً مطالعه کنید.",
       certMsg: "مسابقه به پایان رسید.",
@@ -91,40 +95,20 @@ const getAnalysis = (
       bg: "bg-red-50 dark:bg-red-950/40",
       emoji: "📚",
     };
-    if (false && hasCert) {
+    
+    // اگر مسابقه گواهی داشت، پیام عدم دریافت گواهی را نشان می‌دهیم
+    if (hasCert) {
       result = {
-        msg: `تلاشت خوب بود، اما برای دریافت گواهی باید حداقل به ${minRequired} سوال پاسخ صحیح بدهید.`,
+        msg: `تلاشت خوب بود، اما برای دریافت گواهی باید حداقل نمره ${minRequiredScore} را کسب کنید.`,
         certMsg: "حد نصاب قبولی برای صدور گواهی کسب نشد.",
         color: "text-red-600 dark:text-red-400",
         bg: "bg-red-50 dark:bg-red-950/40",
         emoji: "📚",
       };
     }
-  } else if (false && certificateType === 'excellent') {
-    result = {
-      msg: "فوق‌العاده! شما موفق به کسب «گواهی عالی» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.",
-      certMsg: "تبریک! نمره قبولی را برای دریافت گواهی عالی کسب کردید.",
-      color: "text-green-600 dark:text-green-400",
-      bg: "bg-green-50 dark:bg-green-950/40",
-      emoji: "🏆",
-    };
-  } else if (false && certificateType === 'very_good') {
-    result = {
-      msg: "عالی! شما موفق به کسب «گواهی خیلی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.",
-      certMsg: "تبریک! نمره قبولی را برای دریافت گواهی خیلی خوب کسب کردید.",
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-950/40",
-      emoji: "🥇",
-    };
-  } else if (false && certificateType === 'good') {
-    result = {
-      msg: "بارک‌الله! شما موفق به کسب «گواهی خوب» شدید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.",
-      certMsg: "تبریک! نمره قبولی را برای دریافت گواهی خوب کسب کردید.",
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-50 dark:bg-amber-950/40",
-      emoji: "✨",
-    };
-  } else {
+  } 
+  // اگر نمره ۷۰ یا بیشتر باشد:
+  else {
     result = {
       msg: "بارک‌الله! شما موفق شدید نمره قبولی این مسابقه را با موفقیت کسب کنید.",
       certMsg: "آزمون را با موفقیت پشت سر گذاشتید.",
@@ -132,11 +116,23 @@ const getAnalysis = (
       bg: "bg-teal-50 dark:bg-teal-950/40",
       emoji: "🎉",
     };
+    
+    // اگر مسابقه گواهی داشت، پیام دریافت گواهی را نشان می‌دهیم
+    if (hasCert) {
+      result = {
+        msg: "بارک‌الله! شما موفق شدید نمره قبولی را کسب کنید. بعد از اتمام آزمون می‌توانید لوح تقدیر خود را در بخش «پروفایل کاربری» مشاهده و دانلود کنید.",
+        certMsg: "تبریک! نمره قبولی را برای دریافت گواهی کسب کردید.",
+        color: "text-teal-600 dark:text-teal-400",
+        bg: "bg-teal-50 dark:bg-teal-950/40",
+        emoji: "🏆",
+      };
+    }
   }
 
-  if (s < 50 && contest?.failure_message?.trim()) {
+  // اولویت با پیام‌های اختصاصی ثبت شده توسط مدیر است
+  if (s < minRequiredScore && contest?.failure_message?.trim()) {
     result.msg = contest.failure_message;
-  } else if (s >= 50 && contest?.success_message?.trim()) {
+  } else if (s >= minRequiredScore && contest?.success_message?.trim()) {
     result.msg = contest.success_message;
   }
 
@@ -301,7 +297,7 @@ export default function ExamPage() {
   }, [timeLeft]);
 
   useEffect(() => {
-    if (isSubmitted && result && result.score >= 50) {
+    if (isSubmitted && result && result.score >= 70) {
       const duration = 3 * 1000;
       const end = Date.now() + duration;
       let cancelled = false;

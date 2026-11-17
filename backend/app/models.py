@@ -1,10 +1,22 @@
 # backend/app/models.py
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float, Text, SmallInteger, Date, Time, BigInteger, UniqueConstraint, Index
+import enum
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Float, Text, SmallInteger, Date, Time, BigInteger, UniqueConstraint, Index, CheckConstraint
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from .database import Base
 import datetime, uuid
 from sqlalchemy.dialects.postgresql import UUID
+
+# وضعیت‌های پرداخت مستقیم بله
+class BaleDirectPaymentStatus(str, enum.Enum):
+    pending = "pending"
+    paid = "paid"
+    failed = "failed"
+    expired = "expired"
+    mismatched = "mismatched"
+
+BALE_DIRECT_MIN_AMOUNT_IRT = 1000
+BALE_DIRECT_MAX_AMOUNT_IRT = 50000000
 
 class City(Base):
     __tablename__ = "cities"
@@ -45,7 +57,9 @@ class User(Base):
     certificate_purchases = relationship("CertificatePurchase", back_populates="user")
     notification_users = relationship("NotificationUsers", back_populates="user")
     banner_users = relationship("BannerUsers", back_populates="user")
-    transactions = relationship("Transaction", back_populates="user")
+    
+    # ارتباط جدید با پرداخت‌های مستقیم بله
+    bale_direct_payments = relationship("BaleDirectPayment", back_populates="user", cascade="all, delete-orphan")
     
     # ریلیشن ۱ به ۱ متصل به جدول ادمین‌ها
     admin = relationship("Admin", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -80,7 +94,6 @@ class Contest(Base):
     __tablename__ = "contests"
     __table_args__ = (
         Index("ix_contests_status_deleted_at", "status", "deleted_at"),
-        #Index("ix_contests_start_time", "start_time"),
     )
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), index=True, nullable=False)
@@ -291,7 +304,6 @@ class CertificateUser(Base):
         Index("uq_certificate_users_user_certificate", "user_id", "certificate_id", unique=True),
     )
     id = Column(Integer, primary_key=True, index=True)
-    # Format: <Jalali year (4)><contest id (≥4, zero-padded)><per-contest sequence (6)>
     serial_number = Column(BigInteger, unique=True)
     certificate_id = Column(Integer, ForeignKey("certificates.id"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
@@ -370,27 +382,42 @@ class BannerUsers(Base):
     banner = relationship("Banner", back_populates="banner_users")
     user = relationship("User", back_populates="banner_users")
 
-class Transaction(Base):
-    """رسیدهای واریز ارسال‌شده از بات بله؛ وضعیت: pending / success / rejected"""
-    __tablename__ = "transactions"
+class BaleDirectPayment(Base):
+    """پرداخت‌های مستقیم از طریق کیف پول درون‌برنامه‌ای بله"""
+    __tablename__ = "bale_direct_payments"
     __table_args__ = (
-        Index("ix_transactions_status_deleted", "status", "deleted_at"),
+        CheckConstraint(
+            f"amount_irt >= {BALE_DIRECT_MIN_AMOUNT_IRT} AND amount_irt <= {BALE_DIRECT_MAX_AMOUNT_IRT}",
+            name="ck_bale_direct_amount_bounds",
+        ),
+        Index("ix_bale_direct_status", "status"),
+        Index("ix_bale_direct_expire", "status", "expires_at"),
+        Index(
+            "uq_bale_direct_tracking_code",
+            "tracking_code",
+            unique=True,
+            postgresql_where=text("tracking_code IS NOT NULL"),
+        ),
+        Index(
+            "uq_bale_direct_one_pending_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+        ),
     )
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    wallet_code = Column(Integer, nullable=False)
-    amount = Column(Integer, nullable=False)
-    status = Column(String(20), nullable=False, default="pending", server_default="pending", index=True)
-    receipt_image_url = Column(String(500), nullable=True)
-    receipt_file_id = Column(String(255), nullable=False)
-    receipt_file_unique_id = Column(String(255), nullable=False, unique=True)
-    user_chat_id = Column(BigInteger, nullable=False)
-    admin_chat_id = Column(BigInteger, nullable=True)
-    admin_message_id = Column(BigInteger, nullable=True)
-    processed_by_bale_id = Column(BigInteger, nullable=True)
-    processed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, nullable=True)
 
-    user = relationship("User", back_populates="transactions")
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    amount_irt = Column(BigInteger, nullable=False)
+    payload_id = Column(String(64), unique=True, nullable=False)
+    tracking_code = Column(String(255), nullable=True)
+    
+    actual_charged_irr = Column(BigInteger, nullable=True)
+    
+    status = Column(String(50), nullable=False, default=BaleDirectPaymentStatus.pending.value)
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+    user = relationship("User", back_populates="bale_direct_payments")

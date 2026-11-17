@@ -111,7 +111,7 @@ export default function ProfilePage() {
         ? parseFloat(item.score.replace('%', '')) 
         : item.score;
         
-      return numericScore >= 50 && item.status !== 'active';
+      return numericScore >= 70 && item.status !== 'active';
     });
     
     setWalletBalance(profile.wallet_balance ?? walletBalance);
@@ -150,11 +150,9 @@ export default function ProfilePage() {
     setAnswerLoading(true);
     setAnswerModalOpen(true);
     try {
-      // Same source as contest-details /review-final: only assigned SubscriptionQuestions
       const response = await api.get(`/users/me/submissions/${contestId}`);
       const rawQuestions = response.data?.questions || [];
 
-      // Map submissions payload → existing modal shape (options[], 1-based indices)
       const questions = rawQuestions.map((q: any, idx: number) => {
         const opts = q.shuffled_options || [];
         const selectedId = q.user_option ?? q.selected_option ?? null;
@@ -185,7 +183,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Eitaa WebView is served over plain HTTP, so navigator.clipboard is usually unavailable.
   const copyText = (text: string, onSuccess: () => void) => {
     const fallbackCopy = () => {
       const textArea = document.createElement("textarea");
@@ -222,11 +219,10 @@ export default function ProfilePage() {
   const copyCertificateDownloadLink = (path: string, expiresIn?: number) => {
     const downloadUrl = buildCertificateDownloadUrl(path);
     const minutes = toPersianDigits(Math.round((expiresIn || 900) / 60));
-    const downloadLinkCopiedMessage = `لینک دانلود گواهی کپی شد و تا ${minutes} دقیقه معتبر است.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\n* همچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.`;
+    const downloadLinkCopiedMessage = `لینک دانلود گواهی کپی شد و تا ${minutes} دقیقه معتبر است.\n\nراهنمای دانلود:\nلطفاً مرورگر گوشی خود را باز کرده و لینک را در نوار آدرس Paste (جای‌گذاری) کنید.\n\nهمچنین می‌توانید لینک را در پیام‌های ذخیره‌شده ایتا بفرستید و از آنجا دانلود کنید.\n`;
     copyText(downloadUrl, () => toast.success(downloadLinkCopiedMessage, { duration: 8000 }));
   };
 
-  // ساخت لینک کوتاه‌مدت و کپی در کلیپ‌بورد (فقط پس از خرید)
   const handleCopyCertificateLink = async (contestId: number | string) => {
     if (certLinkLoadingId !== null || certPurchaseLoadingId !== null) return;
     setCertLinkLoadingId(contestId);
@@ -446,9 +442,6 @@ export default function ProfilePage() {
                     <div>
                       <h4 className="font-bold text-base mb-1 text-[#1a2e44] dark:text-slate-100 group-hover:text-[#c5a059] transition-colors">{item.contest_title}</h4>
                       <div className="flex gap-2 text-[10px] font-bold text-gray-400 dark:text-slate-400">
-                        {/* TODO: Temporary bypass for time_taken
-                        <span className="bg-gray-50 dark:bg-[#0b0f19] px-2 py-0.5 rounded-md">زمان: {toPersianDigits(item.time_taken)} ثانیه</span>
-                        */}
                         <span className={item.status === 'active' ? 'text-green-500' : ''}>
                           {item.status === 'active' ? '● در حال برگزاری' : 'پایان یافته'}
                         </span>
@@ -466,7 +459,7 @@ export default function ProfilePage() {
         </main>
       </div>
 
-      {/* مُدال نمایش، پرداخت و کپی لینک گواهی‌ها */}
+      {/* 🌟 مُدال نمایش، پرداخت و کپی لینک گواهی‌ها */}
       {certModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#182234] rounded-[2.5rem] w-full max-w-sm shadow-2xl border border-gray-100 dark:border-slate-800 p-6 flex flex-col text-right">

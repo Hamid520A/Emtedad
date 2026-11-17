@@ -382,57 +382,15 @@ class BannerUserBase(BaseModel):
 # ==========================================
 # Wallet Transaction Schemas
 # ==========================================
-class TransactionOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    user_id: UUID
-    wallet_code: int
-    amount: int
-    status: Literal["pending", "success", "rejected"]
-    receipt_image_url: Optional[str] = None
-    created_at: Optional[datetime] = None
-    processed_at: Optional[datetime] = None
-
-class TransactionAdminOut(BaseModel):
-    id: int
-    user_id: UUID
-    user_name: str
-    phone_number: Optional[str] = None
-    wallet_code: int
-    amount: int
-    status: Literal["pending", "success", "rejected"]
-    has_receipt: bool
-    created_at: Optional[datetime] = None
-    processed_at: Optional[datetime] = None
-    processed_by_bale_id: Optional[int] = None
-
-    @field_serializer("created_at", "processed_at", when_used="json")
-    def serialize_utc(self, value: Optional[datetime]) -> Optional[str]:
-        if value is None:
-            return None
-        if value.tzinfo is not None:
-            value = value.astimezone(timezone.utc).replace(tzinfo=None)
-        return value.isoformat() + "Z"
-
-class TransactionStatusCounts(BaseModel):
-    pending: int = 0
-    success: int = 0
-    rejected: int = 0
-
-class PaginatedTransactionsResponse(BaseModel):
-    items: List[TransactionAdminOut]
-    total_count: int
-    status_counts: TransactionStatusCounts
 
 class MyTransactionOut(BaseModel):
-    id: int
-    amount: int
-    status: Literal["pending", "success", "rejected"]
+    id: str
+    payload_id: str
+    amount_irt: int
+    status: Literal["pending", "paid", "failed", "expired", "mismatched"]
     created_at: Optional[datetime] = None
-    processed_at: Optional[datetime] = None
 
-    @field_serializer("created_at", "processed_at", when_used="json")
+    @field_serializer("created_at", when_used="json")
     def serialize_utc(self, value: Optional[datetime]) -> Optional[str]:
         if value is None:
             return None
@@ -527,49 +485,4 @@ class NotificationAdminOut(BaseModel):
         if value.tzinfo is not None:
             value = value.astimezone(timezone.utc).replace(tzinfo=None)
         return value.isoformat() + "Z"
-
-# ==========================================
-# Bale Bot Webhook Schemas (only the fields we use)
-# ==========================================
-class BaleUser(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    id: int
-
-class BaleChat(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    id: int
-
-class BalePhotoSize(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    file_id: str
-    file_unique_id: str
-    file_size: Optional[int] = None
-
-class BaleMessage(BaseModel):
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
-
-    message_id: int
-    chat: BaleChat
-    from_: Optional[BaleUser] = Field(default=None, alias="from")
-    photo: Optional[List[BalePhotoSize]] = None
-    caption: Optional[str] = None
-    text: Optional[str] = None
-
-class BaleCallbackQuery(BaseModel):
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
-
-    id: str
-    from_: BaleUser = Field(alias="from")
-    message: Optional[BaleMessage] = None
-    data: Optional[str] = None
-
-class BaleUpdate(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    update_id: int
-    message: Optional[BaleMessage] = None
-    callback_query: Optional[BaleCallbackQuery] = None
 

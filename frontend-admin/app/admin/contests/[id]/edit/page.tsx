@@ -322,14 +322,12 @@ export default function EditContestPage() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی دوره (اختیاری)</label>
+              <label className="block text-[10px] font-black text-[#c5a059] uppercase tracking-widest mb-2">گواهی پایان دوره</label>
               <div className="relative">
-                <Award className="absolute right-4 top-4 text-gray-400 dark:text-slate-400 dark:text-slate-400" size={18} />
-                <select className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 dark:text-slate-100 font-bold text-sm cursor-pointer" value={formData.certificate_type} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
+                <Award className="absolute right-4 top-4 text-gray-400 dark:text-slate-400" size={18} />
+                <select className="w-full p-4 pr-12 bg-[#faf9f6] dark:bg-[#182234] border-none rounded-2xl text-[#1a2e44] dark:text-slate-100 font-bold text-sm cursor-pointer" value={formData.certificate_type === 'none' ? 'none' : 'has_certificate'} onChange={(e) => setFormData({...formData, certificate_type: e.target.value})}>
                   <option value="none">بدون گواهی</option>
-                  <option value="excellent">گواهی رتبه عالی</option>
-                  <option value="very_good">گواهی رتبه خیلی خوب</option>
-                  <option value="good">گواهی رتبه خوب</option>
+                  <option value="has_certificate">دارای گواهی</option>
                 </select>
               </div>
 
